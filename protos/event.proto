@@ -1,0 +1,99 @@
+syntax = "proto3";
+
+package svyne.event;
+
+option csharp_namespace = "Svyne.Protos.Event";
+
+import "common.proto";
+
+service EventService {
+  rpc CreateEvent (CreateEventRequest) returns (CreateEventResponse);
+  rpc UpdateEvent (UpdateEventRequest) returns (svyne.common.AckResponse);
+  rpc DeleteEvent (svyne.common.UuidValue) returns (svyne.common.AckResponse);
+  rpc GetEvent (svyne.common.UuidValue) returns (Event);
+  rpc GetEventBySlug (GetEventBySlugRequest) returns (Event);
+  rpc ListEvents (ListEventsRequest) returns (ListEventsResponse);
+  rpc SearchEvents (SearchEventsRequest) returns (ListEventsResponse);
+  rpc ChangeEventStatus (ChangeEventStatusRequest) returns (svyne.common.AckResponse);
+  rpc GetEventStats (svyne.common.UuidValue) returns (EventStats);
+}
+
+message Event {
+  string events_id = 1;
+  string tenants_id = 2;
+  string title = 3;
+  string slug = 4;
+  string description = 5;
+  string status = 6;
+  string category = 7;
+  int64 start_date = 8;
+  int64 end_date = 9;
+  string image_path = 10;
+  bool is_featured = 11;
+  string layout_mode = 12;
+  int32 max_capacity = 13;
+  string venues_id = 14;
+  string performers_json = 15;
+  string sponsors_json = 16;
+}
+
+message GetEventBySlugRequest { string slug = 1; }
+
+message CreateEventRequest {
+  string title = 1;
+  string slug = 2;
+  string description = 3;
+  string status = 4;
+  string category = 5;
+  int64 start_date = 6;
+  int64 end_date = 7;
+  string image_path = 8;
+  bool is_featured = 9;
+  string layout_mode = 10;
+  int32 max_capacity = 11;
+  int32 grid_rows = 12;
+  int32 grid_cols = 13;
+  string venues_id = 14;
+  int64 scheduled_publish_at = 15;
+}
+
+message CreateEventResponse { string events_id = 1; }
+
+message UpdateEventRequest {
+  string events_id = 1;
+  string title = 2;
+  string description = 3;
+  string category = 4;
+  int64 start_date = 5;
+  int64 end_date = 6;
+  string image_path = 7;
+  bool is_featured = 8;
+  int32 max_capacity = 9;
+  string venues_id = 10;
+}
+
+message ChangeEventStatusRequest {
+  string events_id = 1;
+  string status = 2;
+}
+
+message ListEventsRequest {
+  svyne.common.PageRequest page = 1;
+  string status = 2;
+  string category = 3;
+}
+
+message SearchEventsRequest { string query = 1; }
+
+message ListEventsResponse {
+  repeated Event events = 1;
+  svyne.common.PageMeta meta = 2;
+}
+
+message EventStats {
+  string events_id = 1;
+  int32 total_purchases = 2;
+  int32 tickets_sold = 3;
+  int64 revenue_cents = 4;
+  int32 checked_in = 5;
+}

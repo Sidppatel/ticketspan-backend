@@ -1,0 +1,128 @@
+syntax = "proto3";
+
+package svyne.catalog;
+
+option csharp_namespace = "Svyne.Protos.Catalog";
+
+import "common.proto";
+
+service VenueService {
+  rpc CreateVenue (CreateVenueRequest) returns (svyne.common.UuidValue);
+  rpc UpdateVenue (UpdateVenueRequest) returns (svyne.common.AckResponse);
+  rpc GetVenue (svyne.common.UuidValue) returns (Venue);
+  rpc ListVenues (svyne.common.PageRequest) returns (ListVenuesResponse);
+}
+
+service PerformerService {
+  rpc CreatePerformer (CreatePerformerRequest) returns (svyne.common.UuidValue);
+  rpc UpdatePerformer (UpdatePerformerRequest) returns (svyne.common.AckResponse);
+  rpc DeletePerformer (svyne.common.UuidValue) returns (svyne.common.AckResponse);
+  rpc ListPerformers (svyne.common.PageRequest) returns (ListPerformersResponse);
+  rpc SetEventPerformers (SetEventLinksRequest) returns (svyne.common.AckResponse);
+}
+
+service SponsorService {
+  rpc CreateSponsor (CreateSponsorRequest) returns (svyne.common.UuidValue);
+  rpc UpdateSponsor (UpdateSponsorRequest) returns (svyne.common.AckResponse);
+  rpc DeleteSponsor (svyne.common.UuidValue) returns (svyne.common.AckResponse);
+  rpc ListSponsors (svyne.common.PageRequest) returns (ListSponsorsResponse);
+  rpc SetEventSponsors (SetEventLinksRequest) returns (svyne.common.AckResponse);
+}
+
+message Venue {
+  string venues_id = 1;
+  string name = 2;
+  string description = 3;
+  string image_path = 4;
+  string phone = 5;
+  string email = 6;
+  string website = 7;
+  bool is_active = 8;
+}
+
+message CreateVenueRequest {
+  string name = 1;
+  string description = 2;
+  string image_path = 3;
+  string phone = 4;
+  string email = 5;
+  string website = 6;
+  string line1 = 7;
+  string line2 = 8;
+  string city = 9;
+  string state = 10;
+  string zip = 11;
+}
+
+message UpdateVenueRequest {
+  string venues_id = 1;
+  string name = 2;
+  string description = 3;
+  string phone = 4;
+  string email = 5;
+  string website = 6;
+}
+
+message ListVenuesResponse {
+  repeated Venue venues = 1;
+  svyne.common.PageMeta meta = 2;
+}
+
+message Performer {
+  string performers_id = 1;
+  string name = 2;
+  string slug = 3;
+  string primary_image_path = 4;
+  string meta_json = 5;
+}
+
+message CreatePerformerRequest {
+  string name = 1;
+  string slug = 2;
+  string image_path = 3;
+  string meta_json = 4;
+}
+
+message UpdatePerformerRequest {
+  string performers_id = 1;
+  string name = 2;
+  string image_path = 3;
+  string meta_json = 4;
+}
+
+message ListPerformersResponse {
+  repeated Performer performers = 1;
+  svyne.common.PageMeta meta = 2;
+}
+
+message Sponsor {
+  string sponsors_id = 1;
+  string name = 2;
+  string slug = 3;
+  string primary_image_path = 4;
+  string meta_json = 5;
+}
+
+message CreateSponsorRequest {
+  string name = 1;
+  string slug = 2;
+  string image_path = 3;
+  string meta_json = 4;
+}
+
+message UpdateSponsorRequest {
+  string sponsors_id = 1;
+  string name = 2;
+  string image_path = 3;
+  string meta_json = 4;
+}
+
+message ListSponsorsResponse {
+  repeated Sponsor sponsors = 1;
+  svyne.common.PageMeta meta = 2;
+}
+
+message SetEventLinksRequest {
+  string events_id = 1;
+  string links_json = 2;
+}

@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package svyne.auth;
+
+option csharp_namespace = "Svyne.Protos.Auth";
+
+import "common.proto";
+
+service AuthService {
+  rpc Login (LoginRequest) returns (AuthResponse);
+  rpc GoogleSignIn (GoogleSignInRequest) returns (AuthResponse);
+  rpc RefreshToken (RefreshTokenRequest) returns (AuthResponse);
+  rpc Logout (LogoutRequest) returns (svyne.common.AckResponse);
+  rpc RequestMagicLink (MagicLinkRequest) returns (svyne.common.AckResponse);
+  rpc VerifyMagicLink (MagicLinkVerifyRequest) returns (AuthResponse);
+  rpc RequestPasswordReset (PasswordResetRequest) returns (svyne.common.AckResponse);
+  rpc SetPassword (SetPasswordRequest) returns (svyne.common.AckResponse);
+  rpc Me (svyne.common.Empty) returns (UserProfile);
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+  string tenant_slug = 3;
+}
+
+message GoogleSignInRequest {
+  string google_token = 1;
+  string tenant_slug = 2;
+}
+
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+message LogoutRequest {
+  string session_hash = 1;
+}
+
+message MagicLinkRequest {
+  string email = 1;
+  string tenant_slug = 2;
+}
+
+message MagicLinkVerifyRequest {
+  string token = 1;
+}
+
+message PasswordResetRequest {
+  string email = 1;
+  string tenant_slug = 2;
+}
+
+message SetPasswordRequest {
+  string token = 1;
+  string new_password = 2;
+}
+
+message AuthResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  int64 expires_at = 3;
+  UserProfile user = 4;
+}
+
+message UserProfile {
+  string users_id = 1;
+  string tenants_id = 2;
+  string email = 3;
+  string first_name = 4;
+  string last_name = 5;
+  int32 role = 6;
+  string tenant_slug = 7;
+  bool email_verified = 8;
+  string avatar_url = 9;
+}

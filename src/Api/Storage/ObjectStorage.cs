@@ -1,0 +1,48 @@
+using Amazon.S3;
+using Amazon.S3.Model;
+
+namespace Svyne.Api.Storage;
+
+public sealed class ObjectStorage
+{
+    private readonly string? bucket;
+    private readonly string? serviceUrl;
+    private readonly string localRoot;
+
+    public ObjectStorage(IConfiguration configuration)
+    {
+        bucket = configuration["S3_BUCKET"];
+        serviceUrl = configuration["S3_SERVICE_URL"];
+        localRoot = configuration["LOCAL_UPLOAD_ROOT"] ?? Path.Combine(AppContext.BaseDirectory, "uploads");
+    }
+
+    public bool UsesS3 => !string.IsNullOrEmpty(bucket);
+
+    public async Task PutAsync(string key, Stream content, string contentType, CancellationToken ct)
+    {
+        if (UsesS3)
+        {
+            var config = new AmazonS3Config();
+            if (!string.IsNullOrEmpty(serviceUrl))
+            {
+                config.ServiceURL = serviceUrl;
+                config.ForcePathStyle = true;
+            }
+            using var client = new AmazonS3Client(config);
+            await client.PutObjectAsync(new PutObjectRequest
+            {
+                BucketName = bucket,
+                Key = key,
+                InputStream = content,
+                ContentType = contentType,
+                DisablePayloadSigning = !string.IsNullOrEmpty(serviceUrl)
+            }, ct);
+            return;
+        }
+
+        var path = Path.Combine(localRoot, key.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        await using var file = File.Create(path);
+        await content.CopyToAsync(file, ct);
+    }
+}

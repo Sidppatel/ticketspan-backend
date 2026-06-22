@@ -10,16 +10,14 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 WORKDIR /src
 
 COPY svyneEventBackEnd.slnx ./
-COPY db/Db/Db.csproj                                       ./db/Db/
-COPY db/MigrationRunner/MigrationRunner.csproj             ./db/MigrationRunner/
-COPY db/SchemaSnapshot/SchemaSnapshot.csproj               ./db/SchemaSnapshot/
-COPY tests/SchemaTests/SchemaTests.csproj                   ./tests/SchemaTests/
+COPY database-scripts/Db/Db.csproj                                       ./database-scripts/Db/
+COPY database-scripts/MigrationRunner/MigrationRunner.csproj             ./database-scripts/MigrationRunner/
 
-RUN dotnet restore db/MigrationRunner/MigrationRunner.csproj
+RUN dotnet restore database-scripts/MigrationRunner/MigrationRunner.csproj
 
 COPY . .
 
-RUN dotnet publish db/MigrationRunner -c Release -o /app/migrate \
+RUN dotnet publish database-scripts/MigrationRunner -c Release -o /app/migrate \
     --no-restore -p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/runtime:10.0-alpine AS runtime

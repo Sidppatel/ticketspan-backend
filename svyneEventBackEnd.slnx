@@ -1,10 +1,7 @@
 <Solution>
-  <Project Path="api/api.csproj" />
-  <Project Path="contracts/contracts.csproj" />
-  <Project Path="db/Db/Db.csproj" />
-  <Project Path="db/MigrationRunner/MigrationRunner.csproj" />
-  <Project Path="db/SchemaSnapshot/SchemaSnapshot.csproj" />
-  <Project Path="tests/Api.Tests/Api.Tests.csproj" />
-  <Project Path="tests/IntegrationTests/IntegrationTests.csproj" />
-  <Project Path="tests/SchemaTests/SchemaTests.csproj" />
+  <Project Path="src/Contracts/Contracts.csproj" />
+  <Project Path="src/Api/Api.csproj" />
+  <Project Path="database-scripts/Db/Db.csproj" />
+  <Project Path="database-scripts/MigrationRunner/MigrationRunner.csproj" />
+  <Project Path="tests/GrpcSmoke/GrpcSmoke.csproj" />
 </Solution>

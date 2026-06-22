@@ -15,22 +15,18 @@ WORKDIR /src
 # 1. Copy solution + every project file before restoring so the restore
 #    layer is only invalidated when dependencies actually change.
 COPY svyneEventBackEnd.slnx ./
-COPY api/api.csproj                                    ./api/
-COPY contracts/contracts.csproj                        ./contracts/
-COPY tests/Api.Tests/Api.Tests.csproj                  ./tests/Api.Tests/
-COPY tests/IntegrationTests/IntegrationTests.csproj    ./tests/IntegrationTests/
+COPY src/Api/Api.csproj                ./src/Api/
+COPY src/Contracts/Contracts.csproj    ./src/Contracts/
+COPY protos/ ./protos/
 
-# 2. Restore only the publishable project — the solution file now includes
-#    tests/IntegrationTests which pulls Testcontainers + Microsoft.AspNetCore.Mvc.Testing,
-#    neither of which are needed to ship the API. Scoping the restore to api.csproj
-#    keeps the runtime image slim and the build step fast.
-RUN dotnet restore api/api.csproj
+# 2. Restore only the publishable API project.
+RUN dotnet restore src/Api/Api.csproj
 
 # 3. Copy the rest of the source
 COPY . .
 
 # 4. Publish — no restore, no native app host (smaller image, faster publish)
-RUN dotnet publish api/api.csproj \
+RUN dotnet publish src/Api/Api.csproj \
     -c Release \
     -o /app/publish \
     --no-restore \

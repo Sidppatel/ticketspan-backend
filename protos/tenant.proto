@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package svyne.tenant;
+
+option csharp_namespace = "Svyne.Protos.Tenant";
+
+import "common.proto";
+
+service TenantService {
+  rpc CreateTenant (CreateTenantRequest) returns (CreateTenantResponse);
+  rpc UpdateTenant (UpdateTenantRequest) returns (svyne.common.AckResponse);
+  rpc ArchiveTenant (svyne.common.UuidValue) returns (svyne.common.AckResponse);
+  rpc GetTenant (svyne.common.UuidValue) returns (Tenant);
+  rpc ListTenants (svyne.common.PageRequest) returns (ListTenantsResponse);
+  rpc ListTenantMembers (svyne.common.UuidValue) returns (ListTenantMembersResponse);
+  rpc GetTenantStripeStatus (svyne.common.UuidValue) returns (TenantStripeStatus);
+}
+
+message Tenant {
+  string tenants_id = 1;
+  string slug = 2;
+  string name = 3;
+  string legal_name = 4;
+  string country_code = 5;
+  int32 member_count = 6;
+  int32 event_count = 7;
+  int64 total_revenue_cents = 8;
+  bool archived = 9;
+}
+
+message CreateTenantRequest {
+  string slug = 1;
+  string name = 2;
+  string admin_email = 3;
+  string admin_first_name = 4;
+  string admin_last_name = 5;
+  string legal_name = 6;
+  string country_code = 7;
+}
+
+message CreateTenantResponse {
+  string tenants_id = 1;
+  string admin_users_id = 2;
+  string setup_url = 3;
+}
+
+message UpdateTenantRequest {
+  string tenants_id = 1;
+  string name = 2;
+  string legal_name = 3;
+  string country_code = 4;
+}
+
+message ListTenantsResponse {
+  repeated Tenant tenants = 1;
+  svyne.common.PageMeta meta = 2;
+}
+
+message TenantMember {
+  string users_id = 1;
+  string email = 2;
+  int32 role = 3;
+  string display_name = 4;
+}
+
+message ListTenantMembersResponse {
+  repeated TenantMember members = 1;
+}
+
+message TenantStripeStatus {
+  string tenants_id = 1;
+  string stripe_connected_account_id = 2;
+  bool charges_enabled = 3;
+  bool payouts_enabled = 4;
+  bool details_submitted = 5;
+}

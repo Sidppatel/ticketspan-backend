@@ -1,0 +1,171 @@
+syntax = "proto3";
+
+package svyne.admin;
+
+option csharp_namespace = "Svyne.Protos.Admin";
+
+import "common.proto";
+
+service DashboardService {
+  rpc GetAdminDashboard (svyne.common.Empty) returns (AdminDashboard);
+  rpc GetDeveloperDashboard (svyne.common.Empty) returns (DeveloperDashboard);
+}
+
+service FinancialService {
+  rpc GetMonthlyReport (MonthlyReportRequest) returns (MonthlyReport);
+  rpc GetStripeStatus (svyne.common.UuidValue) returns (StripeStatus);
+  rpc StartStripeOnboarding (svyne.common.UuidValue) returns (StripeOnboardingLink);
+}
+
+service StaffService {
+  rpc ListStaffForEvent (svyne.common.UuidValue) returns (ListStaffResponse);
+  rpc AssignStaff (AssignStaffRequest) returns (svyne.common.AckResponse);
+  rpc UnassignStaff (AssignStaffRequest) returns (svyne.common.AckResponse);
+}
+
+service InvitationService {
+  rpc CreateInvitation (CreateInvitationRequest) returns (svyne.common.UuidValue);
+  rpc AcceptInvitation (AcceptInvitationRequest) returns (svyne.common.AckResponse);
+  rpc RevokeInvitation (svyne.common.UuidValue) returns (svyne.common.AckResponse);
+  rpc ListInvitations (svyne.common.PageRequest) returns (ListInvitationsResponse);
+}
+
+service LogService {
+  rpc GetAdminLogs (LogQuery) returns (LogPage);
+  rpc GetDeveloperLogs (LogQuery) returns (LogPage);
+  rpc GetSystemLogs (LogQuery) returns (LogPage);
+}
+
+service FeedbackService {
+  rpc CreateFeedback (CreateFeedbackRequest) returns (svyne.common.UuidValue);
+  rpc ListFeedback (svyne.common.PageRequest) returns (ListFeedbackResponse);
+  rpc DeleteFeedback (svyne.common.UuidValue) returns (svyne.common.AckResponse);
+}
+
+service HealthService {
+  rpc Check (svyne.common.Empty) returns (HealthStatus);
+}
+
+message AdminDashboard {
+  int32 total_events = 1;
+  int32 active_events = 2;
+  int64 total_revenue_cents = 3;
+  int32 total_attendees = 4;
+}
+
+message DeveloperDashboard {
+  int32 total_tenants = 1;
+  int32 total_users = 2;
+  int64 platform_revenue_cents = 3;
+}
+
+message MonthlyReportRequest {
+  string events_id = 1;
+  int32 year = 2;
+  int32 month = 3;
+}
+
+message MonthlyReport {
+  int64 gross_cents = 1;
+  int64 fees_cents = 2;
+  int64 net_cents = 3;
+  int32 tickets_sold = 4;
+}
+
+message StripeStatus {
+  bool charges_enabled = 1;
+  bool payouts_enabled = 2;
+  bool details_submitted = 3;
+}
+
+message StripeOnboardingLink { string url = 1; }
+
+message StaffMember {
+  string users_id = 1;
+  string first_name = 2;
+  string last_name = 3;
+  string email = 4;
+}
+
+message ListStaffResponse { repeated StaffMember staff = 1; }
+
+message AssignStaffRequest {
+  string users_id = 1;
+  string events_id = 2;
+}
+
+message CreateInvitationRequest {
+  string email = 1;
+  int32 role = 2;
+}
+
+message AcceptInvitationRequest {
+  string token = 1;
+  string password = 2;
+  string first_name = 3;
+  string last_name = 4;
+}
+
+message Invitation {
+  string invitations_id = 1;
+  string email = 2;
+  int32 role = 3;
+  string status = 4;
+  int64 expires_at = 5;
+}
+
+message ListInvitationsResponse {
+  repeated Invitation invitations = 1;
+  svyne.common.PageMeta meta = 2;
+}
+
+message LogQuery {
+  svyne.common.PageRequest page = 1;
+  string action = 2;
+  string entity_type = 3;
+  int64 from = 4;
+  int64 to = 5;
+}
+
+message LogEntry {
+  string id = 1;
+  int64 timestamp = 2;
+  string action = 3;
+  string entity_type = 4;
+  string actor_email = 5;
+  string detail = 6;
+}
+
+message LogPage {
+  repeated LogEntry entries = 1;
+  svyne.common.PageMeta meta = 2;
+}
+
+message CreateFeedbackRequest {
+  string name = 1;
+  string email = 2;
+  string type = 3;
+  string message = 4;
+  int32 rating = 5;
+  string diagnostics_json = 6;
+}
+
+message Feedback {
+  string feedbacks_id = 1;
+  string name = 2;
+  string type = 3;
+  string message = 4;
+  int32 rating = 5;
+  int64 created_at = 6;
+}
+
+message ListFeedbackResponse {
+  repeated Feedback feedback = 1;
+  svyne.common.PageMeta meta = 2;
+}
+
+message HealthStatus {
+  string status = 1;
+  bool database = 2;
+  bool redis = 3;
+}
