@@ -15,7 +15,7 @@ Branch: `restructure/phase1-unified-schema`. Convention: full snake_case columns
 - `Event`: added `TenantsId`, owner `CreatedByUsersId` (was `BusinessUserId`).
 
 ## Done (cont.)
-- Added `TenantsId` to all tenant-scoped entities (Venue, TableTemplate, Performer, Sponsor, EventTable, EventTicketType, Table, Purchase, PurchaseTicket, PurchaseTable, StripeTransaction, Image?, EventImage, VenueImage, Feedback?, EmailLog?, AuditLog?, MagicLinkToken?, EventPerformer, EventSponsor). Nullable on Image/Feedback/EmailLog/AuditLog/MagicLink. Global/no-tenant: addresses, app_settings, platform_images.
+- Added `TenantsId` to all tenant-scoped entities (Venue, TableTemplate, Performer, Sponsor, EventTable, EventTicketType, Table, Booking, Ticket, BookingTable, StripeTransaction, Image?, EventImage, VenueImage, Feedback?, EmailLog?, AuditLog?, MagicLinkToken?, EventPerformer, EventSponsor). Nullable on Image/Feedback/EmailLog/AuditLog/MagicLink. Global/no-tenant: addresses, app_settings, platform_images.
 - Stripped all comments (Rule 1) from rewritten entities. Plural table FKs (`events_id`, `users_id`, etc.).
 - Added `EFCore.NamingConventions` 10.0.1 → `UseSnakeCaseNamingConvention()` in DesignTimeDbContextFactory. Global snake_case columns.
 - Rewrote `EventPlatformDbContext.cs`: Tenant + unified User configs (UNIQUE(tenants_id,email,role); CHECK (role=99)=(tenants_id IS NULL); CHECK role IN(...); unique google_subject partial; pepper_version default 1; email_hash non-unique index). All check constraints snake-cased. Generic loop maps every table PK `Id`→`<table>_id` (Rule 10). Views remapped `v_*`→`vw_*`.
@@ -33,7 +33,7 @@ Branch: `restructure/phase1-unified-schema`. Convention: full snake_case columns
 ## PHASE 1 COMPLETE (verified)
 - All 170 SP files + 31 views + RLS install clean. From-scratch `dotnet ef database update` (InitialCreate + InstallSqlArtifacts) builds full DB via .NET only (Rule 15).
 - Converter pipeline: conv.pl (dquote->snake, table/FK renames, v_->vw_), pass2.pl (alias.id->table_id), pass3.pl (statement-aware bare id). Then manual fixes for tenant_id inserts (25 SPs derive/param), owner col (events.created_by_users_id), role smallint, RETURNING ambiguity.
-- DB-verified end-to-end: tenant+admin+magiclink, venue, event, event_table, ticket_type, table, performer+link, sponsor+link, event_image, signup, seated purchase+confirm (Paid,1 ticket), open-capacity reserve+confirm (Paid,2 tickets), vw_events jsonb perfs+spons, sp_get_purchase_stats.
+- DB-verified end-to-end: tenant+admin+magiclink, venue, event, event_table, ticket_type, table, performer+link, sponsor+link, event_image, signup, seated booking+confirm (Paid,1 ticket), open-capacity reserve+confirm (Paid,2 tickets), vw_events jsonb perfs+spons, sp_get_booking_stats.
 - Counts: 34 tables, 31 vw_, 168 sp/fn, 25 policies, 3 app fns.
 - InstallSqlArtifacts migration loads Sql.{Security,Views,ViewsOrg,Performers,Sponsors,Procedures,ProceduresOrg,ProceduresStripe,Policies}.
 

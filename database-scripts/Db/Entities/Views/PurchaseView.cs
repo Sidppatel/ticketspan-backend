@@ -1,9 +1,9 @@
 namespace Db.Entities.Views;
 
-public class PurchaseView
+public class BookingView
 {
-    public Guid PurchaseId { get; set; }
-    public string PurchaseNumber { get; set; } = string.Empty;
+    public Guid BookingId { get; set; }
+    public string BookingNumber { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public int SubtotalCents { get; set; }
     public int FeeCents { get; set; }

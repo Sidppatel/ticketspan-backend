@@ -90,6 +90,25 @@ public sealed class TenantServiceImpl : TenantService.TenantServiceBase
         return response;
     }
 
+    public override async Task<ListPublicTenantsResponse> ListPublicTenants(Empty request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        var response = new ListPublicTenantsResponse();
+        await using var connection = await db.OpenAsync(null, null, ct);
+        await using var cmd = new NpgsqlCommand(
+            "SELECT slug, name FROM tenants WHERE archived_at IS NULL ORDER BY name", connection);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            response.Tenants.Add(new PublicTenant
+            {
+                Slug = reader.GetString(0),
+                Name = reader.GetString(1)
+            });
+        }
+        return response;
+    }
+
     public override async Task<ListTenantMembersResponse> ListTenantMembers(UuidValue request, ServerCallContext context)
     {
         RequireDeveloper();

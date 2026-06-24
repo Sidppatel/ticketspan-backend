@@ -12,6 +12,7 @@ service TenantService {
   rpc ArchiveTenant (svyne.common.UuidValue) returns (svyne.common.AckResponse);
   rpc GetTenant (svyne.common.UuidValue) returns (Tenant);
   rpc ListTenants (svyne.common.PageRequest) returns (ListTenantsResponse);
+  rpc ListPublicTenants (svyne.common.Empty) returns (ListPublicTenantsResponse);
   rpc ListTenantMembers (svyne.common.UuidValue) returns (ListTenantMembersResponse);
   rpc GetTenantStripeStatus (svyne.common.UuidValue) returns (TenantStripeStatus);
 }
@@ -54,6 +55,15 @@ message UpdateTenantRequest {
 message ListTenantsResponse {
   repeated Tenant tenants = 1;
   svyne.common.PageMeta meta = 2;
+}
+
+message PublicTenant {
+  string slug = 1;
+  string name = 2;
+}
+
+message ListPublicTenantsResponse {
+  repeated PublicTenant tenants = 1;
 }
 
 message TenantMember {

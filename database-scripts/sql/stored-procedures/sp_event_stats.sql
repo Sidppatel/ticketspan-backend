@@ -15,7 +15,7 @@ AS $$
             ELSE 0 END AS fill_rate_pct,
         COALESCE((
             SELECT SUM(b.subtotal_cents)::bigint
-            FROM purchases b
+            FROM bookings b
             WHERE b.events_id = p_event_id
               AND b.status IN ('Paid', 'CheckedIn')
         ), 0) AS gross_revenue_cents

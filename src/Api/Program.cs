@@ -18,23 +18,40 @@ builder.WebHost.ConfigureKestrel(options =>
 const string CorsPolicy = "frontend";
 var corsOrigins = (builder.Configuration["CORS_ORIGINS"] ?? string.Empty)
     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+var corsBaseDomain = builder.Configuration["CORS_BASE_DOMAIN"];
 builder.Services.AddCors(options =>
     options.AddPolicy(CorsPolicy, policy =>
     {
-        if (corsOrigins.Length > 0)
+        policy.SetIsOriginAllowed(origin =>
         {
-            policy.WithOrigins(corsOrigins);
-        }
+            if (corsOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+            if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+            {
+                return false;
+            }
+            var host = uri.Host;
+            if (host == "localhost" || host.EndsWith(".localhost"))
+            {
+                return true;
+            }
+            return !string.IsNullOrEmpty(corsBaseDomain)
+                && (host == corsBaseDomain || host.EndsWith("." + corsBaseDomain));
+        });
         policy
             .AllowAnyHeader()
             .AllowAnyMethod()
-            // gRPC-Web returns the RPC status in response headers; the browser
-            // client cannot read them unless they are explicitly exposed.
             .WithExposedHeaders("grpc-status", "grpc-message", "grpc-status-details-bin");
     }));
 
 builder.Services.AddGrpc();
 builder.Services.AddSingleton<Db>();
+builder.Services.AddSingleton<StartupSeeder>();
+builder.Services.AddSingleton<AppSettingsProvider>();
+builder.Services.AddSingleton<Svyne.Api.Email.EmailTemplateRenderer>();
+builder.Services.AddSingleton<Svyne.Api.Email.IEmailService, Svyne.Api.Email.LocalFileEmailService>();
 builder.Services.AddSingleton<PasswordHasher>();
 builder.Services.AddSingleton<JwtTokenService>();
 builder.Services.AddScoped<TenantContext>();
@@ -61,6 +78,8 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+await app.Services.GetRequiredService<StartupSeeder>().SeedAsync(CancellationToken.None);
+
 app.UseRouting();
 app.UseCors(CorsPolicy);
 app.UseGrpcWeb(new GrpcWebOptions { DefaultEnabled = true });
@@ -74,7 +93,7 @@ app.MapGrpcService<EventServiceImpl>();
 app.MapGrpcService<VenueServiceImpl>();
 app.MapGrpcService<PerformerServiceImpl>();
 app.MapGrpcService<SponsorServiceImpl>();
-app.MapGrpcService<PurchaseServiceImpl>();
+app.MapGrpcService<BookingServiceImpl>();
 app.MapGrpcService<CheckInServiceImpl>();
 app.MapGrpcService<TicketServiceImpl>();
 app.MapGrpcService<TableBookingServiceImpl>();
@@ -85,6 +104,7 @@ app.MapGrpcService<FeedbackServiceImpl>();
 app.MapGrpcService<LogServiceImpl>();
 app.MapGrpcService<FinancialServiceImpl>();
 app.MapGrpcService<HealthServiceImpl>();
+app.MapGrpcService<EnumServiceImpl>();
 app.MapGet("/", () => "Svyne gRPC API");
 app.MapGet("/health/live", () => Results.Ok("live"));
 app.MapGet("/health/ready", async (Db db, CancellationToken ct) =>
@@ -165,5 +185,29 @@ app.MapPost("/uploads/images", async (HttpRequest request, Db db, TenantContext 
     var imageId = await cmd.ExecuteScalarAsync(ct);
     return Results.Ok(new { imagesId = imageId?.ToString(), storageKey });
 }).RequireAuthorization();
+
+app.MapGet("/images/{imagesId}", async (string imagesId, Db db, Svyne.Api.Storage.ObjectStorage storage, CancellationToken ct) =>
+{
+    if (!Guid.TryParse(imagesId, out var id))
+    {
+        return Results.BadRequest("invalid id");
+    }
+    string storageKey;
+    string contentType;
+    await using (var connection = await db.OpenAsync(null, null, ct))
+    await using (var cmd = new Npgsql.NpgsqlCommand("SELECT storage_key, content_type FROM images WHERE images_id = @id", connection))
+    {
+        cmd.Parameters.AddWithValue("id", id);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct))
+        {
+            return Results.NotFound();
+        }
+        storageKey = reader.GetString(0);
+        contentType = reader.IsDBNull(1) ? "application/octet-stream" : reader.GetString(1);
+    }
+    var stream = await storage.OpenReadAsync(storageKey, ct);
+    return stream is null ? Results.NotFound() : Results.File(stream, contentType);
+}).AllowAnonymous();
 
 app.Run();

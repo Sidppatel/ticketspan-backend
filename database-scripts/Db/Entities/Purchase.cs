@@ -2,12 +2,12 @@ using Db.Enums;
 
 namespace Db.Entities;
 
-public class Purchase : BaseEntity
+public class Booking : BaseEntity
 {
     public Guid TenantsId { get; set; }
     public Tenant Tenant { get; set; } = null!;
-    public required string PurchaseNumber { get; set; }
-    public PurchaseStatus Status { get; set; } = PurchaseStatus.Pending;
+    public required string BookingNumber { get; set; }
+    public BookingStatus Status { get; set; } = BookingStatus.Pending;
 
     public Guid UsersId { get; set; }
     public User User { get; set; } = null!;
@@ -31,5 +31,5 @@ public class Purchase : BaseEntity
 
     public StripeTransaction? StripeTransaction { get; set; }
 
-    public ICollection<PurchaseTicket> Tickets { get; set; } = [];
+    public ICollection<Ticket> Tickets { get; set; } = [];
 }

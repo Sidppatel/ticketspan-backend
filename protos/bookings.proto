@@ -1,27 +1,27 @@
 syntax = "proto3";
 
-package svyne.purchase;
+package svyne.booking;
 
-option csharp_namespace = "Svyne.Protos.Purchase";
+option csharp_namespace = "Svyne.Protos.Booking";
 
 import "common.proto";
 
-service PurchaseService {
-  rpc CreatePurchase (CreatePurchaseRequest) returns (CreatePurchaseResponse);
-  rpc ReserveOpenCapacity (ReserveOpenCapacityRequest) returns (CreatePurchaseResponse);
-  rpc ConfirmPurchase (ConfirmPurchaseRequest) returns (svyne.common.AckResponse);
-  rpc CancelPurchase (svyne.common.UuidValue) returns (svyne.common.AckResponse);
-  rpc RefundPurchase (svyne.common.UuidValue) returns (svyne.common.AckResponse);
-  rpc GetPurchase (svyne.common.UuidValue) returns (Purchase);
-  rpc ListPurchases (ListPurchasesRequest) returns (ListPurchasesResponse);
-  rpc GetPurchaseStats (svyne.common.UuidValue) returns (PurchaseStats);
+service BookingService {
+  rpc CreateBooking (CreateBookingRequest) returns (CreateBookingResponse);
+  rpc ReserveOpenCapacity (ReserveOpenCapacityRequest) returns (CreateBookingResponse);
+  rpc ConfirmBooking (ConfirmBookingRequest) returns (svyne.common.AckResponse);
+  rpc CancelBooking (svyne.common.UuidValue) returns (svyne.common.AckResponse);
+  rpc RefundBooking (svyne.common.UuidValue) returns (svyne.common.AckResponse);
+  rpc GetBooking (svyne.common.UuidValue) returns (Booking);
+  rpc ListBookings (ListBookingsRequest) returns (ListBookingsResponse);
+  rpc GetBookingStats (svyne.common.UuidValue) returns (BookingStats);
 }
 
 service TicketService {
   rpc GetTicket (svyne.common.UuidValue) returns (Ticket);
   rpc ClaimTicket (ClaimTicketRequest) returns (svyne.common.AckResponse);
   rpc InviteTicket (InviteTicketRequest) returns (svyne.common.AckResponse);
-  rpc ListPurchaseTickets (svyne.common.UuidValue) returns (ListTicketsResponse);
+  rpc ListTickets (svyne.common.UuidValue) returns (ListTicketsResponse);
 }
 
 service CheckInService {
@@ -29,10 +29,10 @@ service CheckInService {
   rpc GetCheckInStats (svyne.common.UuidValue) returns (CheckInStats);
 }
 
-message Purchase {
-  string purchases_id = 1;
+message Booking {
+  string bookings_id = 1;
   string tenants_id = 2;
-  string purchase_number = 3;
+  string booking_number = 3;
   string status = 4;
   string users_id = 5;
   string events_id = 6;
@@ -42,7 +42,7 @@ message Purchase {
   int32 seats_reserved = 10;
 }
 
-message CreatePurchaseRequest {
+message CreateBookingRequest {
   string events_id = 1;
   string tables_id = 2;
   int32 seats = 3;
@@ -61,28 +61,28 @@ message ReserveOpenCapacityRequest {
   int32 total_cents = 6;
 }
 
-message CreatePurchaseResponse {
-  string purchases_id = 1;
-  string purchase_number = 2;
+message CreateBookingResponse {
+  string bookings_id = 1;
+  string booking_number = 2;
 }
 
-message ConfirmPurchaseRequest {
-  string purchases_id = 1;
+message ConfirmBookingRequest {
+  string bookings_id = 1;
   string qr_token = 2;
 }
 
-message ListPurchasesRequest {
+message ListBookingsRequest {
   svyne.common.PageRequest page = 1;
   string events_id = 2;
   string status = 3;
 }
 
-message ListPurchasesResponse {
-  repeated Purchase purchases = 1;
+message ListBookingsResponse {
+  repeated Booking bookings = 1;
   svyne.common.PageMeta meta = 2;
 }
 
-message PurchaseStats {
+message BookingStats {
   int32 total = 1;
   int32 paid = 2;
   int32 checked_in = 3;
@@ -90,7 +90,7 @@ message PurchaseStats {
 }
 
 message Ticket {
-  string purchase_tickets_id = 1;
+  string tickets_id = 1;
   string ticket_code = 2;
   string qr_token = 3;
   int32 seat_number = 4;
@@ -103,7 +103,7 @@ message ClaimTicketRequest {
 }
 
 message InviteTicketRequest {
-  string purchase_tickets_id = 1;
+  string tickets_id = 1;
   string email = 2;
 }
 

@@ -1,8 +1,8 @@
 namespace Db.Entities.Views;
 
-public class PurchaseTicketView
+public class TicketView
 {
-    public Guid PurchaseTicketId { get; set; }
+    public Guid TicketId { get; set; }
     public string TicketCode { get; set; } = string.Empty;
     public string QrToken { get; set; } = string.Empty;
     public int SeatNumber { get; set; }
@@ -15,10 +15,10 @@ public class PurchaseTicketView
     public DateTime? InviteExpiresAt { get; set; }
     public DateTime? ClaimedAt { get; set; }
 
-    // Purchase
-    public Guid PurchaseId { get; set; }
-    public string PurchaseNumber { get; set; } = string.Empty;
-    public string PurchaseStatus { get; set; } = string.Empty;
+    // Booking
+    public Guid BookingId { get; set; }
+    public string BookingNumber { get; set; } = string.Empty;
+    public string BookingStatus { get; set; } = string.Empty;
 
     // Guest user
     public Guid? GuestUserId { get; set; }
@@ -36,15 +36,15 @@ public class PurchaseTicketView
     public string VenueName { get; set; } = string.Empty;
     public string VenueCity { get; set; } = string.Empty;
 
-    // Purchase owner
-    public Guid PurchaseUserId { get; set; }
-    public string PurchaseUserEmail { get; set; } = string.Empty;
-    public string PurchaseUserFirstName { get; set; } = string.Empty;
-    public string PurchaseUserLastName { get; set; } = string.Empty;
+    // Booking owner
+    public Guid BookingUserId { get; set; }
+    public string BookingUserEmail { get; set; } = string.Empty;
+    public string BookingUserFirstName { get; set; } = string.Empty;
+    public string BookingUserLastName { get; set; } = string.Empty;
 
     // Invite token hash (for claim-by-token lookups via view)
     public string? InviteTokenHash { get; set; }
 
-    // Purchase table (for claim info table label)
-    public Guid? PurchaseTableId { get; set; }
+    // Booking table (for claim info table label)
+    public Guid? BookingTableId { get; set; }
 }

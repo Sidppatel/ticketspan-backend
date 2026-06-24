@@ -154,7 +154,7 @@ Group 36 controllers into services. Each mutating RPC returns an `AckResponse { 
 | `EventService` | EventsController, AdminEventsController, DeveloperEventsController |
 | `PerformerService` | PerformersController, AdminPerformersController, AdminEventPerformersController |
 | `SponsorService` | SponsorsController, AdminSponsorsController, AdminEventSponsorsController |
-| `PurchaseService` | PurchasesController, AdminPurchasesController, DeveloperPurchasesController |
+| `BookingService` | BookingsController, AdminBookingsController, DeveloperBookingsController |
 | `TicketService` | TicketsController |
 | `CheckInService` | CheckInController |
 | `TableBookingService` | TableBookingController, AdminLayoutController |

@@ -1,4 +1,4 @@
-// k6 scenario: purchase creation + Stripe test-mode PaymentIntent confirm.
+// k6 scenario: booking creation + Stripe test-mode PaymentIntent confirm.
 // 20 VUs for 5 min. Requires Stripe test-mode secret on backend and a seeded
 // test user with magic-link login flow bypass (E2E_TEST_USER / E2E_TEST_TOKEN).
 //
@@ -40,10 +40,10 @@ export const options = {
 };
 
 const quoteLatency    = new Trend('ep_quote_ms',    true);
-const purchaseLatency = new Trend('ep_purchase_ms', true);
+const bookingLatency = new Trend('ep_booking_ms', true);
 const confirmLatency  = new Trend('ep_confirm_ms',  true);
-const purchasesOk     = new Counter('ep_purchases_ok');
-const purchasesFail   = new Counter('ep_purchases_fail');
+const bookingsOk     = new Counter('ep_bookings_ok');
+const bookingsFail   = new Counter('ep_bookings_fail');
 
 export function setup() {
     if (!TEST_USER || !TEST_TOKEN || !EVENT_ID || !TICKET_TYPE_ID) {
@@ -74,25 +74,25 @@ export default function (data) {
         { headers, tags: { name: 'quote' } });
     quoteLatency.add(quoteRes.timings.duration);
     if (!check(quoteRes, { 'quote 200': (r) => r.status === 200 })) {
-        purchasesFail.add(1);
+        bookingsFail.add(1);
         return;
     }
 
-    const purchaseRes = http.post(`${BASE_URL}/api/v1/bookings`, quotePayload,
-        { headers, tags: { name: 'purchase_create' } });
-    purchaseLatency.add(purchaseRes.timings.duration);
-    if (!check(purchaseRes, { 'purchase 200/201': (r) => r.status === 200 || r.status === 201 })) {
-        purchasesFail.add(1);
+    const bookingRes = http.post(`${BASE_URL}/api/v1/bookings`, quotePayload,
+        { headers, tags: { name: 'booking_create' } });
+    bookingLatency.add(bookingRes.timings.duration);
+    if (!check(bookingRes, { 'booking 200/201': (r) => r.status === 200 || r.status === 201 })) {
+        bookingsFail.add(1);
         return;
     }
 
-    let purchaseId, clientSecret;
+    let bookingId, clientSecret;
     try {
-        const body = purchaseRes.json();
-        purchaseId   = body.purchaseId   || body.id;
+        const body = bookingRes.json();
+        bookingId   = body.bookingId   || body.id;
         clientSecret = body.clientSecret || body.stripeClientSecret;
     } catch {
-        purchasesFail.add(1);
+        bookingsFail.add(1);
         return;
     }
 
@@ -100,15 +100,15 @@ export default function (data) {
     // with test card 4242... and then call /bookings/{id}/confirm. k6 can't drive the
     // Stripe.js SDK, so this is a server-confirm call with an assumed-succeeded intent
     // (requires backend configured with STRIPE_AUTO_CONFIRM_TEST=true in the target env).
-    if (purchaseId) {
-        const confirmRes = http.post(`${BASE_URL}/api/v1/bookings/${purchaseId}/confirm`,
+    if (bookingId) {
+        const confirmRes = http.post(`${BASE_URL}/api/v1/bookings/${bookingId}/confirm`,
             JSON.stringify({ clientSecret }),
-            { headers, tags: { name: 'purchase_confirm' } });
+            { headers, tags: { name: 'booking_confirm' } });
         confirmLatency.add(confirmRes.timings.duration);
         if (check(confirmRes, { 'confirm 200': (r) => r.status === 200 })) {
-            purchasesOk.add(1);
+            bookingsOk.add(1);
         } else {
-            purchasesFail.add(1);
+            bookingsFail.add(1);
         }
     }
 

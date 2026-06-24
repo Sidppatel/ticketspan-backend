@@ -7,8 +7,8 @@ public class StripeTransaction : BaseEntity
     public Guid TenantsId { get; set; }
     public Tenant Tenant { get; set; } = null!;
 
-    public Guid PurchasesId { get; set; }
-    public Purchase Purchase { get; set; } = null!;
+    public Guid BookingsId { get; set; }
+    public Booking Booking { get; set; } = null!;
 
     public required string PaymentIntentId { get; set; }
     public PaymentStatus Status { get; set; } = PaymentStatus.RequiresConfirmation;

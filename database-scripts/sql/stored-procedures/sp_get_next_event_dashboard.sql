@@ -14,12 +14,12 @@ RETURNS TABLE (
     image_path             text,
     layout_mode            text,
     days_until             int,
-    total_purchases        int,
-    paid_purchases         int,
-    checked_in_purchases    int,
-    pending_purchases      int,
-    cancelled_purchases    int,
-    refunded_purchases     int,
+    total_bookings        int,
+    paid_bookings         int,
+    checked_in_bookings    int,
+    pending_bookings      int,
+    cancelled_bookings    int,
+    refunded_bookings     int,
     revenue_cents          bigint,
     potential_revenue_cents bigint,
     total_capacity         int,
@@ -65,12 +65,12 @@ BEGIN
         e.image_path::text                             AS image_path,
         e.layout_mode::text                            AS layout_mode,
         CEIL(EXTRACT(EPOCH FROM (e.start_date - p_now)) / 86400.0)::int AS days_until,
-        ps.total_count                                  AS total_purchases,
-        ps.paid_count                                   AS paid_purchases,
-        ps.checkin_count                                AS checked_in_purchases,
-        ps.pending_count                                AS pending_purchases,
-        ps.cancelled_count                              AS cancelled_purchases,
-        ps.refunded_count                               AS refunded_purchases,
+        ps.total_count                                  AS total_bookings,
+        ps.paid_count                                   AS paid_bookings,
+        ps.checkin_count                                AS checked_in_bookings,
+        ps.pending_count                                AS pending_bookings,
+        ps.cancelled_count                              AS cancelled_bookings,
+        ps.refunded_count                               AS refunded_bookings,
         ps.revenue                                      AS revenue_cents,
         (CASE
             WHEN e.layout_mode::text = 'Open' AND ettp.min_price IS NOT NULL
@@ -94,7 +94,7 @@ BEGIN
             COUNT(*) FILTER (WHERE p.status::text = 'Refunded')::int                                     AS refunded_count,
             COALESCE(SUM(p.subtotal_cents) FILTER (WHERE p.status::text IN ('Paid','CheckedIn')), 0)::bigint AS revenue,
             COALESCE(SUM(COALESCE(p.seats_reserved, 1)) FILTER (WHERE p.status::text IN ('Paid','CheckedIn')), 0)::int AS tickets_sold
-        FROM purchases p
+        FROM bookings p
         WHERE p.events_id = e.events_id
     ) ps
     CROSS JOIN LATERAL (

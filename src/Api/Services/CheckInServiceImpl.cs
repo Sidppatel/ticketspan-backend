@@ -3,7 +3,7 @@ using Npgsql;
 using Svyne.Api.Data;
 using Svyne.Api.Security;
 using Svyne.Protos.Common;
-using Svyne.Protos.Purchase;
+using Svyne.Protos.Booking;
 
 namespace Svyne.Api.Services;
 
@@ -44,7 +44,7 @@ public sealed class CheckInServiceImpl : CheckInService.CheckInServiceBase
         var ct = context.CancellationToken;
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT total, checked_in FROM sp_get_purchase_stats(NULL, @ev)", connection);
+            "SELECT total, checked_in FROM sp_get_booking_stats(NULL, @ev)", connection);
         cmd.Parameters.AddWithValue("ev", Guid.Parse(request.Value));
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct))

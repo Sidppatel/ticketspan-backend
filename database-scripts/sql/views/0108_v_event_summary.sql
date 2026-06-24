@@ -47,7 +47,7 @@ LEFT JOIN LATERAL (
 ) img ON true
 LEFT JOIN LATERAL (
     SELECT COALESCE(SUM(b.seats_reserved), COUNT(*))::int AS sold
-    FROM purchases b
+    FROM bookings b
     WHERE b.events_id = e.events_id AND b.status IN ('Paid','CheckedIn')
 ) bs ON true
 LEFT JOIN LATERAL (

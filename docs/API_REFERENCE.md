@@ -25,9 +25,9 @@ Client setup (React/Next.js/mobile, codegen, auth interceptor): see [FRONTEND_IN
 ### VenueService / PerformerService / SponsorService (catalog.proto)
 - Venue: Create/Update/Get/List. Performer & Sponsor: Create/Update/Delete/List + SetEvent{Performers,Sponsors}.
 
-### PurchaseService / TicketService / CheckInService (purchase.proto)
-- Purchase: Create, ReserveOpenCapacity, Confirm, Cancel, Refund, Get, List, GetPurchaseStats.
-- Ticket: Get, ListPurchaseTickets, Claim, Invite.
+### BookingService / TicketService / CheckInService (bookings.proto)
+- Booking: Create, ReserveOpenCapacity, Confirm, Cancel, Refund, Get, List, GetBookingStats.
+- Ticket: Get, ListTickets, Claim, Invite.
 - CheckIn: Scan(qr_token), GetCheckInStats.
 
 ### TableBookingService (booking.proto)

@@ -25,7 +25,7 @@ public sealed class FinancialServiceImpl : FinancialService.FinancialServiceBase
         var ct = context.CancellationToken;
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT COALESCE(SUM(charged_cents),0), COALESCE(SUM(platform_fee_cents),0), COALESCE(SUM(admin_payout_cents),0), COALESCE(SUM(purchase_count),0) "
+            "SELECT COALESCE(SUM(charged_cents),0), COALESCE(SUM(platform_fee_cents),0), COALESCE(SUM(admin_payout_cents),0), COALESCE(SUM(booking_count),0) "
             + "FROM sp_get_monthly_report_by_event(@year, @month) WHERE @ev = '00000000-0000-0000-0000-000000000000' OR events_id = @ev", connection);
         cmd.Parameters.AddWithValue("year", request.Year);
         cmd.Parameters.AddWithValue("month", request.Month);

@@ -90,6 +90,24 @@ namespace Db.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "enum_definitions",
+                columns: table => new
+                {
+                    enum_definitions_id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "gen_random_uuid()"),
+                    enum_type = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
+                    enum_value = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
+                    int_value = table.Column<int>(type: "integer", nullable: false),
+                    used_in = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    description = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
+                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_enum_definitions", x => x.enum_definitions_id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "magic_link_tokens",
                 columns: table => new
                 {
@@ -907,12 +925,12 @@ namespace Db.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "purchases",
+                name: "bookings",
                 columns: table => new
                 {
-                    purchases_id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "gen_random_uuid()"),
+                    bookings_id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "gen_random_uuid()"),
                     tenants_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    purchase_number = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    booking_number = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
                     status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
                     users_id = table.Column<Guid>(type: "uuid", nullable: false),
                     events_id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -928,39 +946,39 @@ namespace Db.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("pk_purchases", x => x.purchases_id);
-                    table.CheckConstraint("CK_purchases_FeeCents", "fee_cents >= 0");
-                    table.CheckConstraint("CK_purchases_SeatsReserved", "seats_reserved IS NULL OR seats_reserved > 0");
-                    table.CheckConstraint("CK_purchases_Status", "status IN ('Pending','Paid','CheckedIn','Cancelled','Refunded','Expired')");
-                    table.CheckConstraint("CK_purchases_SubtotalCents", "subtotal_cents >= 0");
-                    table.CheckConstraint("CK_purchases_TotalCents", "total_cents >= 0");
-                    table.CheckConstraint("CK_purchases_TotalFormula", "total_cents = subtotal_cents + fee_cents");
+                    table.PrimaryKey("pk_bookings", x => x.bookings_id);
+                    table.CheckConstraint("CK_bookings_FeeCents", "fee_cents >= 0");
+                    table.CheckConstraint("CK_bookings_SeatsReserved", "seats_reserved IS NULL OR seats_reserved > 0");
+                    table.CheckConstraint("CK_bookings_Status", "status IN ('Pending','Paid','CheckedIn','Cancelled','Refunded','Expired')");
+                    table.CheckConstraint("CK_bookings_SubtotalCents", "subtotal_cents >= 0");
+                    table.CheckConstraint("CK_bookings_TotalCents", "total_cents >= 0");
+                    table.CheckConstraint("CK_bookings_TotalFormula", "total_cents = subtotal_cents + fee_cents");
                     table.ForeignKey(
-                        name: "fk_purchases_event_ticket_types_event_ticket_types_id",
+                        name: "fk_bookings_event_ticket_types_event_ticket_types_id",
                         column: x => x.event_ticket_types_id,
                         principalTable: "event_ticket_types",
                         principalColumn: "event_ticket_types_id",
                         onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
-                        name: "fk_purchases_events_events_id",
+                        name: "fk_bookings_events_events_id",
                         column: x => x.events_id,
                         principalTable: "events",
                         principalColumn: "events_id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "fk_purchases_tables_tables_id",
+                        name: "fk_bookings_tables_tables_id",
                         column: x => x.tables_id,
                         principalTable: "tables",
                         principalColumn: "tables_id",
                         onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
-                        name: "fk_purchases_tenants_tenants_id",
+                        name: "fk_bookings_tenants_tenants_id",
                         column: x => x.tenants_id,
                         principalTable: "tenants",
                         principalColumn: "tenants_id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "fk_purchases_users_users_id",
+                        name: "fk_bookings_users_users_id",
                         column: x => x.users_id,
                         principalTable: "users",
                         principalColumn: "users_id",
@@ -968,79 +986,34 @@ namespace Db.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "purchase_tables",
+                name: "booking_tables",
                 columns: table => new
                 {
-                    purchases_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    bookings_id = table.Column<Guid>(type: "uuid", nullable: false),
                     tables_id = table.Column<Guid>(type: "uuid", nullable: false),
                     tenants_id = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("pk_purchase_tables", x => new { x.purchases_id, x.tables_id });
+                    table.PrimaryKey("pk_booking_tables", x => new { x.bookings_id, x.tables_id });
                     table.ForeignKey(
-                        name: "fk_purchase_tables_purchases_purchases_id",
-                        column: x => x.purchases_id,
-                        principalTable: "purchases",
-                        principalColumn: "purchases_id",
+                        name: "fk_booking_tables_bookings_bookings_id",
+                        column: x => x.bookings_id,
+                        principalTable: "bookings",
+                        principalColumn: "bookings_id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "fk_purchase_tables_tables_tables_id",
+                        name: "fk_booking_tables_tables_tables_id",
                         column: x => x.tables_id,
                         principalTable: "tables",
                         principalColumn: "tables_id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "fk_purchase_tables_tenants_tenants_id",
+                        name: "fk_booking_tables_tenants_tenants_id",
                         column: x => x.tenants_id,
                         principalTable: "tenants",
                         principalColumn: "tenants_id",
                         onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "purchase_tickets",
-                columns: table => new
-                {
-                    purchase_tickets_id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "gen_random_uuid()"),
-                    tenants_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    ticket_code = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    qr_token = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    seat_number = table.Column<int>(type: "integer", nullable: false),
-                    purchases_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    guest_users_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    invite_token_hash = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: true),
-                    invite_expires_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    invited_email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
-                    invite_sent_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    claimed_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("pk_purchase_tickets", x => x.purchase_tickets_id);
-                    table.CheckConstraint("CK_purchase_tickets_SeatNumber", "seat_number > 0");
-                    table.CheckConstraint("CK_purchase_tickets_Status", "status IN ('Unassigned','Invited','Claimed','CheckedIn')");
-                    table.ForeignKey(
-                        name: "fk_purchase_tickets_purchases_purchases_id",
-                        column: x => x.purchases_id,
-                        principalTable: "purchases",
-                        principalColumn: "purchases_id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "fk_purchase_tickets_tenants_tenants_id",
-                        column: x => x.tenants_id,
-                        principalTable: "tenants",
-                        principalColumn: "tenants_id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "fk_purchase_tickets_users_guest_users_id",
-                        column: x => x.guest_users_id,
-                        principalTable: "users",
-                        principalColumn: "users_id",
-                        onDelete: ReferentialAction.SetNull);
                 });
 
             migrationBuilder.CreateTable(
@@ -1049,7 +1022,7 @@ namespace Db.Migrations
                 {
                     stripe_transactions_id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "gen_random_uuid()"),
                     tenants_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    purchases_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    bookings_id = table.Column<Guid>(type: "uuid", nullable: false),
                     payment_intent_id = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
                     status = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
                     currency = table.Column<string>(type: "character varying(3)", maxLength: 3, nullable: false),
@@ -1081,10 +1054,10 @@ namespace Db.Migrations
                     table.CheckConstraint("CK_stripe_transactions_TotalCharged", "total_charged_cents IS NULL OR total_charged_cents >= 0");
                     table.CheckConstraint("CK_stripe_transactions_TransferAmount", "transfer_amount_cents IS NULL OR transfer_amount_cents >= 0");
                     table.ForeignKey(
-                        name: "fk_stripe_transactions_purchases_purchases_id",
-                        column: x => x.purchases_id,
-                        principalTable: "purchases",
-                        principalColumn: "purchases_id",
+                        name: "fk_stripe_transactions_bookings_bookings_id",
+                        column: x => x.bookings_id,
+                        principalTable: "bookings",
+                        principalColumn: "bookings_id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "fk_stripe_transactions_tenants_tenants_id",
@@ -1101,7 +1074,7 @@ namespace Db.Migrations
                     stripe_transfers_id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "gen_random_uuid()"),
                     stripe_transfer_id = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
                     tenants_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    purchases_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    bookings_id = table.Column<Guid>(type: "uuid", nullable: true),
                     amount_cents = table.Column<int>(type: "integer", nullable: false),
                     currency = table.Column<string>(type: "character varying(8)", maxLength: 8, nullable: false, defaultValue: "usd"),
                     raw_event = table.Column<string>(type: "jsonb", nullable: true),
@@ -1112,10 +1085,10 @@ namespace Db.Migrations
                 {
                     table.PrimaryKey("pk_stripe_transfers", x => x.stripe_transfers_id);
                     table.ForeignKey(
-                        name: "fk_stripe_transfers_purchases_purchases_id",
-                        column: x => x.purchases_id,
-                        principalTable: "purchases",
-                        principalColumn: "purchases_id",
+                        name: "fk_stripe_transfers_bookings_bookings_id",
+                        column: x => x.bookings_id,
+                        principalTable: "bookings",
+                        principalColumn: "bookings_id",
                         onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
                         name: "fk_stripe_transfers_tenants_tenants_id",
@@ -1123,6 +1096,58 @@ namespace Db.Migrations
                         principalTable: "tenants",
                         principalColumn: "tenants_id",
                         onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "tickets",
+                columns: table => new
+                {
+                    tickets_id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "gen_random_uuid()"),
+                    tenants_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    ticket_code = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    qr_token = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
+                    seat_number = table.Column<int>(type: "integer", nullable: false),
+                    bookings_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    events_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    guest_users_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    invite_token_hash = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: true),
+                    invite_expires_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    invited_email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    invite_sent_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    claimed_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_tickets", x => x.tickets_id);
+                    table.CheckConstraint("CK_tickets_SeatNumber", "seat_number > 0");
+                    table.CheckConstraint("CK_tickets_Status", "status IN ('Unassigned','Invited','Claimed','CheckedIn')");
+                    table.ForeignKey(
+                        name: "fk_tickets_bookings_bookings_id",
+                        column: x => x.bookings_id,
+                        principalTable: "bookings",
+                        principalColumn: "bookings_id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "fk_tickets_events_events_id",
+                        column: x => x.events_id,
+                        principalTable: "events",
+                        principalColumn: "events_id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "fk_tickets_tenants_tenants_id",
+                        column: x => x.tenants_id,
+                        principalTable: "tenants",
+                        principalColumn: "tenants_id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "fk_tickets_users_guest_users_id",
+                        column: x => x.guest_users_id,
+                        principalTable: "users",
+                        principalColumn: "users_id",
+                        onDelete: ReferentialAction.SetNull);
                 });
 
             migrationBuilder.CreateIndex(
@@ -1145,6 +1170,64 @@ namespace Db.Migrations
                 name: "ix_audit_logs_tenants_id",
                 table: "audit_logs",
                 column: "tenants_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_booking_tables_tables_id",
+                table: "booking_tables",
+                column: "tables_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_booking_tables_tenants_id",
+                table: "booking_tables",
+                column: "tenants_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_bookings_event_ticket_types_id",
+                table: "bookings",
+                column: "event_ticket_types_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_bookings_events_id_status",
+                table: "bookings",
+                columns: new[] { "events_id", "status" });
+
+            migrationBuilder.CreateIndex(
+                name: "ix_bookings_events_id_users_id_booking_number",
+                table: "bookings",
+                columns: new[] { "events_id", "users_id", "booking_number" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_bookings_qr_token",
+                table: "bookings",
+                column: "qr_token",
+                unique: true,
+                filter: "qr_token IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_bookings_status",
+                table: "bookings",
+                column: "status");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_bookings_tables_id",
+                table: "bookings",
+                column: "tables_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_bookings_tenants_id",
+                table: "bookings",
+                column: "tenants_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_bookings_users_id",
+                table: "bookings",
+                column: "users_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_bookings_users_id_created_at",
+                table: "bookings",
+                columns: new[] { "users_id", "created_at" });
 
             migrationBuilder.CreateIndex(
                 name: "ix_device_sessions_expires_at_revoked_at",
@@ -1172,6 +1255,12 @@ namespace Db.Migrations
                 name: "ix_email_logs_timestamp",
                 table: "email_logs",
                 column: "timestamp");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_enum_definitions_enum_type_enum_value",
+                table: "enum_definitions",
+                columns: new[] { "enum_type", "enum_value" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "ix_event_images_events_id",
@@ -1424,93 +1513,6 @@ namespace Db.Migrations
                 column: "tag");
 
             migrationBuilder.CreateIndex(
-                name: "ix_purchase_tables_tables_id",
-                table: "purchase_tables",
-                column: "tables_id");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_purchase_tables_tenants_id",
-                table: "purchase_tables",
-                column: "tenants_id");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_purchase_tickets_guest_users_id",
-                table: "purchase_tickets",
-                column: "guest_users_id");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_purchase_tickets_invite_token_hash",
-                table: "purchase_tickets",
-                column: "invite_token_hash",
-                unique: true,
-                filter: "invite_token_hash IS NOT NULL");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_purchase_tickets_purchases_id_seat_number",
-                table: "purchase_tickets",
-                columns: new[] { "purchases_id", "seat_number" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "ix_purchase_tickets_qr_token",
-                table: "purchase_tickets",
-                column: "qr_token",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "ix_purchase_tickets_tenants_id",
-                table: "purchase_tickets",
-                column: "tenants_id");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_purchases_event_ticket_types_id",
-                table: "purchases",
-                column: "event_ticket_types_id");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_purchases_events_id_status",
-                table: "purchases",
-                columns: new[] { "events_id", "status" });
-
-            migrationBuilder.CreateIndex(
-                name: "ix_purchases_purchase_number",
-                table: "purchases",
-                column: "purchase_number",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "ix_purchases_qr_token",
-                table: "purchases",
-                column: "qr_token",
-                unique: true,
-                filter: "qr_token IS NOT NULL");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_purchases_status",
-                table: "purchases",
-                column: "status");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_purchases_tables_id",
-                table: "purchases",
-                column: "tables_id");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_purchases_tenants_id",
-                table: "purchases",
-                column: "tenants_id");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_purchases_users_id",
-                table: "purchases",
-                column: "users_id");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_purchases_users_id_created_at",
-                table: "purchases",
-                columns: new[] { "users_id", "created_at" });
-
-            migrationBuilder.CreateIndex(
                 name: "ix_sponsors_name",
                 table: "sponsors",
                 column: "name");
@@ -1538,15 +1540,15 @@ namespace Db.Migrations
                 column: "tenants_id");
 
             migrationBuilder.CreateIndex(
-                name: "ix_stripe_transactions_payment_intent_id",
+                name: "ix_stripe_transactions_bookings_id",
                 table: "stripe_transactions",
-                column: "payment_intent_id",
+                column: "bookings_id",
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "ix_stripe_transactions_purchases_id",
+                name: "ix_stripe_transactions_payment_intent_id",
                 table: "stripe_transactions",
-                column: "purchases_id",
+                column: "payment_intent_id",
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -1560,9 +1562,9 @@ namespace Db.Migrations
                 column: "tenants_id");
 
             migrationBuilder.CreateIndex(
-                name: "ix_stripe_transfers_purchases_id",
+                name: "ix_stripe_transfers_bookings_id",
                 table: "stripe_transfers",
-                column: "purchases_id");
+                column: "bookings_id");
 
             migrationBuilder.CreateIndex(
                 name: "ix_stripe_transfers_stripe_transfer_id",
@@ -1634,6 +1636,41 @@ namespace Db.Migrations
                 column: "stripe_connected_account_id",
                 unique: true,
                 filter: "stripe_connected_account_id IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_tickets_bookings_id_seat_number",
+                table: "tickets",
+                columns: new[] { "bookings_id", "seat_number" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_tickets_events_id_ticket_code",
+                table: "tickets",
+                columns: new[] { "events_id", "ticket_code" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_tickets_guest_users_id",
+                table: "tickets",
+                column: "guest_users_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_tickets_invite_token_hash",
+                table: "tickets",
+                column: "invite_token_hash",
+                unique: true,
+                filter: "invite_token_hash IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_tickets_qr_token",
+                table: "tickets",
+                column: "qr_token",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_tickets_tenants_id",
+                table: "tickets",
+                column: "tenants_id");
 
             migrationBuilder.CreateIndex(
                 name: "ix_user_email_verification_tokens_expires_at",
@@ -1749,10 +1786,16 @@ namespace Db.Migrations
                 name: "audit_logs");
 
             migrationBuilder.DropTable(
+                name: "booking_tables");
+
+            migrationBuilder.DropTable(
                 name: "device_sessions");
 
             migrationBuilder.DropTable(
                 name: "email_logs");
+
+            migrationBuilder.DropTable(
+                name: "enum_definitions");
 
             migrationBuilder.DropTable(
                 name: "event_images");
@@ -1779,12 +1822,6 @@ namespace Db.Migrations
                 name: "platform_images");
 
             migrationBuilder.DropTable(
-                name: "purchase_tables");
-
-            migrationBuilder.DropTable(
-                name: "purchase_tickets");
-
-            migrationBuilder.DropTable(
                 name: "stripe_payouts");
 
             migrationBuilder.DropTable(
@@ -1792,6 +1829,9 @@ namespace Db.Migrations
 
             migrationBuilder.DropTable(
                 name: "stripe_transfers");
+
+            migrationBuilder.DropTable(
+                name: "tickets");
 
             migrationBuilder.DropTable(
                 name: "user_email_verification_tokens");
@@ -1809,7 +1849,7 @@ namespace Db.Migrations
                 name: "sponsors");
 
             migrationBuilder.DropTable(
-                name: "purchases");
+                name: "bookings");
 
             migrationBuilder.DropTable(
                 name: "event_ticket_types");

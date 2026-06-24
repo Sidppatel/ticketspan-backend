@@ -78,6 +78,56 @@ public sealed class AuthServiceImpl : AuthService.AuthServiceBase
         throw new RpcException(new Status(StatusCode.Unauthenticated, "Invalid credentials"));
     }
 
+    public override async Task<AuthResponse> SignUp(SignUpRequest request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        var tenantsId = await ResolveTenantAsync(request.TenantSlug, ct);
+        if (tenantsId is not { } tenant)
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "Unknown tenant"));
+        }
+        var emailHash = EmailHasher.Hash(request.Email);
+        var passwordHash = passwordHasher.Hash(request.Password);
+
+        await using var connection = await db.OpenAsync(null, null, ct);
+        await using var cmd = new NpgsqlCommand(
+            "SELECT users_id, role, email, first_name, last_name, email_verified "
+            + "FROM sp_signup_attendee(@t, @email, @h, @first, @last, @pwd)", connection);
+        cmd.Parameters.AddWithValue("t", tenant);
+        cmd.Parameters.AddWithValue("email", request.Email);
+        cmd.Parameters.AddWithValue("h", emailHash);
+        cmd.Parameters.AddWithValue("first", request.FirstName ?? string.Empty);
+        cmd.Parameters.AddWithValue("last", request.LastName ?? string.Empty);
+        cmd.Parameters.AddWithValue("pwd", passwordHash);
+
+        try
+        {
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            if (!await reader.ReadAsync(ct))
+            {
+                throw new RpcException(new Status(StatusCode.Internal, "Sign-up failed"));
+            }
+            var usersId = reader.GetGuid(0);
+            var role = reader.GetInt16(1);
+            var profile = new UserProfile
+            {
+                UsersId = usersId.ToString(),
+                TenantsId = tenant.ToString(),
+                Email = reader.GetString(2),
+                FirstName = reader.GetString(3),
+                LastName = reader.GetString(4),
+                Role = role,
+                TenantSlug = request.TenantSlug,
+                EmailVerified = reader.GetBoolean(5)
+            };
+            return BuildAuth(usersId, profile.Email, tenant, role, request.TenantSlug, profile);
+        }
+        catch (PostgresException ex) when (ex.SqlState == "23505")
+        {
+            throw new RpcException(new Status(StatusCode.AlreadyExists, "An account with this email already exists for this tenant"));
+        }
+    }
+
     public override async Task<AuthResponse> GoogleSignIn(GoogleSignInRequest request, ServerCallContext context)
     {
         var ct = context.CancellationToken;
@@ -92,6 +142,10 @@ public sealed class AuthServiceImpl : AuthService.AuthServiceBase
         }
 
         var tenantsId = await ResolveTenantAsync(request.TenantSlug, ct);
+        if (tenantsId is null)
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "Unknown tenant"));
+        }
         var emailHash = EmailHasher.Hash(payload.Email);
 
         await using var connection = await db.OpenAsync(null, null, ct);
@@ -128,21 +182,99 @@ public sealed class AuthServiceImpl : AuthService.AuthServiceBase
         return BuildAuth(usersId, profile.Email, rowTenant, role, request.TenantSlug, profile);
     }
 
-    public override Task<UserProfile> Me(Svyne.Protos.Common.Empty request, ServerCallContext context)
+    public override async Task<UserProfile> Me(Svyne.Protos.Common.Empty request, ServerCallContext context)
     {
         var tc = context.GetHttpContext().RequestServices.GetRequiredService<TenantContext>();
-        if (tc.UsersId is null)
+        if (tc.UsersId is not { } usersId)
         {
             throw new RpcException(new Status(StatusCode.Unauthenticated, "Not authenticated"));
         }
-        return Task.FromResult(new UserProfile
+        return await LoadProfileAsync(usersId, tc, context.CancellationToken);
+    }
+
+    public override async Task<UserProfile> UpdateProfile(UpdateProfileRequest request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        var tc = context.GetHttpContext().RequestServices.GetRequiredService<TenantContext>();
+        if (tc.UsersId is not { } usersId)
         {
-            UsersId = tc.UsersId.ToString(),
+            throw new RpcException(new Status(StatusCode.Unauthenticated, "Not authenticated"));
+        }
+        await using (var connection = await db.OpenAsync(usersId, tc.TenantsId, ct))
+        await using (var cmd = new NpgsqlCommand(
+            "SELECT sp_update_user_profile(@u, @first, @last, @phone, @addr, @city, @state, @zip, NULL)", connection))
+        {
+            cmd.Parameters.AddWithValue("u", usersId);
+            cmd.Parameters.AddWithValue("first", NullIfEmpty(request.FirstName));
+            cmd.Parameters.AddWithValue("last", NullIfEmpty(request.LastName));
+            cmd.Parameters.AddWithValue("phone", NullIfEmpty(request.Phone));
+            cmd.Parameters.AddWithValue("addr", NullIfEmpty(request.AddressLine));
+            cmd.Parameters.AddWithValue("city", NullIfEmpty(request.City));
+            cmd.Parameters.AddWithValue("state", NullIfEmpty(request.State));
+            cmd.Parameters.AddWithValue("zip", NullIfEmpty(request.Zip));
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+        return await LoadProfileAsync(usersId, tc, ct);
+    }
+
+    public override async Task<UserProfile> SetAvatar(SetAvatarRequest request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        var tc = context.GetHttpContext().RequestServices.GetRequiredService<TenantContext>();
+        if (tc.UsersId is not { } usersId)
+        {
+            throw new RpcException(new Status(StatusCode.Unauthenticated, "Not authenticated"));
+        }
+        if (!Guid.TryParse(request.ImagesId, out var imageId))
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "Invalid image id"));
+        }
+        await using (var connection = await db.OpenAsync(usersId, tc.TenantsId, ct))
+        await using (var cmd = new NpgsqlCommand("SELECT sp_set_user_image(@u, @img)", connection))
+        {
+            cmd.Parameters.AddWithValue("u", usersId);
+            cmd.Parameters.AddWithValue("img", imageId);
+            await cmd.ExecuteScalarAsync(ct);
+        }
+        return await LoadProfileAsync(usersId, tc, ct);
+    }
+
+    private async Task<UserProfile> LoadProfileAsync(Guid usersId, TenantContext tc, CancellationToken ct)
+    {
+        await using var connection = await db.OpenAsync(usersId, tc.TenantsId, ct);
+        await using var cmd = new NpgsqlCommand(
+            "SELECT u.email, u.first_name, u.last_name, u.email_verified, COALESCE(u.phone, ''), u.images_id, "
+            + "COALESCE(a.line1, ''), COALESCE(a.city, ''), COALESCE(a.state, ''), COALESCE(a.zip_code, '') "
+            + "FROM users u LEFT JOIN addresses a ON a.addresses_id = u.addresses_id WHERE u.users_id = @id", connection);
+        cmd.Parameters.AddWithValue("id", usersId);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct))
+        {
+            throw new RpcException(new Status(StatusCode.NotFound, "User not found"));
+        }
+        var imagesId = reader.IsDBNull(5) ? (Guid?)null : reader.GetGuid(5);
+        var baseUrl = configuration["PUBLIC_BASE_URL"] ?? string.Empty;
+        return new UserProfile
+        {
+            UsersId = usersId.ToString(),
             TenantsId = tc.TenantsId?.ToString() ?? string.Empty,
             Role = tc.Role,
-            TenantSlug = tc.TenantSlug
-        });
+            TenantSlug = tc.TenantSlug,
+            Email = reader.GetString(0),
+            FirstName = reader.GetString(1),
+            LastName = reader.GetString(2),
+            EmailVerified = reader.GetBoolean(3),
+            Phone = reader.GetString(4),
+            AvatarUrl = imagesId is { } img ? $"{baseUrl}/images/{img}" : string.Empty,
+            AddressLine = reader.GetString(6),
+            City = reader.GetString(7),
+            State = reader.GetString(8),
+            Zip = reader.GetString(9)
+        };
     }
+
+    private static object NullIfEmpty(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? DBNull.Value : value;
 
     public override async Task<Svyne.Protos.Common.AckResponse> RequestMagicLink(MagicLinkRequest request, ServerCallContext context)
     {
@@ -165,41 +297,67 @@ public sealed class AuthServiceImpl : AuthService.AuthServiceBase
         var ct = context.CancellationToken;
         var hash = EmailHasher.Hash(request.Token);
         string email;
+        Guid? linkTenant;
         await using (var connection = await db.OpenAsync(null, null, ct))
-        await using (var cmd = new NpgsqlCommand("SELECT email FROM sp_consume_magic_link(@h)", connection))
+        await using (var cmd = new NpgsqlCommand("SELECT email, tenants_id FROM sp_consume_magic_link(@h)", connection))
         {
             cmd.Parameters.AddWithValue("h", hash);
-            var result = await cmd.ExecuteScalarAsync(ct);
-            if (result is not string e)
+            await using var consumeReader = await cmd.ExecuteReaderAsync(ct);
+            if (!await consumeReader.ReadAsync(ct))
             {
                 throw new RpcException(new Status(StatusCode.Unauthenticated, "Invalid or expired link"));
             }
-            email = e;
+            email = consumeReader.GetString(0);
+            linkTenant = consumeReader.IsDBNull(1) ? (Guid?)null : consumeReader.GetGuid(1);
         }
         var emailHash = EmailHasher.Hash(email);
         await using var conn = await db.OpenAsync(null, null, ct);
         await using var lookup = new NpgsqlCommand(
-            "SELECT users_id, tenants_id, role, email, first_name, last_name, email_verified FROM sp_get_user_by_email_hash(@h) WHERE is_active = true LIMIT 1", conn);
+            "SELECT users_id, tenants_id, role, email, first_name, last_name, email_verified "
+            + "FROM sp_get_user_by_email_hash(@h) WHERE is_active = true AND tenants_id IS NOT DISTINCT FROM @tenant LIMIT 1", conn);
         lookup.Parameters.AddWithValue("h", emailHash);
-        await using var reader = await lookup.ExecuteReaderAsync(ct);
-        if (!await reader.ReadAsync(ct))
+        lookup.Parameters.AddWithValue("tenant", (object?)linkTenant ?? DBNull.Value);
+
+        Guid usersId;
+        Guid? rowTenant;
+        short role;
+        string firstName;
+        string lastName;
+        bool emailVerified;
+        await using (var reader = await lookup.ExecuteReaderAsync(ct))
         {
-            throw new RpcException(new Status(StatusCode.NotFound, "User not found"));
+            if (await reader.ReadAsync(ct))
+            {
+                usersId = reader.GetGuid(0);
+                rowTenant = reader.IsDBNull(1) ? (Guid?)null : reader.GetGuid(1);
+                role = reader.GetInt16(2);
+                firstName = reader.GetString(4);
+                lastName = reader.GetString(5);
+                emailVerified = reader.GetBoolean(6);
+            }
+            else if (linkTenant is { } tenant)
+            {
+                await reader.CloseAsync();
+                (usersId, rowTenant, role, firstName, lastName, emailVerified) =
+                    await CreateAttendeeAsync(conn, tenant, email, emailHash, ct);
+            }
+            else
+            {
+                throw new RpcException(new Status(StatusCode.NotFound, "User not found"));
+            }
         }
-        var usersId = reader.GetGuid(0);
-        var rowTenant = reader.IsDBNull(1) ? (Guid?)null : reader.GetGuid(1);
-        var role = reader.GetInt16(2);
+
         var profile = new UserProfile
         {
             UsersId = usersId.ToString(),
             TenantsId = rowTenant?.ToString() ?? string.Empty,
-            Email = reader.GetString(3),
-            FirstName = reader.GetString(4),
-            LastName = reader.GetString(5),
+            Email = email,
+            FirstName = firstName,
+            LastName = lastName,
             Role = role,
-            EmailVerified = reader.GetBoolean(6)
+            EmailVerified = emailVerified
         };
-        return BuildAuth(usersId, profile.Email, rowTenant, role, string.Empty, profile);
+        return BuildAuth(usersId, email, rowTenant, role, string.Empty, profile);
     }
 
     public override async Task<Svyne.Protos.Common.AckResponse> RequestPasswordReset(PasswordResetRequest request, ServerCallContext context)
@@ -311,6 +469,28 @@ public sealed class AuthServiceImpl : AuthService.AuthServiceBase
     {
         var (token, expiresAt) = jwt.Issue(usersId, email, tenantsId, role, slug);
         return new AuthResponse { AccessToken = token, RefreshToken = token, ExpiresAt = expiresAt, User = profile };
+    }
+
+    private static async Task<(Guid usersId, Guid? tenantsId, short role, string firstName, string lastName, bool emailVerified)> CreateAttendeeAsync(
+        NpgsqlConnection connection, Guid tenantsId, string email, string emailHash, CancellationToken ct)
+    {
+        await using var cmd = new NpgsqlCommand(
+            "SELECT users_id, tenants_id, role, first_name, last_name, email_verified "
+            + "FROM sp_signup_attendee(@t, @email, @h, @first, @last, NULL)", connection);
+        cmd.Parameters.AddWithValue("t", tenantsId);
+        cmd.Parameters.AddWithValue("email", email);
+        cmd.Parameters.AddWithValue("h", emailHash);
+        cmd.Parameters.AddWithValue("first", string.Empty);
+        cmd.Parameters.AddWithValue("last", string.Empty);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        await reader.ReadAsync(ct);
+        return (
+            reader.GetGuid(0),
+            reader.IsDBNull(1) ? (Guid?)null : reader.GetGuid(1),
+            reader.GetInt16(2),
+            reader.GetString(3),
+            reader.GetString(4),
+            reader.GetBoolean(5));
     }
 
     private async Task<Guid?> ResolveTenantAsync(string slug, CancellationToken ct)

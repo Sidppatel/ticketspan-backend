@@ -3,7 +3,7 @@ RETURNS void LANGUAGE plpgsql
     SET search_path = public, extensions, pg_catalog
 AS $$
 BEGIN
-    UPDATE purchase_tickets SET
+    UPDATE tickets SET
         status = 'Unassigned',
         invite_token_hash = NULL,
         invite_expires_at = NULL,
@@ -12,5 +12,5 @@ BEGIN
         guest_users_id = NULL,
         claimed_at = NULL,
         updated_at = now()
-    WHERE purchase_tickets_id = p_ticket_id;
+    WHERE tickets_id = p_ticket_id;
 END; $$;

@@ -1,6 +1,6 @@
 -- Idempotent insert of a Stripe Connect transfer event into the
 -- stripe_transfers audit table. Resolves OrganizationId from the destination
--- account the_id; resolves PurchaseId by joining stripe_transactions on the
+-- account the_id; resolves BookingId by joining stripe_transactions on the
 -- payment intent extracted from the source transaction (when present).
 --
 -- Returns the row the_id (existing or new) so callers can log it. ON CONFLICT
@@ -18,7 +18,7 @@ CREATE OR REPLACE FUNCTION sp_insert_stripe_transfer(
 AS $$
 DECLARE
     v_org_id uuid;
-    v_purchase_id uuid;
+    v_booking_id uuid;
     v_id uuid;
 BEGIN
     SELECT the_id INTO v_org_id
@@ -30,22 +30,22 @@ BEGIN
             USING ERRCODE = 'no_data_found';
     END IF;
 
-    -- Best-effort purchase resolution. Stripe Connect transfers carry the
+    -- Best-effort booking resolution. Stripe Connect transfers carry the
     -- source charge / payment intent on the event; we hop through
-    -- stripe_transactions to land on the platform purchase.
+    -- stripe_transactions to land on the platform booking.
     IF p_payment_intent_id IS NOT NULL THEN
-        SELECT purchases_id INTO v_purchase_id
+        SELECT bookings_id INTO v_booking_id
         FROM stripe_transactions
         WHERE payment_intent_id = p_payment_intent_id;
     END IF;
 
     INSERT INTO stripe_transfers (
-        stripe_transfers_id, stripe_transfer_id, tenants_id, purchases_id,
+        stripe_transfers_id, stripe_transfer_id, tenants_id, bookings_id,
         amount_cents, currency, raw_event,
         created_at, updated_at
     )
     VALUES (
-        gen_random_uuid(), p_stripe_transfer_id, v_org_id, v_purchase_id,
+        gen_random_uuid(), p_stripe_transfer_id, v_org_id, v_booking_id,
         p_amount_cents, COALESCE(p_currency, 'usd'), p_raw_event,
         now(), now()
     )

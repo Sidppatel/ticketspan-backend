@@ -1,8 +1,8 @@
-CREATE OR REPLACE FUNCTION sp_check_in_purchase(p_qr_token text)
+CREATE OR REPLACE FUNCTION sp_check_in_booking(p_qr_token text)
 RETURNS TABLE(
     success boolean,
     message text,
-    purchase_number text,
+    booking_number text,
     guest_name text,
     event_title text,
     status_str text,
@@ -11,18 +11,18 @@ RETURNS TABLE(
     SET search_path = public, extensions, pg_catalog
 AS $$
 DECLARE
-    v_purchase_id uuid;
-    v_purchase_number text;
-    v_purchase_status text;
+    v_booking_id uuid;
+    v_booking_number text;
+    v_booking_status text;
     v_updated_at timestamptz;
     v_event_title text;
     v_user_name text;
 BEGIN
-    SELECT p.purchases_id, p.purchase_number, p.status, p.updated_at,
+    SELECT p.bookings_id, p.booking_number, p.status, p.updated_at,
            e.title, u.first_name || ' ' || u.last_name
-      INTO v_purchase_id, v_purchase_number, v_purchase_status, v_updated_at,
+      INTO v_booking_id, v_booking_number, v_booking_status, v_updated_at,
            v_event_title, v_user_name
-    FROM purchases p
+    FROM bookings p
     JOIN events e ON e.events_id = p.events_id
     JOIN users u ON u.users_id = p.users_id
     WHERE p.qr_token = p_qr_token
@@ -32,30 +32,30 @@ BEGIN
         RETURN;
     END IF;
 
-    IF v_purchase_status = 'CheckedIn' THEN
+    IF v_booking_status = 'CheckedIn' THEN
         RETURN QUERY SELECT
             false, 'Already checked in'::text,
-            v_purchase_number, v_user_name, v_event_title,
+            v_booking_number, v_user_name, v_event_title,
             'CheckedIn'::text, v_updated_at;
         RETURN;
     END IF;
 
-    IF v_purchase_status <> 'Paid' THEN
+    IF v_booking_status <> 'Paid' THEN
         RETURN QUERY SELECT
             false,
-            ('Purchase is ' || v_purchase_status || ' — cannot check in')::text,
-            v_purchase_number, v_user_name, v_event_title,
-            v_purchase_status::text, NULL::timestamptz;
+            ('Booking is ' || v_booking_status || ' — cannot check in')::text,
+            v_booking_number, v_user_name, v_event_title,
+            v_booking_status::text, NULL::timestamptz;
         RETURN;
     END IF;
 
-    UPDATE purchases
+    UPDATE bookings
        SET status = 'CheckedIn', updated_at = now()
-     WHERE purchases_id = v_purchase_id;
+     WHERE bookings_id = v_booking_id;
 
     RETURN QUERY SELECT
         true, 'Check-in successful'::text,
-        v_purchase_number, v_user_name, v_event_title,
+        v_booking_number, v_user_name, v_event_title,
         'CheckedIn'::text, now();
 END;
 $$;

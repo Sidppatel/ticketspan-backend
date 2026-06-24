@@ -70,10 +70,15 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
     {
         var ct = context.CancellationToken;
         var response = new ListEventsResponse { Meta = new PageMeta() };
+        if (tenantContext.TenantsId is not { } tenantsId)
+        {
+            return response;
+        }
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT e.events_id, e.title, e.slug, e.status FROM sp_search_events(@q) s JOIN events e ON e.events_id = s.events_id", connection);
+            "SELECT e.events_id, e.title, e.slug, e.status FROM sp_search_events(@q) s JOIN events e ON e.events_id = s.events_id WHERE e.tenants_id = @tenant", connection);
         cmd.Parameters.AddWithValue("q", request.Query);
+        cmd.Parameters.AddWithValue("tenant", tenantsId);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
         {
@@ -94,7 +99,7 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         var ct = context.CancellationToken;
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT total, paid, checked_in, revenue FROM sp_get_purchase_stats(NULL, @ev)", connection);
+            "SELECT total, paid, checked_in, revenue FROM sp_get_booking_stats(NULL, @ev)", connection);
         cmd.Parameters.AddWithValue("ev", Guid.Parse(request.Value));
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct))
@@ -104,7 +109,7 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         return new EventStats
         {
             EventsId = request.Value,
-            TotalPurchases = reader.GetInt32(0),
+            TotalBookings = reader.GetInt32(0),
             TicketsSold = reader.GetInt32(1),
             CheckedIn = reader.GetInt32(2),
             RevenueCents = reader.GetInt64(3)
@@ -160,9 +165,20 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
     public override async Task<Event> GetEventBySlug(GetEventBySlugRequest request, ServerCallContext context)
     {
         var ct = context.CancellationToken;
+        var isPublicViewer = tenantContext.UsersId is null || tenantContext.Role == 0;
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
-        await using var cmd = new NpgsqlCommand(EventSelect + " WHERE slug = @slug", connection);
+        var tenantFilter = tenantContext.TenantsId is null
+            ? string.Empty
+            : " AND events_id IN (SELECT events_id FROM events WHERE tenants_id = @tenant)";
+        await using var cmd = new NpgsqlCommand(
+            EventSelect + " WHERE slug = @slug"
+            + (isPublicViewer ? " AND status = 'Published'" : string.Empty)
+            + tenantFilter, connection);
         cmd.Parameters.AddWithValue("slug", request.Slug);
+        if (tenantContext.TenantsId is { } tenantsId)
+        {
+            cmd.Parameters.AddWithValue("tenant", tenantsId);
+        }
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct))
         {
@@ -176,10 +192,20 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         var ct = context.CancellationToken;
         var page = request.Page ?? new PageRequest();
         var response = new ListEventsResponse { Meta = new PageMeta { Offset = page.Offset, Limit = page.Limit } };
+        if (tenantContext.TenantsId is not { } tenantsId)
+        {
+            return response;
+        }
+        var isPublicViewer = tenantContext.UsersId is null || tenantContext.Role == 0;
+        var effectiveStatus = isPublicViewer ? "Published" : (request.Status ?? string.Empty);
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            EventSelect + " WHERE (@status = '' OR status = @status) ORDER BY start_date DESC LIMIT @lim OFFSET @off", connection);
-        cmd.Parameters.AddWithValue("status", request.Status ?? string.Empty);
+            EventSelect
+            + " WHERE events_id IN (SELECT events_id FROM events WHERE tenants_id = @tenant)"
+            + " AND (@status = '' OR status = @status)"
+            + " ORDER BY start_date DESC LIMIT @lim OFFSET @off", connection);
+        cmd.Parameters.AddWithValue("tenant", tenantsId);
+        cmd.Parameters.AddWithValue("status", effectiveStatus);
         cmd.Parameters.AddWithValue("lim", page.Limit <= 0 ? 25 : page.Limit);
         cmd.Parameters.AddWithValue("off", page.Offset);
         await using var reader = await cmd.ExecuteReaderAsync(ct);

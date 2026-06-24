@@ -23,7 +23,7 @@ sp_create_organization→sp_create_tenant (must also insert first admin user rol
 sp_assign_business_user_event→sp_assign_user_event; sp_unassign_business_user_event→sp_unassign_user_event; sp_business_user_event_exists→sp_user_event_exists; sp_list_staff_for_event / sp_list_events_for_staff / sp_staff_can_access_event → keep names, point at user_events + users(role IN (2,3)).
 
 ## MECHANICAL (snake_case + tenants_id, ~110)
-All event/venue/performer/sponsor/table/purchase/ticket/image/stripe/feedback/log/invitation/magic-link/token/device-session SPs. Pending. Each must add tenants_id to inserts and snake_case all columns; reads still return base table or move to vw_* where applicable.
+All event/venue/performer/sponsor/table/booking/ticket/image/stripe/feedback/log/invitation/magic-link/token/device-session SPs. Pending. Each must add tenants_id to inserts and snake_case all columns; reads still return base table or move to vw_* where applicable.
 
 ## Done + DB-verified (tenant cluster, 11)
 sp_create_tenant (tenant + first admin role=1 + magic link; returns out_tenants_id, out_users_id), sp_update_tenant, sp_archive_tenant (deactivates member users), sp_count_tenants, sp_list_tenants (member_count = users role IN(1,2,3)), sp_get_tenant_by_user, sp_get_tenant_members, sp_get_tenant_stripe_status, sp_update_tenant_stripe_account, sp_clear_tenant_stripe_account, sp_update_tenant_stripe_status.
@@ -39,4 +39,4 @@ Deleted business_user dups (19 files): *_business_user_* merged into user equiva
 
 Note for event SP batch: events.is_featured is NOT NULL with no DB default — sp_create_event must set it (or add default).
 
-## Status: 43 / 166 rewritten+verified. Remaining ~110 mechanical: events, venues, performers, sponsors, tables/event_tables, purchases/tickets, images (event/venue/platform), stripe txns/transfers/payouts, feedback, logs/audit, invitations, magic_link, email_verification, dashboard, checkin, layout, search.
+## Status: 43 / 166 rewritten+verified. Remaining ~110 mechanical: events, venues, performers, sponsors, tables/event_tables, bookings/tickets, images (event/venue/platform), stripe txns/transfers/payouts, feedback, logs/audit, invitations, magic_link, email_verification, dashboard, checkin, layout, search.

@@ -45,4 +45,31 @@ public sealed class ObjectStorage
         await using var file = File.Create(path);
         await content.CopyToAsync(file, ct);
     }
+
+    public async Task<Stream?> OpenReadAsync(string key, CancellationToken ct)
+    {
+        if (UsesS3)
+        {
+            var config = new AmazonS3Config();
+            if (!string.IsNullOrEmpty(serviceUrl))
+            {
+                config.ServiceURL = serviceUrl;
+                config.ForcePathStyle = true;
+            }
+            var client = new AmazonS3Client(config);
+            try
+            {
+                var response = await client.GetObjectAsync(bucket, key, ct);
+                return response.ResponseStream;
+            }
+            catch (AmazonS3Exception)
+            {
+                client.Dispose();
+                return null;
+            }
+        }
+
+        var path = Path.Combine(localRoot, key.Replace('/', Path.DirectorySeparatorChar));
+        return File.Exists(path) ? File.OpenRead(path) : null;
+    }
 }

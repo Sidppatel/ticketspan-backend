@@ -1,6 +1,7 @@
 using Grpc.Core;
 using Npgsql;
 using Svyne.Api.Data;
+using Svyne.Api.Email;
 using Svyne.Api.Security;
 using Svyne.Protos.Admin;
 using Svyne.Protos.Common;
@@ -11,11 +12,22 @@ public sealed class InvitationServiceImpl : InvitationService.InvitationServiceB
 {
     private readonly Db db;
     private readonly TenantContext tenantContext;
+    private readonly AppSettingsProvider settings;
+    private readonly IEmailService email;
+    private readonly EmailTemplateRenderer templates;
 
-    public InvitationServiceImpl(Db db, TenantContext tenantContext)
+    public InvitationServiceImpl(
+        Db db,
+        TenantContext tenantContext,
+        AppSettingsProvider settings,
+        IEmailService email,
+        EmailTemplateRenderer templates)
     {
         this.db = db;
         this.tenantContext = tenantContext;
+        this.settings = settings;
+        this.email = email;
+        this.templates = templates;
     }
 
     public override async Task<UuidValue> CreateInvitation(CreateInvitationRequest request, ServerCallContext context)
@@ -31,10 +43,35 @@ public sealed class InvitationServiceImpl : InvitationService.InvitationServiceB
         cmd.Parameters.AddWithValue("hash", hash);
         cmd.Parameters.AddWithValue("role", (short)request.Role);
         cmd.Parameters.AddWithValue("by", tenantContext.UsersId!);
-        cmd.Parameters.AddWithValue("exp", DateTime.UtcNow.AddDays(7));
+        var expirySeconds = await settings.GetIntAsync("admin_invitation_expiry", 86400, ct);
+        cmd.Parameters.AddWithValue("exp", DateTime.UtcNow.AddSeconds(expirySeconds));
         cmd.Parameters.AddWithValue("t", (object?)tenantContext.TenantsId ?? DBNull.Value);
         var id = (Guid)(await cmd.ExecuteScalarAsync(ct))!;
+
+        await SendInvitationEmailAsync(request.Email, token, expirySeconds, ct);
+
         return new UuidValue { Value = id.ToString() };
+    }
+
+    private async Task SendInvitationEmailAsync(string recipient, string token, int expirySeconds, CancellationToken ct)
+    {
+        var fromAddress = await settings.GetStringAsync("admin_invitation_email", "noreply@svyne.com", ct);
+        var subject = await settings.GetStringAsync("admin_invitation_subject", "You are invited to join svyne", ct);
+        var linkBase = await settings.GetStringAsync("admin_invitation_link_base", "http://admin.localhost:5173/accept-invitation", ct);
+        var separator = linkBase.Contains('?') ? "&" : "?";
+        var inviteLink = $"{linkBase}{separator}token={token}";
+        var expiryHours = (expirySeconds / 3600).ToString();
+
+        var values = new Dictionary<string, string>
+        {
+            ["Subject"] = subject,
+            ["Email"] = recipient,
+            ["InviteLink"] = inviteLink,
+            ["ExpiryHours"] = expiryHours,
+            ["TenantName"] = string.IsNullOrEmpty(tenantContext.TenantSlug) ? "Svyne" : tenantContext.TenantSlug
+        };
+        var htmlBody = await templates.RenderAsync("admin_invitation.html", values, ct);
+        await email.SendAsync(fromAddress, recipient, subject, htmlBody, ct);
     }
 
     public override async Task<AckResponse> AcceptInvitation(AcceptInvitationRequest request, ServerCallContext context)

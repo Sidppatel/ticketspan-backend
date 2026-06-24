@@ -3,7 +3,7 @@ RETURNS timestamptz LANGUAGE sql STABLE
     SET search_path = public, extensions, pg_catalog
 AS $$
     SELECT MAX(updated_at)
-      FROM purchases
+      FROM bookings
      WHERE events_id = p_event_id
        AND status = 'CheckedIn';
 $$;

@@ -26,7 +26,7 @@ LEFT JOIN LATERAL (
 ) ec ON true
 LEFT JOIN LATERAL (
     SELECT SUM(p.subtotal_cents)::bigint AS total
-    FROM purchases p
+    FROM bookings p
     JOIN events e ON e.events_id = p.events_id
     JOIN users bu ON bu.users_id = e.created_by_users_id
     WHERE bu.tenants_id = o.tenants_id

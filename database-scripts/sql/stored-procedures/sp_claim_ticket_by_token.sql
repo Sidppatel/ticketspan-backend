@@ -7,15 +7,15 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
     v_id uuid;
-    v_purchase_id uuid;
+    v_booking_id uuid;
     v_status text;
     v_guest_user_id uuid;
     v_expires_at timestamptz;
     v_already_count int;
 BEGIN
-    SELECT id, purchases_id, status::text, guest_users_id, invite_expires_at
-        INTO v_id, v_purchase_id, v_status, v_guest_user_id, v_expires_at
-        FROM purchase_tickets
+    SELECT id, bookings_id, status::text, guest_users_id, invite_expires_at
+        INTO v_id, v_booking_id, v_status, v_guest_user_id, v_expires_at
+        FROM tickets
         WHERE invite_token_hash = p_invite_hash
         FOR UPDATE;
 
@@ -45,24 +45,24 @@ BEGIN
     END IF;
 
     SELECT COUNT(*) INTO v_already_count
-        FROM purchase_tickets
-        WHERE purchases_id = v_purchase_id
+        FROM tickets
+        WHERE bookings_id = v_booking_id
           AND guest_users_id = p_guest_user_id
-          AND purchase_tickets_id <> v_id
+          AND tickets_id <> v_id
           AND status IN ('Claimed', 'CheckedIn');
 
     IF v_already_count > 0 THEN
-        RETURN QUERY SELECT v_id, false, 'You already have a ticket on this purchase. One ticket per person.', false;
+        RETURN QUERY SELECT v_id, false, 'You already have a ticket on this booking. One ticket per person.', false;
         RETURN;
     END IF;
 
-    UPDATE purchase_tickets SET
+    UPDATE tickets SET
         guest_users_id = p_guest_user_id,
         claimed_at = now(),
         status = 'Claimed',
         invite_token_hash = NULL,
         updated_at = now()
-    WHERE purchase_tickets_id = v_id;
+    WHERE tickets_id = v_id;
 
     RETURN QUERY SELECT v_id, true, 'Ticket claimed successfully', false;
 END; $$;

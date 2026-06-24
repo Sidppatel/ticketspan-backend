@@ -12,7 +12,7 @@ SELECT
 FROM event_ticket_types ett
 LEFT JOIN LATERAL (
     SELECT COALESCE(SUM(b.seats_reserved), 0)::int AS sold
-    FROM purchases b
+    FROM bookings b
     WHERE b.event_ticket_types_id = ett.event_ticket_types_id
       AND b.status IN ('Pending', 'Paid', 'CheckedIn')
 ) bs ON true;

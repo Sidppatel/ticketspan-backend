@@ -3,29 +3,28 @@ using Npgsql;
 using Svyne.Api.Data;
 using Svyne.Api.Security;
 using Svyne.Protos.Common;
-using Svyne.Protos.Purchase;
+using Svyne.Protos.Booking;
 
 namespace Svyne.Api.Services;
 
-public sealed class PurchaseServiceImpl : PurchaseService.PurchaseServiceBase
+public sealed class BookingServiceImpl : BookingService.BookingServiceBase
 {
     private readonly Db db;
     private readonly TenantContext tenantContext;
 
-    public PurchaseServiceImpl(Db db, TenantContext tenantContext)
+    public BookingServiceImpl(Db db, TenantContext tenantContext)
     {
         this.db = db;
         this.tenantContext = tenantContext;
     }
 
-    public override async Task<CreatePurchaseResponse> CreatePurchase(CreatePurchaseRequest request, ServerCallContext context)
+    public override async Task<CreateBookingResponse> CreateBooking(CreateBookingRequest request, ServerCallContext context)
     {
         var ct = context.CancellationToken;
         RequireUser();
-        var number = NewPurchaseNumber();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT sp_create_purchase(@u, @ev, @tbl, @seats, @tt, @sub, @fee, @total, @num, 'Pending')", connection);
+            "SELECT bookings_id, booking_number FROM sp_create_booking(@u, @ev, @tbl, @seats, @tt, @sub, @fee, @total, 'Pending')", connection);
         cmd.Parameters.AddWithValue("u", tenantContext.UsersId!);
         cmd.Parameters.AddWithValue("ev", Guid.Parse(request.EventsId));
         cmd.Parameters.AddWithValue("tbl", string.IsNullOrEmpty(request.TablesId) ? DBNull.Value : Guid.Parse(request.TablesId));
@@ -34,19 +33,18 @@ public sealed class PurchaseServiceImpl : PurchaseService.PurchaseServiceBase
         cmd.Parameters.AddWithValue("sub", request.SubtotalCents);
         cmd.Parameters.AddWithValue("fee", request.FeeCents);
         cmd.Parameters.AddWithValue("total", request.TotalCents);
-        cmd.Parameters.AddWithValue("num", number);
-        var id = (Guid)(await cmd.ExecuteScalarAsync(ct))!;
-        return new CreatePurchaseResponse { PurchasesId = id.ToString(), PurchaseNumber = number };
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        await reader.ReadAsync(ct);
+        return new CreateBookingResponse { BookingsId = reader.GetGuid(0).ToString(), BookingNumber = reader.GetString(1) };
     }
 
-    public override async Task<CreatePurchaseResponse> ReserveOpenCapacity(ReserveOpenCapacityRequest request, ServerCallContext context)
+    public override async Task<CreateBookingResponse> ReserveOpenCapacity(ReserveOpenCapacityRequest request, ServerCallContext context)
     {
         var ct = context.CancellationToken;
         RequireUser();
-        var number = NewPurchaseNumber();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT sp_reserve_open_capacity(@u, @ev, @seats, @tt, @sub, @fee, @total, @num)", connection);
+            "SELECT bookings_id, booking_number FROM sp_reserve_open_capacity(@u, @ev, @seats, @tt, @sub, @fee, @total)", connection);
         cmd.Parameters.AddWithValue("u", tenantContext.UsersId!);
         cmd.Parameters.AddWithValue("ev", Guid.Parse(request.EventsId));
         cmd.Parameters.AddWithValue("seats", request.Seats);
@@ -54,32 +52,32 @@ public sealed class PurchaseServiceImpl : PurchaseService.PurchaseServiceBase
         cmd.Parameters.AddWithValue("sub", request.SubtotalCents);
         cmd.Parameters.AddWithValue("fee", request.FeeCents);
         cmd.Parameters.AddWithValue("total", request.TotalCents);
-        cmd.Parameters.AddWithValue("num", number);
-        var id = (Guid)(await cmd.ExecuteScalarAsync(ct))!;
-        return new CreatePurchaseResponse { PurchasesId = id.ToString(), PurchaseNumber = number };
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        await reader.ReadAsync(ct);
+        return new CreateBookingResponse { BookingsId = reader.GetGuid(0).ToString(), BookingNumber = reader.GetString(1) };
     }
 
-    public override Task<AckResponse> ConfirmPurchase(ConfirmPurchaseRequest request, ServerCallContext context)
-        => RunVoid("SELECT sp_confirm_purchase(@id, @qr)", request.PurchasesId, context, ("qr", request.QrToken), "Purchase confirmed");
+    public override Task<AckResponse> ConfirmBooking(ConfirmBookingRequest request, ServerCallContext context)
+        => RunVoid("SELECT sp_confirm_booking(@id, @qr)", request.BookingsId, context, ("qr", request.QrToken), "Booking confirmed");
 
-    public override Task<AckResponse> CancelPurchase(UuidValue request, ServerCallContext context)
-        => RunVoid("SELECT sp_cancel_purchase(@id)", request.Value, context, null, "Purchase cancelled");
+    public override Task<AckResponse> CancelBooking(UuidValue request, ServerCallContext context)
+        => RunVoid("SELECT sp_cancel_booking(@id)", request.Value, context, null, "Booking cancelled");
 
-    public override Task<AckResponse> RefundPurchase(UuidValue request, ServerCallContext context)
-        => RunVoid("SELECT sp_refund_purchase(@id)", request.Value, context, null, "Purchase refunded");
+    public override Task<AckResponse> RefundBooking(UuidValue request, ServerCallContext context)
+        => RunVoid("SELECT sp_refund_booking(@id)", request.Value, context, null, "Booking refunded");
 
-    public override async Task<PurchaseStats> GetPurchaseStats(UuidValue request, ServerCallContext context)
+    public override async Task<BookingStats> GetBookingStats(UuidValue request, ServerCallContext context)
     {
         var ct = context.CancellationToken;
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
-        await using var cmd = new NpgsqlCommand("SELECT total, paid, checked_in, revenue FROM sp_get_purchase_stats(NULL, @ev)", connection);
+        await using var cmd = new NpgsqlCommand("SELECT total, paid, checked_in, revenue FROM sp_get_booking_stats(NULL, @ev)", connection);
         cmd.Parameters.AddWithValue("ev", Guid.Parse(request.Value));
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct))
         {
-            return new PurchaseStats();
+            return new BookingStats();
         }
-        return new PurchaseStats
+        return new BookingStats
         {
             Total = reader.GetInt32(0),
             Paid = reader.GetInt32(1),
@@ -102,28 +100,28 @@ public sealed class PurchaseServiceImpl : PurchaseService.PurchaseServiceBase
         return new AckResponse { Success = true, Message = okMessage };
     }
 
-    public override async Task<Purchase> GetPurchase(UuidValue request, ServerCallContext context)
+    public override async Task<Booking> GetBooking(UuidValue request, ServerCallContext context)
     {
         var ct = context.CancellationToken;
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
-        await using var cmd = new NpgsqlCommand(PurchaseSelect + " WHERE purchases_id = @id", connection);
+        await using var cmd = new NpgsqlCommand(BookingSelect + " WHERE bookings_id = @id", connection);
         cmd.Parameters.AddWithValue("id", Guid.Parse(request.Value));
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct))
         {
-            throw new RpcException(new Status(StatusCode.NotFound, "Purchase not found"));
+            throw new RpcException(new Status(StatusCode.NotFound, "Booking not found"));
         }
-        return MapPurchase(reader);
+        return MapBooking(reader);
     }
 
-    public override async Task<ListPurchasesResponse> ListPurchases(ListPurchasesRequest request, ServerCallContext context)
+    public override async Task<ListBookingsResponse> ListBookings(ListBookingsRequest request, ServerCallContext context)
     {
         var ct = context.CancellationToken;
         var page = request.Page ?? new PageRequest();
-        var response = new ListPurchasesResponse { Meta = new PageMeta { Offset = page.Offset, Limit = page.Limit } };
+        var response = new ListBookingsResponse { Meta = new PageMeta { Offset = page.Offset, Limit = page.Limit } };
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            PurchaseSelect + " WHERE (@ev = '00000000-0000-0000-0000-000000000000' OR events_id = @ev) "
+            BookingSelect + " WHERE (@ev = '00000000-0000-0000-0000-000000000000' OR events_id = @ev) "
             + "AND (@status = '' OR status = @status) ORDER BY created_at DESC LIMIT @lim OFFSET @off", connection);
         cmd.Parameters.AddWithValue("ev", string.IsNullOrEmpty(request.EventsId) ? Guid.Empty : Guid.Parse(request.EventsId));
         cmd.Parameters.AddWithValue("status", request.Status ?? string.Empty);
@@ -132,20 +130,20 @@ public sealed class PurchaseServiceImpl : PurchaseService.PurchaseServiceBase
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
         {
-            response.Purchases.Add(MapPurchase(reader));
+            response.Bookings.Add(MapBooking(reader));
         }
-        response.Meta.Total = response.Purchases.Count;
+        response.Meta.Total = response.Bookings.Count;
         return response;
     }
 
-    private const string PurchaseSelect =
-        "SELECT purchases_id, purchase_number, status, users_id, events_id, subtotal_cents, fee_cents, total_cents, "
-        + "COALESCE(seats_reserved, 0) FROM vw_purchases";
+    private const string BookingSelect =
+        "SELECT bookings_id, booking_number, status, users_id, events_id, subtotal_cents, fee_cents, total_cents, "
+        + "COALESCE(seats_reserved, 0) FROM vw_bookings";
 
-    private static Purchase MapPurchase(NpgsqlDataReader r) => new()
+    private static Booking MapBooking(NpgsqlDataReader r) => new()
     {
-        PurchasesId = r.GetGuid(0).ToString(),
-        PurchaseNumber = r.GetString(1),
+        BookingsId = r.GetGuid(0).ToString(),
+        BookingNumber = r.GetString(1),
         Status = r.GetString(2),
         UsersId = r.IsDBNull(3) ? string.Empty : r.GetGuid(3).ToString(),
         EventsId = r.IsDBNull(4) ? string.Empty : r.GetGuid(4).ToString(),
@@ -162,6 +160,4 @@ public sealed class PurchaseServiceImpl : PurchaseService.PurchaseServiceBase
             throw new RpcException(new Status(StatusCode.Unauthenticated, "Authentication required"));
         }
     }
-
-    private static string NewPurchaseNumber() => "PUR-" + Guid.NewGuid().ToString("N")[..10].ToUpperInvariant();
 }

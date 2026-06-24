@@ -13,7 +13,7 @@ using NpgsqlTypes;
 namespace Db.Migrations
 {
     [DbContext(typeof(EventPlatformDbContext))]
-    [Migration("20260622081258_InstallSqlArtifacts")]
+    [Migration("20260624025831_InstallSqlArtifacts")]
     partial class InstallSqlArtifacts
     {
         /// <inheritdoc />
@@ -200,6 +200,150 @@ namespace Db.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Db.Entities.Booking", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("bookings_id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("BookingNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("booking_number");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("EventTicketTypesId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_ticket_types_id");
+
+                    b.Property<Guid>("EventsId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("events_id");
+
+                    b.Property<int>("FeeCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("fee_cents");
+
+                    b.Property<string>("QrToken")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("qr_token");
+
+                    b.Property<int?>("SeatsReserved")
+                        .HasColumnType("integer")
+                        .HasColumnName("seats_reserved");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<int>("SubtotalCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("subtotal_cents");
+
+                    b.Property<Guid?>("TablesId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tables_id");
+
+                    b.Property<Guid>("TenantsId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenants_id");
+
+                    b.Property<int>("TotalCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("total_cents");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UsersId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("users_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_bookings");
+
+                    b.HasIndex("EventTicketTypesId")
+                        .HasDatabaseName("ix_bookings_event_ticket_types_id");
+
+                    b.HasIndex("QrToken")
+                        .IsUnique()
+                        .HasDatabaseName("ix_bookings_qr_token")
+                        .HasFilter("qr_token IS NOT NULL");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_bookings_status");
+
+                    b.HasIndex("TablesId")
+                        .HasDatabaseName("ix_bookings_tables_id");
+
+                    b.HasIndex("TenantsId")
+                        .HasDatabaseName("ix_bookings_tenants_id");
+
+                    b.HasIndex("UsersId")
+                        .HasDatabaseName("ix_bookings_users_id");
+
+                    b.HasIndex("EventsId", "Status")
+                        .HasDatabaseName("ix_bookings_events_id_status");
+
+                    b.HasIndex("UsersId", "CreatedAt")
+                        .HasDatabaseName("ix_bookings_users_id_created_at");
+
+                    b.HasIndex("EventsId", "UsersId", "BookingNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_bookings_events_id_users_id_booking_number");
+
+                    b.ToTable("bookings", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_bookings_FeeCents", "fee_cents >= 0");
+
+                            t.HasCheckConstraint("CK_bookings_SeatsReserved", "seats_reserved IS NULL OR seats_reserved > 0");
+
+                            t.HasCheckConstraint("CK_bookings_Status", "status IN ('Pending','Paid','CheckedIn','Cancelled','Refunded','Expired')");
+
+                            t.HasCheckConstraint("CK_bookings_SubtotalCents", "subtotal_cents >= 0");
+
+                            t.HasCheckConstraint("CK_bookings_TotalCents", "total_cents >= 0");
+
+                            t.HasCheckConstraint("CK_bookings_TotalFormula", "total_cents = subtotal_cents + fee_cents");
+                        });
+                });
+
+            modelBuilder.Entity("Db.Entities.BookingTable", b =>
+                {
+                    b.Property<Guid>("BookingsId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("bookings_id");
+
+                    b.Property<Guid>("TablesId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tables_id");
+
+                    b.Property<Guid>("TenantsId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenants_id");
+
+                    b.HasKey("BookingsId", "TablesId")
+                        .HasName("pk_booking_tables");
+
+                    b.HasIndex("TablesId")
+                        .HasDatabaseName("ix_booking_tables_tables_id");
+
+                    b.HasIndex("TenantsId")
+                        .HasDatabaseName("ix_booking_tables_tenants_id");
+
+                    b.ToTable("booking_tables", (string)null);
+                });
+
             modelBuilder.Entity("Db.Entities.DeviceSession", b =>
                 {
                     b.Property<Guid>("Id")
@@ -320,6 +464,59 @@ namespace Db.Migrations
                         .HasDatabaseName("ix_email_logs_timestamp");
 
                     b.ToTable("email_logs", (string)null);
+                });
+
+            modelBuilder.Entity("Db.Entities.EnumDefinition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("enum_definitions_id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("EnumType")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("enum_type");
+
+                    b.Property<string>("EnumValue")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("enum_value");
+
+                    b.Property<int>("IntValue")
+                        .HasColumnType("integer")
+                        .HasColumnName("int_value");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UsedIn")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("used_in");
+
+                    b.HasKey("Id")
+                        .HasName("pk_enum_definitions");
+
+                    b.HasIndex("EnumType", "EnumValue")
+                        .IsUnique()
+                        .HasDatabaseName("ix_enum_definitions_enum_type_enum_value");
+
+                    b.ToTable("enum_definitions", (string)null);
                 });
 
             modelBuilder.Entity("Db.Entities.Event", b =>
@@ -1312,252 +1509,6 @@ namespace Db.Migrations
                     b.ToTable("platform_images", (string)null);
                 });
 
-            modelBuilder.Entity("Db.Entities.Purchase", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("purchases_id")
-                        .HasDefaultValueSql("gen_random_uuid()");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("EventTicketTypesId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("event_ticket_types_id");
-
-                    b.Property<Guid>("EventsId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("events_id");
-
-                    b.Property<int>("FeeCents")
-                        .HasColumnType("integer")
-                        .HasColumnName("fee_cents");
-
-                    b.Property<string>("PurchaseNumber")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("purchase_number");
-
-                    b.Property<string>("QrToken")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("qr_token");
-
-                    b.Property<int?>("SeatsReserved")
-                        .HasColumnType("integer")
-                        .HasColumnName("seats_reserved");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("status");
-
-                    b.Property<int>("SubtotalCents")
-                        .HasColumnType("integer")
-                        .HasColumnName("subtotal_cents");
-
-                    b.Property<Guid?>("TablesId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tables_id");
-
-                    b.Property<Guid>("TenantsId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tenants_id");
-
-                    b.Property<int>("TotalCents")
-                        .HasColumnType("integer")
-                        .HasColumnName("total_cents");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid>("UsersId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("users_id");
-
-                    b.HasKey("Id")
-                        .HasName("pk_purchases");
-
-                    b.HasIndex("EventTicketTypesId")
-                        .HasDatabaseName("ix_purchases_event_ticket_types_id");
-
-                    b.HasIndex("PurchaseNumber")
-                        .IsUnique()
-                        .HasDatabaseName("ix_purchases_purchase_number");
-
-                    b.HasIndex("QrToken")
-                        .IsUnique()
-                        .HasDatabaseName("ix_purchases_qr_token")
-                        .HasFilter("qr_token IS NOT NULL");
-
-                    b.HasIndex("Status")
-                        .HasDatabaseName("ix_purchases_status");
-
-                    b.HasIndex("TablesId")
-                        .HasDatabaseName("ix_purchases_tables_id");
-
-                    b.HasIndex("TenantsId")
-                        .HasDatabaseName("ix_purchases_tenants_id");
-
-                    b.HasIndex("UsersId")
-                        .HasDatabaseName("ix_purchases_users_id");
-
-                    b.HasIndex("EventsId", "Status")
-                        .HasDatabaseName("ix_purchases_events_id_status");
-
-                    b.HasIndex("UsersId", "CreatedAt")
-                        .HasDatabaseName("ix_purchases_users_id_created_at");
-
-                    b.ToTable("purchases", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_purchases_FeeCents", "fee_cents >= 0");
-
-                            t.HasCheckConstraint("CK_purchases_SeatsReserved", "seats_reserved IS NULL OR seats_reserved > 0");
-
-                            t.HasCheckConstraint("CK_purchases_Status", "status IN ('Pending','Paid','CheckedIn','Cancelled','Refunded','Expired')");
-
-                            t.HasCheckConstraint("CK_purchases_SubtotalCents", "subtotal_cents >= 0");
-
-                            t.HasCheckConstraint("CK_purchases_TotalCents", "total_cents >= 0");
-
-                            t.HasCheckConstraint("CK_purchases_TotalFormula", "total_cents = subtotal_cents + fee_cents");
-                        });
-                });
-
-            modelBuilder.Entity("Db.Entities.PurchaseTable", b =>
-                {
-                    b.Property<Guid>("PurchasesId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("purchases_id");
-
-                    b.Property<Guid>("TablesId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tables_id");
-
-                    b.Property<Guid>("TenantsId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tenants_id");
-
-                    b.HasKey("PurchasesId", "TablesId")
-                        .HasName("pk_purchase_tables");
-
-                    b.HasIndex("TablesId")
-                        .HasDatabaseName("ix_purchase_tables_tables_id");
-
-                    b.HasIndex("TenantsId")
-                        .HasDatabaseName("ix_purchase_tables_tenants_id");
-
-                    b.ToTable("purchase_tables", (string)null);
-                });
-
-            modelBuilder.Entity("Db.Entities.PurchaseTicket", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("purchase_tickets_id")
-                        .HasDefaultValueSql("gen_random_uuid()");
-
-                    b.Property<DateTime?>("ClaimedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("claimed_at");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("GuestUsersId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("guest_users_id");
-
-                    b.Property<DateTime?>("InviteExpiresAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("invite_expires_at");
-
-                    b.Property<DateTime?>("InviteSentAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("invite_sent_at");
-
-                    b.Property<string>("InviteTokenHash")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("invite_token_hash");
-
-                    b.Property<string>("InvitedEmail")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("invited_email");
-
-                    b.Property<Guid>("PurchasesId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("purchases_id");
-
-                    b.Property<string>("QrToken")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("qr_token");
-
-                    b.Property<int>("SeatNumber")
-                        .HasColumnType("integer")
-                        .HasColumnName("seat_number");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("status");
-
-                    b.Property<Guid>("TenantsId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tenants_id");
-
-                    b.Property<string>("TicketCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("ticket_code");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id")
-                        .HasName("pk_purchase_tickets");
-
-                    b.HasIndex("GuestUsersId")
-                        .HasDatabaseName("ix_purchase_tickets_guest_users_id");
-
-                    b.HasIndex("InviteTokenHash")
-                        .IsUnique()
-                        .HasDatabaseName("ix_purchase_tickets_invite_token_hash")
-                        .HasFilter("invite_token_hash IS NOT NULL");
-
-                    b.HasIndex("QrToken")
-                        .IsUnique()
-                        .HasDatabaseName("ix_purchase_tickets_qr_token");
-
-                    b.HasIndex("TenantsId")
-                        .HasDatabaseName("ix_purchase_tickets_tenants_id");
-
-                    b.HasIndex("PurchasesId", "SeatNumber")
-                        .IsUnique()
-                        .HasDatabaseName("ix_purchase_tickets_purchases_id_seat_number");
-
-                    b.ToTable("purchase_tickets", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_purchase_tickets_SeatNumber", "seat_number > 0");
-
-                            t.HasCheckConstraint("CK_purchase_tickets_Status", "status IN ('Unassigned','Invited','Claimed','CheckedIn')");
-                        });
-                });
-
             modelBuilder.Entity("Db.Entities.Sponsor", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1699,6 +1650,10 @@ namespace Db.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("amount_cents");
 
+                    b.Property<Guid>("BookingsId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("bookings_id");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -1718,10 +1673,6 @@ namespace Db.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)")
                         .HasColumnName("payment_intent_id");
-
-                    b.Property<Guid>("PurchasesId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("purchases_id");
 
                     b.Property<string>("RefundId")
                         .HasMaxLength(128)
@@ -1775,13 +1726,13 @@ namespace Db.Migrations
                     b.HasKey("Id")
                         .HasName("pk_stripe_transactions");
 
+                    b.HasIndex("BookingsId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_stripe_transactions_bookings_id");
+
                     b.HasIndex("PaymentIntentId")
                         .IsUnique()
                         .HasDatabaseName("ix_stripe_transactions_payment_intent_id");
-
-                    b.HasIndex("PurchasesId")
-                        .IsUnique()
-                        .HasDatabaseName("ix_stripe_transactions_purchases_id");
 
                     b.HasIndex("TenantsId")
                         .HasDatabaseName("ix_stripe_transactions_tenants_id");
@@ -1827,6 +1778,10 @@ namespace Db.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("amount_cents");
 
+                    b.Property<Guid?>("BookingsId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("bookings_id");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -1838,10 +1793,6 @@ namespace Db.Migrations
                         .HasColumnType("character varying(8)")
                         .HasDefaultValue("usd")
                         .HasColumnName("currency");
-
-                    b.Property<Guid?>("PurchasesId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("purchases_id");
 
                     b.Property<string>("RawEvent")
                         .HasColumnType("jsonb")
@@ -1864,8 +1815,8 @@ namespace Db.Migrations
                     b.HasKey("Id")
                         .HasName("pk_stripe_transfers");
 
-                    b.HasIndex("PurchasesId")
-                        .HasDatabaseName("ix_stripe_transfers_purchases_id");
+                    b.HasIndex("BookingsId")
+                        .HasDatabaseName("ix_stripe_transfers_bookings_id");
 
                     b.HasIndex("StripeTransferId")
                         .IsUnique()
@@ -2156,6 +2107,116 @@ namespace Db.Migrations
                         .HasFilter("stripe_connected_account_id IS NOT NULL");
 
                     b.ToTable("tenants", (string)null);
+                });
+
+            modelBuilder.Entity("Db.Entities.Ticket", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("tickets_id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<Guid>("BookingsId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("bookings_id");
+
+                    b.Property<DateTime?>("ClaimedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("claimed_at");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("EventsId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("events_id");
+
+                    b.Property<Guid?>("GuestUsersId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("guest_users_id");
+
+                    b.Property<DateTime?>("InviteExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("invite_expires_at");
+
+                    b.Property<DateTime?>("InviteSentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("invite_sent_at");
+
+                    b.Property<string>("InviteTokenHash")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("invite_token_hash");
+
+                    b.Property<string>("InvitedEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("invited_email");
+
+                    b.Property<string>("QrToken")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("qr_token");
+
+                    b.Property<int>("SeatNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("seat_number");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantsId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenants_id");
+
+                    b.Property<string>("TicketCode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("ticket_code");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_tickets");
+
+                    b.HasIndex("GuestUsersId")
+                        .HasDatabaseName("ix_tickets_guest_users_id");
+
+                    b.HasIndex("InviteTokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("ix_tickets_invite_token_hash")
+                        .HasFilter("invite_token_hash IS NOT NULL");
+
+                    b.HasIndex("QrToken")
+                        .IsUnique()
+                        .HasDatabaseName("ix_tickets_qr_token");
+
+                    b.HasIndex("TenantsId")
+                        .HasDatabaseName("ix_tickets_tenants_id");
+
+                    b.HasIndex("BookingsId", "SeatNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_tickets_bookings_id_seat_number");
+
+                    b.HasIndex("EventsId", "TicketCode")
+                        .IsUnique()
+                        .HasDatabaseName("ix_tickets_events_id_ticket_code");
+
+                    b.ToTable("tickets", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_tickets_SeatNumber", "seat_number > 0");
+
+                            t.HasCheckConstraint("CK_tickets_Status", "status IN ('Unassigned','Invited','Claimed','CheckedIn')");
+                        });
                 });
 
             modelBuilder.Entity("Db.Entities.User", b =>
@@ -2545,25 +2606,25 @@ namespace Db.Migrations
 
             modelBuilder.Entity("Db.Entities.Views.AdminDashboardStatsView", b =>
                 {
-                    b.Property<int>("CheckedInPurchases")
+                    b.Property<int>("CheckedInBookings")
                         .HasColumnType("integer")
-                        .HasColumnName("checked_in_purchases");
+                        .HasColumnName("checked_in_bookings");
 
-                    b.Property<int>("PaidPurchases")
+                    b.Property<int>("PaidBookings")
                         .HasColumnType("integer")
-                        .HasColumnName("paid_purchases");
+                        .HasColumnName("paid_bookings");
 
                     b.Property<int>("PublishedEvents")
                         .HasColumnType("integer")
                         .HasColumnName("published_events");
 
+                    b.Property<int>("TotalBookings")
+                        .HasColumnType("integer")
+                        .HasColumnName("total_bookings");
+
                     b.Property<int>("TotalEvents")
                         .HasColumnType("integer")
                         .HasColumnName("total_events");
-
-                    b.Property<int>("TotalPurchases")
-                        .HasColumnType("integer")
-                        .HasColumnName("total_purchases");
 
                     b.Property<long>("TotalRevenueCents")
                         .HasColumnType("bigint")
@@ -2580,6 +2641,216 @@ namespace Db.Migrations
                     b.ToTable((string)null);
 
                     b.ToView("vw_admin_dashboard_stats", (string)null);
+                });
+
+            modelBuilder.Entity("Db.Entities.Views.BookingView", b =>
+                {
+                    b.Property<Guid>("BookingId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("booking_id");
+
+                    b.Property<string>("BookingNumber")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("booking_number");
+
+                    b.Property<Guid>("BusinessUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("business_user_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("EventCategory")
+                        .HasColumnType("text")
+                        .HasColumnName("event_category");
+
+                    b.Property<DateTime>("EventEndDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("event_end_date");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<string>("EventImagePath")
+                        .HasColumnType("text")
+                        .HasColumnName("event_image_path");
+
+                    b.Property<string>("EventSlug")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("event_slug");
+
+                    b.Property<DateTime>("EventStartDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("event_start_date");
+
+                    b.Property<Guid?>("EventTicketTypeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_ticket_type_id");
+
+                    b.Property<string>("EventTicketTypeLabel")
+                        .HasColumnType("text")
+                        .HasColumnName("event_ticket_type_label");
+
+                    b.Property<string>("EventTitle")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("event_title");
+
+                    b.Property<int>("FeeCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("fee_cents");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("paid_at");
+
+                    b.Property<int?>("PaymentAmountCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("payment_amount_cents");
+
+                    b.Property<string>("PaymentIntentId")
+                        .HasColumnType("text")
+                        .HasColumnName("payment_intent_id");
+
+                    b.Property<string>("PaymentStatus")
+                        .HasColumnType("text")
+                        .HasColumnName("payment_status");
+
+                    b.Property<string>("QrToken")
+                        .HasColumnType("text")
+                        .HasColumnName("qr_token");
+
+                    b.Property<DateTime?>("RefundedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("refunded_at");
+
+                    b.Property<int?>("SeatsReserved")
+                        .HasColumnType("integer")
+                        .HasColumnName("seats_reserved");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<int?>("StripeFeesCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("stripe_fees_cents");
+
+                    b.Property<Guid?>("StripeTransactionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("stripe_transaction_id");
+
+                    b.Property<int>("SubtotalCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("subtotal_cents");
+
+                    b.Property<Guid?>("TableId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("table_id");
+
+                    b.Property<string>("TableLabel")
+                        .HasColumnType("text")
+                        .HasColumnName("table_label");
+
+                    b.PrimitiveCollection<string[]>("TableLabels")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("table_labels");
+
+                    b.Property<int?>("TaxAmountCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("tax_amount_cents");
+
+                    b.Property<string>("TaxCalculationId")
+                        .HasColumnType("text")
+                        .HasColumnName("tax_calculation_id");
+
+                    b.Property<string>("TaxTransactionId")
+                        .HasColumnType("text")
+                        .HasColumnName("tax_transaction_id");
+
+                    b.Property<int>("TicketCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("ticket_count");
+
+                    b.Property<int>("TotalCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("total_cents");
+
+                    b.Property<int?>("TotalChargedCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("total_charged_cents");
+
+                    b.Property<int?>("TransferAmountCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("transfer_amount_cents");
+
+                    b.Property<string>("UserEmail")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("user_email");
+
+                    b.Property<string>("UserFirstName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("user_first_name");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<string>("UserLastName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("user_last_name");
+
+                    b.Property<string>("VenueAddress")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("venue_address");
+
+                    b.Property<string>("VenueCity")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("venue_city");
+
+                    b.Property<string>("VenueName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("venue_name");
+
+                    b.Property<string>("VenueState")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("venue_state");
+
+                    b.HasKey("BookingId");
+
+                    b.ToTable((string)null);
+
+                    b.ToView("vw_bookings", (string)null);
+                });
+
+            modelBuilder.Entity("Db.Entities.Views.BookingsByStatusView", b =>
+                {
+                    b.Property<string>("Status")
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<int>("Count")
+                        .HasColumnType("integer")
+                        .HasColumnName("count");
+
+                    b.HasKey("Status");
+
+                    b.ToTable((string)null);
+
+                    b.ToView("vw_bookings_by_status", (string)null);
                 });
 
             modelBuilder.Entity("Db.Entities.Views.BusinessLogView", b =>
@@ -3601,352 +3872,6 @@ namespace Db.Migrations
                     b.ToView("vw_platform_images", (string)null);
                 });
 
-            modelBuilder.Entity("Db.Entities.Views.PurchaseTicketView", b =>
-                {
-                    b.Property<Guid>("PurchaseTicketId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("purchase_ticket_id");
-
-                    b.Property<DateTime?>("ClaimedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("claimed_at");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTime>("EventEndDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("event_end_date");
-
-                    b.Property<Guid>("EventId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("event_id");
-
-                    b.Property<DateTime>("EventStartDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("event_start_date");
-
-                    b.Property<string>("EventTitle")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("event_title");
-
-                    b.Property<string>("GuestEmail")
-                        .HasColumnType("text")
-                        .HasColumnName("guest_email");
-
-                    b.Property<string>("GuestFirstName")
-                        .HasColumnType("text")
-                        .HasColumnName("guest_first_name");
-
-                    b.Property<string>("GuestLastName")
-                        .HasColumnType("text")
-                        .HasColumnName("guest_last_name");
-
-                    b.Property<Guid?>("GuestUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("guest_user_id");
-
-                    b.Property<DateTime?>("InviteExpiresAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("invite_expires_at");
-
-                    b.Property<DateTime?>("InviteSentAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("invite_sent_at");
-
-                    b.Property<string>("InviteTokenHash")
-                        .HasColumnType("text")
-                        .HasColumnName("invite_token_hash");
-
-                    b.Property<string>("InvitedEmail")
-                        .HasColumnType("text")
-                        .HasColumnName("invited_email");
-
-                    b.Property<Guid>("PurchaseId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("purchase_id");
-
-                    b.Property<string>("PurchaseNumber")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("purchase_number");
-
-                    b.Property<string>("PurchaseStatus")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("purchase_status");
-
-                    b.Property<Guid?>("PurchaseTableId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("purchase_table_id");
-
-                    b.Property<string>("PurchaseUserEmail")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("purchase_user_email");
-
-                    b.Property<string>("PurchaseUserFirstName")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("purchase_user_first_name");
-
-                    b.Property<Guid>("PurchaseUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("purchase_user_id");
-
-                    b.Property<string>("PurchaseUserLastName")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("purchase_user_last_name");
-
-                    b.Property<string>("QrToken")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("qr_token");
-
-                    b.Property<int>("SeatNumber")
-                        .HasColumnType("integer")
-                        .HasColumnName("seat_number");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("status");
-
-                    b.Property<string>("TicketCode")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("ticket_code");
-
-                    b.Property<string>("VenueCity")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("venue_city");
-
-                    b.Property<string>("VenueName")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("venue_name");
-
-                    b.HasKey("PurchaseTicketId");
-
-                    b.ToTable((string)null);
-
-                    b.ToView("vw_purchase_tickets", (string)null);
-                });
-
-            modelBuilder.Entity("Db.Entities.Views.PurchaseView", b =>
-                {
-                    b.Property<Guid>("PurchaseId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("purchase_id");
-
-                    b.Property<Guid>("BusinessUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("business_user_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("EventCategory")
-                        .HasColumnType("text")
-                        .HasColumnName("event_category");
-
-                    b.Property<DateTime>("EventEndDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("event_end_date");
-
-                    b.Property<Guid>("EventId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("event_id");
-
-                    b.Property<string>("EventImagePath")
-                        .HasColumnType("text")
-                        .HasColumnName("event_image_path");
-
-                    b.Property<string>("EventSlug")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("event_slug");
-
-                    b.Property<DateTime>("EventStartDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("event_start_date");
-
-                    b.Property<Guid?>("EventTicketTypeId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("event_ticket_type_id");
-
-                    b.Property<string>("EventTicketTypeLabel")
-                        .HasColumnType("text")
-                        .HasColumnName("event_ticket_type_label");
-
-                    b.Property<string>("EventTitle")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("event_title");
-
-                    b.Property<int>("FeeCents")
-                        .HasColumnType("integer")
-                        .HasColumnName("fee_cents");
-
-                    b.Property<DateTime?>("PaidAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("paid_at");
-
-                    b.Property<int?>("PaymentAmountCents")
-                        .HasColumnType("integer")
-                        .HasColumnName("payment_amount_cents");
-
-                    b.Property<string>("PaymentIntentId")
-                        .HasColumnType("text")
-                        .HasColumnName("payment_intent_id");
-
-                    b.Property<string>("PaymentStatus")
-                        .HasColumnType("text")
-                        .HasColumnName("payment_status");
-
-                    b.Property<string>("PurchaseNumber")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("purchase_number");
-
-                    b.Property<string>("QrToken")
-                        .HasColumnType("text")
-                        .HasColumnName("qr_token");
-
-                    b.Property<DateTime?>("RefundedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("refunded_at");
-
-                    b.Property<int?>("SeatsReserved")
-                        .HasColumnType("integer")
-                        .HasColumnName("seats_reserved");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("status");
-
-                    b.Property<int?>("StripeFeesCents")
-                        .HasColumnType("integer")
-                        .HasColumnName("stripe_fees_cents");
-
-                    b.Property<Guid?>("StripeTransactionId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("stripe_transaction_id");
-
-                    b.Property<int>("SubtotalCents")
-                        .HasColumnType("integer")
-                        .HasColumnName("subtotal_cents");
-
-                    b.Property<Guid?>("TableId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("table_id");
-
-                    b.Property<string>("TableLabel")
-                        .HasColumnType("text")
-                        .HasColumnName("table_label");
-
-                    b.PrimitiveCollection<string[]>("TableLabels")
-                        .IsRequired()
-                        .HasColumnType("text[]")
-                        .HasColumnName("table_labels");
-
-                    b.Property<int?>("TaxAmountCents")
-                        .HasColumnType("integer")
-                        .HasColumnName("tax_amount_cents");
-
-                    b.Property<string>("TaxCalculationId")
-                        .HasColumnType("text")
-                        .HasColumnName("tax_calculation_id");
-
-                    b.Property<string>("TaxTransactionId")
-                        .HasColumnType("text")
-                        .HasColumnName("tax_transaction_id");
-
-                    b.Property<int>("TicketCount")
-                        .HasColumnType("integer")
-                        .HasColumnName("ticket_count");
-
-                    b.Property<int>("TotalCents")
-                        .HasColumnType("integer")
-                        .HasColumnName("total_cents");
-
-                    b.Property<int?>("TotalChargedCents")
-                        .HasColumnType("integer")
-                        .HasColumnName("total_charged_cents");
-
-                    b.Property<int?>("TransferAmountCents")
-                        .HasColumnType("integer")
-                        .HasColumnName("transfer_amount_cents");
-
-                    b.Property<string>("UserEmail")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("user_email");
-
-                    b.Property<string>("UserFirstName")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("user_first_name");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("user_id");
-
-                    b.Property<string>("UserLastName")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("user_last_name");
-
-                    b.Property<string>("VenueAddress")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("venue_address");
-
-                    b.Property<string>("VenueCity")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("venue_city");
-
-                    b.Property<string>("VenueName")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("venue_name");
-
-                    b.Property<string>("VenueState")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("venue_state");
-
-                    b.HasKey("PurchaseId");
-
-                    b.ToTable((string)null);
-
-                    b.ToView("vw_purchases", (string)null);
-                });
-
-            modelBuilder.Entity("Db.Entities.Views.PurchasesByStatusView", b =>
-                {
-                    b.Property<string>("Status")
-                        .HasColumnType("text")
-                        .HasColumnName("status");
-
-                    b.Property<int>("Count")
-                        .HasColumnType("integer")
-                        .HasColumnName("count");
-
-                    b.HasKey("Status");
-
-                    b.ToTable((string)null);
-
-                    b.ToView("vw_purchases_by_status", (string)null);
-                });
-
             modelBuilder.Entity("Db.Entities.Views.SiteVisitView", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4076,6 +4001,20 @@ namespace Db.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("amount_cents");
 
+                    b.Property<Guid>("BookingId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("booking_id");
+
+                    b.Property<string>("BookingNumber")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("booking_number");
+
+                    b.Property<string>("BookingStatus")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("booking_status");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -4106,20 +4045,6 @@ namespace Db.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("payment_intent_id");
-
-                    b.Property<Guid>("PurchaseId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("purchase_id");
-
-                    b.Property<string>("PurchaseNumber")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("purchase_number");
-
-                    b.Property<string>("PurchaseStatus")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("purchase_status");
 
                     b.Property<string>("RefundId")
                         .HasColumnType("text")
@@ -4418,15 +4343,151 @@ namespace Db.Migrations
                     b.ToView("vw_tenants", (string)null);
                 });
 
+            modelBuilder.Entity("Db.Entities.Views.TicketView", b =>
+                {
+                    b.Property<Guid>("TicketId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ticket_id");
+
+                    b.Property<Guid>("BookingId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("booking_id");
+
+                    b.Property<string>("BookingNumber")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("booking_number");
+
+                    b.Property<string>("BookingStatus")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("booking_status");
+
+                    b.Property<Guid?>("BookingTableId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("booking_table_id");
+
+                    b.Property<string>("BookingUserEmail")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("booking_user_email");
+
+                    b.Property<string>("BookingUserFirstName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("booking_user_first_name");
+
+                    b.Property<Guid>("BookingUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("booking_user_id");
+
+                    b.Property<string>("BookingUserLastName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("booking_user_last_name");
+
+                    b.Property<DateTime?>("ClaimedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("claimed_at");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("EventEndDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("event_end_date");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<DateTime>("EventStartDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("event_start_date");
+
+                    b.Property<string>("EventTitle")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("event_title");
+
+                    b.Property<string>("GuestEmail")
+                        .HasColumnType("text")
+                        .HasColumnName("guest_email");
+
+                    b.Property<string>("GuestFirstName")
+                        .HasColumnType("text")
+                        .HasColumnName("guest_first_name");
+
+                    b.Property<string>("GuestLastName")
+                        .HasColumnType("text")
+                        .HasColumnName("guest_last_name");
+
+                    b.Property<Guid?>("GuestUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("guest_user_id");
+
+                    b.Property<DateTime?>("InviteExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("invite_expires_at");
+
+                    b.Property<DateTime?>("InviteSentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("invite_sent_at");
+
+                    b.Property<string>("InviteTokenHash")
+                        .HasColumnType("text")
+                        .HasColumnName("invite_token_hash");
+
+                    b.Property<string>("InvitedEmail")
+                        .HasColumnType("text")
+                        .HasColumnName("invited_email");
+
+                    b.Property<string>("QrToken")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("qr_token");
+
+                    b.Property<int>("SeatNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("seat_number");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TicketCode")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("ticket_code");
+
+                    b.Property<string>("VenueCity")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("venue_city");
+
+                    b.Property<string>("VenueName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("venue_name");
+
+                    b.HasKey("TicketId");
+
+                    b.ToTable((string)null);
+
+                    b.ToView("vw_tickets", (string)null);
+                });
+
             modelBuilder.Entity("Db.Entities.Views.TopEventRevenueView", b =>
                 {
                     b.Property<Guid>("EventId")
                         .HasColumnType("uuid")
                         .HasColumnName("event_id");
 
-                    b.Property<int>("PurchaseCount")
+                    b.Property<int>("BookingCount")
                         .HasColumnType("integer")
-                        .HasColumnName("purchase_count");
+                        .HasColumnName("booking_count");
 
                     b.Property<long>("RevenueCents")
                         .HasColumnType("bigint")
@@ -4804,6 +4865,82 @@ namespace Db.Migrations
                     b.ToView("vw_venues", (string)null);
                 });
 
+            modelBuilder.Entity("Db.Entities.Booking", b =>
+                {
+                    b.HasOne("Db.Entities.EventTicketType", "EventTicketType")
+                        .WithMany()
+                        .HasForeignKey("EventTicketTypesId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_bookings_event_ticket_types_event_ticket_types_id");
+
+                    b.HasOne("Db.Entities.Event", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventsId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_bookings_events_events_id");
+
+                    b.HasOne("Db.Entities.Table", "Table")
+                        .WithMany()
+                        .HasForeignKey("TablesId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_bookings_tables_tables_id");
+
+                    b.HasOne("Db.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantsId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_bookings_tenants_tenants_id");
+
+                    b.HasOne("Db.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UsersId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_bookings_users_users_id");
+
+                    b.Navigation("Event");
+
+                    b.Navigation("EventTicketType");
+
+                    b.Navigation("Table");
+
+                    b.Navigation("Tenant");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Db.Entities.BookingTable", b =>
+                {
+                    b.HasOne("Db.Entities.Booking", "Booking")
+                        .WithMany()
+                        .HasForeignKey("BookingsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_booking_tables_bookings_bookings_id");
+
+                    b.HasOne("Db.Entities.Table", "Table")
+                        .WithMany()
+                        .HasForeignKey("TablesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_booking_tables_tables_tables_id");
+
+                    b.HasOne("Db.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantsId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_booking_tables_tenants_tenants_id");
+
+                    b.Navigation("Booking");
+
+                    b.Navigation("Table");
+
+                    b.Navigation("Tenant");
+                });
+
             modelBuilder.Entity("Db.Entities.DeviceSession", b =>
                 {
                     b.HasOne("Db.Entities.User", "User")
@@ -5072,111 +5209,6 @@ namespace Db.Migrations
                     b.Navigation("Image");
                 });
 
-            modelBuilder.Entity("Db.Entities.Purchase", b =>
-                {
-                    b.HasOne("Db.Entities.EventTicketType", "EventTicketType")
-                        .WithMany()
-                        .HasForeignKey("EventTicketTypesId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("fk_purchases_event_ticket_types_event_ticket_types_id");
-
-                    b.HasOne("Db.Entities.Event", "Event")
-                        .WithMany()
-                        .HasForeignKey("EventsId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_purchases_events_events_id");
-
-                    b.HasOne("Db.Entities.Table", "Table")
-                        .WithMany()
-                        .HasForeignKey("TablesId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("fk_purchases_tables_tables_id");
-
-                    b.HasOne("Db.Entities.Tenant", "Tenant")
-                        .WithMany()
-                        .HasForeignKey("TenantsId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_purchases_tenants_tenants_id");
-
-                    b.HasOne("Db.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UsersId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_purchases_users_users_id");
-
-                    b.Navigation("Event");
-
-                    b.Navigation("EventTicketType");
-
-                    b.Navigation("Table");
-
-                    b.Navigation("Tenant");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("Db.Entities.PurchaseTable", b =>
-                {
-                    b.HasOne("Db.Entities.Purchase", "Purchase")
-                        .WithMany()
-                        .HasForeignKey("PurchasesId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_purchase_tables_purchases_purchases_id");
-
-                    b.HasOne("Db.Entities.Table", "Table")
-                        .WithMany()
-                        .HasForeignKey("TablesId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_purchase_tables_tables_tables_id");
-
-                    b.HasOne("Db.Entities.Tenant", "Tenant")
-                        .WithMany()
-                        .HasForeignKey("TenantsId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_purchase_tables_tenants_tenants_id");
-
-                    b.Navigation("Purchase");
-
-                    b.Navigation("Table");
-
-                    b.Navigation("Tenant");
-                });
-
-            modelBuilder.Entity("Db.Entities.PurchaseTicket", b =>
-                {
-                    b.HasOne("Db.Entities.User", "GuestUser")
-                        .WithMany()
-                        .HasForeignKey("GuestUsersId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("fk_purchase_tickets_users_guest_users_id");
-
-                    b.HasOne("Db.Entities.Purchase", "Purchase")
-                        .WithMany("Tickets")
-                        .HasForeignKey("PurchasesId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_purchase_tickets_purchases_purchases_id");
-
-                    b.HasOne("Db.Entities.Tenant", "Tenant")
-                        .WithMany()
-                        .HasForeignKey("TenantsId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_purchase_tickets_tenants_tenants_id");
-
-                    b.Navigation("GuestUser");
-
-                    b.Navigation("Purchase");
-
-                    b.Navigation("Tenant");
-                });
-
             modelBuilder.Entity("Db.Entities.Sponsor", b =>
                 {
                     b.HasOne("Db.Entities.Tenant", "Tenant")
@@ -5203,12 +5235,12 @@ namespace Db.Migrations
 
             modelBuilder.Entity("Db.Entities.StripeTransaction", b =>
                 {
-                    b.HasOne("Db.Entities.Purchase", "Purchase")
+                    b.HasOne("Db.Entities.Booking", "Booking")
                         .WithOne("StripeTransaction")
-                        .HasForeignKey("Db.Entities.StripeTransaction", "PurchasesId")
+                        .HasForeignKey("Db.Entities.StripeTransaction", "BookingsId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
-                        .HasConstraintName("fk_stripe_transactions_purchases_purchases_id");
+                        .HasConstraintName("fk_stripe_transactions_bookings_bookings_id");
 
                     b.HasOne("Db.Entities.Tenant", "Tenant")
                         .WithMany()
@@ -5217,18 +5249,18 @@ namespace Db.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_stripe_transactions_tenants_tenants_id");
 
-                    b.Navigation("Purchase");
+                    b.Navigation("Booking");
 
                     b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("Db.Entities.StripeTransfer", b =>
                 {
-                    b.HasOne("Db.Entities.Purchase", "Purchase")
+                    b.HasOne("Db.Entities.Booking", "Booking")
                         .WithMany()
-                        .HasForeignKey("PurchasesId")
+                        .HasForeignKey("BookingsId")
                         .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("fk_stripe_transfers_purchases_purchases_id");
+                        .HasConstraintName("fk_stripe_transfers_bookings_bookings_id");
 
                     b.HasOne("Db.Entities.Tenant", "Tenant")
                         .WithMany()
@@ -5237,7 +5269,7 @@ namespace Db.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_stripe_transfers_tenants_tenants_id");
 
-                    b.Navigation("Purchase");
+                    b.Navigation("Booking");
 
                     b.Navigation("Tenant");
                 });
@@ -5288,6 +5320,44 @@ namespace Db.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_table_templates_tenants_tenants_id");
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("Db.Entities.Ticket", b =>
+                {
+                    b.HasOne("Db.Entities.Booking", "Booking")
+                        .WithMany("Tickets")
+                        .HasForeignKey("BookingsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_tickets_bookings_bookings_id");
+
+                    b.HasOne("Db.Entities.Event", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventsId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_tickets_events_events_id");
+
+                    b.HasOne("Db.Entities.User", "GuestUser")
+                        .WithMany()
+                        .HasForeignKey("GuestUsersId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_tickets_users_guest_users_id");
+
+                    b.HasOne("Db.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantsId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_tickets_tenants_tenants_id");
+
+                    b.Navigation("Booking");
+
+                    b.Navigation("Event");
+
+                    b.Navigation("GuestUser");
 
                     b.Navigation("Tenant");
                 });
@@ -5410,16 +5480,16 @@ namespace Db.Migrations
                     b.Navigation("Venue");
                 });
 
-            modelBuilder.Entity("Db.Entities.EventTable", b =>
-                {
-                    b.Navigation("Tables");
-                });
-
-            modelBuilder.Entity("Db.Entities.Purchase", b =>
+            modelBuilder.Entity("Db.Entities.Booking", b =>
                 {
                     b.Navigation("StripeTransaction");
 
                     b.Navigation("Tickets");
+                });
+
+            modelBuilder.Entity("Db.Entities.EventTable", b =>
+                {
+                    b.Navigation("Tables");
                 });
 
             modelBuilder.Entity("Db.Entities.TableTemplate", b =>

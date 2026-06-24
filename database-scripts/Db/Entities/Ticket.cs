@@ -2,7 +2,7 @@ using Db.Enums;
 
 namespace Db.Entities;
 
-public class PurchaseTicket : BaseEntity
+public class Ticket : BaseEntity
 {
     public Guid TenantsId { get; set; }
     public Tenant Tenant { get; set; } = null!;
@@ -10,8 +10,11 @@ public class PurchaseTicket : BaseEntity
     public required string QrToken { get; set; }
     public int SeatNumber { get; set; }
 
-    public Guid PurchasesId { get; set; }
-    public Purchase Purchase { get; set; } = null!;
+    public Guid BookingsId { get; set; }
+    public Booking Booking { get; set; } = null!;
+
+    public Guid EventsId { get; set; }
+    public Event Event { get; set; } = null!;
 
     public Guid? GuestUsersId { get; set; }
     public User? GuestUser { get; set; }

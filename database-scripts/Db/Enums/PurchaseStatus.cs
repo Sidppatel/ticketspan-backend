@@ -1,6 +1,6 @@
 namespace Db.Enums;
 
-public enum PurchaseStatus
+public enum BookingStatus
 {
     Pending = 0,
     Paid = 1,

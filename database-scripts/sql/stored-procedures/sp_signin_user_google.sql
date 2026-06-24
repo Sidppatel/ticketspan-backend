@@ -29,7 +29,6 @@ BEGIN
       INTO v_id, v_existing_password_hash, v_existing_google_subject
       FROM users
       WHERE email_hash = p_email_hash
-        AND role = p_role
         AND tenants_id IS NOT DISTINCT FROM p_tenants_id;
 
     IF v_id IS NULL THEN

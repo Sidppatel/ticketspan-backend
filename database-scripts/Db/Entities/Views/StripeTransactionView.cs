@@ -17,10 +17,10 @@ public class StripeTransactionView
     public int? TotalChargedCents { get; set; }
     public DateTime CreatedAt { get; set; }
 
-    // Purchase info
-    public Guid PurchaseId { get; set; }
-    public string PurchaseNumber { get; set; } = string.Empty;
-    public PurchaseStatus PurchaseStatus { get; set; }
+    // Booking info
+    public Guid BookingId { get; set; }
+    public string BookingNumber { get; set; } = string.Empty;
+    public BookingStatus BookingStatus { get; set; }
 
     // Event info
     public Guid EventId { get; set; }

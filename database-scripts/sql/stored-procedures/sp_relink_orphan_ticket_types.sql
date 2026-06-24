@@ -1,10 +1,10 @@
 -- Repairs events damaged by the legacy delete-then-create bulk-edit bug in
 -- PUT /admin/events/{id}. For each active tier on the event, finds the most
 -- recent inactive tier with the same Label (case-insensitive) and rewrites
--- every purchase that still points at the old id. Idempotent: a second call
+-- every booking that still points at the old id. Idempotent: a second call
 -- is a no-op.
 --
--- Returns the number of purchase rows whose EventTicketTypeId was updated.
+-- Returns the number of booking rows whose EventTicketTypeId was updated.
 CREATE OR REPLACE FUNCTION sp_relink_orphan_ticket_types(p_event_id uuid)
 RETURNS int LANGUAGE plpgsql
     SET search_path = public, extensions, pg_catalog
@@ -29,7 +29,7 @@ BEGIN
         WHERE new_t.events_id = p_event_id
           AND new_t.is_active = true
     LOOP
-        UPDATE purchases
+        UPDATE bookings
            SET event_ticket_types_id = v_pair.new_id,
                updated_at = now()
          WHERE event_ticket_types_id = v_pair.old_id;

@@ -1,6 +1,6 @@
 CREATE OR REPLACE FUNCTION sp_consume_magic_link(p_token_hash text)
 RETURNS TABLE (
-    id uuid, email text, expires_at timestamptz
+    id uuid, email text, expires_at timestamptz, tenants_id uuid
 ) LANGUAGE plpgsql
     SET search_path = public, extensions, pg_catalog
 AS $$
@@ -23,7 +23,7 @@ BEGIN
     WHERE u.email = v_email AND u.email_verified = false;
 
     RETURN QUERY
-    SELECT t.magic_link_tokens_id, t.email::text, t.expires_at
+    SELECT t.magic_link_tokens_id, t.email::text, t.expires_at, t.tenants_id
     FROM magic_link_tokens AS t
     WHERE t.token_hash = p_token_hash;
 END; $$;

@@ -92,7 +92,7 @@ message ListEventsResponse {
 
 message EventStats {
   string events_id = 1;
-  int32 total_purchases = 2;
+  int32 total_bookings = 2;
   int32 tickets_sold = 3;
   int64 revenue_cents = 4;
   int32 checked_in = 5;

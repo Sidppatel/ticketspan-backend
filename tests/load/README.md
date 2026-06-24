@@ -17,7 +17,7 @@ Performance scenarios for the event-platform API. Executed via [k6](https://k6.i
 |----------------------------------|---------------------------------------------|-------------------------------------------|
 | `scenarios/browse-events.js`     | 100 VUs × 5 min                             | Public catalog: list → detail → ticket types |
 | `scenarios/read-heavy.js`        | 1000 req/min × 5 min (constant arrival rate)| Stress-test list endpoint under high RPS  |
-| `scenarios/checkout.js`          | 20 VUs × 5 min                              | Auth → quote → purchase → confirm flow    |
+| `scenarios/checkout.js`          | 20 VUs × 5 min                              | Auth → quote → booking → confirm flow    |
 
 All scenarios have thresholds attached. Run exits non-zero if thresholds fail.
 
@@ -49,7 +49,7 @@ TICKET_TYPE_ID=... \
   k6 run tests/load/scenarios/checkout.js
 ```
 
-**Never point checkout.js at production** — it creates real purchase rows even in Stripe test mode.
+**Never point checkout.js at production** — it creates real booking rows even in Stripe test mode.
 
 ## Output
 

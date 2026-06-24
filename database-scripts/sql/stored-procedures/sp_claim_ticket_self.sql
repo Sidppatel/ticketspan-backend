@@ -4,18 +4,18 @@ CREATE OR REPLACE FUNCTION sp_claim_ticket_self(
     SET search_path = public, extensions, pg_catalog
 AS $$
 DECLARE
-    v_purchase_id uuid;
+    v_booking_id uuid;
     v_status text;
     v_already_count int;
     v_updated int;
 BEGIN
-    SELECT purchases_id, status::text
-        INTO v_purchase_id, v_status
-        FROM purchase_tickets
-        WHERE purchase_tickets_id = p_ticket_id
+    SELECT bookings_id, status::text
+        INTO v_booking_id, v_status
+        FROM tickets
+        WHERE tickets_id = p_ticket_id
         FOR UPDATE;
 
-    IF v_purchase_id IS NULL THEN
+    IF v_booking_id IS NULL THEN
         RETURN QUERY SELECT false, 'Ticket not found';
         RETURN;
     END IF;
@@ -26,18 +26,18 @@ BEGIN
     END IF;
 
     SELECT COUNT(*) INTO v_already_count
-        FROM purchase_tickets
-        WHERE purchases_id = v_purchase_id
+        FROM tickets
+        WHERE bookings_id = v_booking_id
           AND guest_users_id = p_user_id
-          AND purchase_tickets_id <> p_ticket_id
+          AND tickets_id <> p_ticket_id
           AND status IN ('Claimed', 'CheckedIn');
 
     IF v_already_count > 0 THEN
-        RETURN QUERY SELECT false, 'You already have a ticket on this purchase. One ticket per person.';
+        RETURN QUERY SELECT false, 'You already have a ticket on this booking. One ticket per person.';
         RETURN;
     END IF;
 
-    UPDATE purchase_tickets SET
+    UPDATE tickets SET
         guest_users_id = p_user_id,
         status = 'Claimed',
         claimed_at = now(),
@@ -46,7 +46,7 @@ BEGIN
         invited_email = NULL,
         invite_sent_at = NULL,
         updated_at = now()
-    WHERE purchase_tickets_id = p_ticket_id
+    WHERE tickets_id = p_ticket_id
       AND status IN ('Unassigned', 'Invited');
     GET DIAGNOSTICS v_updated = ROW_COUNT;
 

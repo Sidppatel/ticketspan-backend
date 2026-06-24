@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package svyne.enums;
+
+option csharp_namespace = "Svyne.Protos.Enums";
+
+service EnumService {
+  rpc ListEnums (ListEnumsRequest) returns (ListEnumsResponse);
+}
+
+message ListEnumsRequest {
+  string enum_type = 1;
+}
+
+message EnumValue {
+  string enum_type = 1;
+  string value = 2;
+  int32 int_value = 3;
+  string used_in = 4;
+  string description = 5;
+}
+
+message ListEnumsResponse {
+  repeated EnumValue values = 1;
+}

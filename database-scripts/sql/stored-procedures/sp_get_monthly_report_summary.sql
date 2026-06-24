@@ -1,6 +1,6 @@
 CREATE OR REPLACE FUNCTION sp_get_monthly_report_summary(p_year int, p_month int)
 RETURNS TABLE (
-    total_purchases          int,
+    total_bookings          int,
     total_charged_cents       bigint,
     total_admin_payouts_cents  bigint,
     total_platform_fees_cents  bigint,
@@ -19,15 +19,15 @@ AS $$
     src AS (
         SELECT p.*, st.total_charged_cents, st.transfer_amount_cents,
                st.stripe_fees_cents, st.tax_amount_cents, st.paid_at
-        FROM purchases p
-        LEFT JOIN stripe_transactions st ON st.purchases_id = p.purchases_id,
+        FROM bookings p
+        LEFT JOIN stripe_transactions st ON st.bookings_id = p.bookings_id,
         window_bounds wb
         WHERE p.status::text IN ('Paid','CheckedIn')
           AND st.paid_at >= wb.from_ts
           AND st.paid_at <  wb.to_ts
     )
     SELECT
-        COUNT(*)::int                                                                             AS total_purchases,
+        COUNT(*)::int                                                                             AS total_bookings,
         COALESCE(SUM(COALESCE(total_charged_cents, total_cents))::bigint, 0)                     AS total_charged_cents,
         COALESCE(SUM(COALESCE(transfer_amount_cents, subtotal_cents))::bigint, 0)                AS total_admin_payouts_cents,
         COALESCE(SUM(fee_cents)::bigint, 0)                                                      AS total_platform_fees_cents,

@@ -1,6 +1,6 @@
-CREATE OR REPLACE VIEW vw_purchases AS
+CREATE OR REPLACE VIEW vw_bookings AS
 SELECT
-    b.purchases_id AS purchases_id, b.purchase_number, b.status::text,
+    b.bookings_id AS bookings_id, b.booking_number, b.status::text,
     b.subtotal_cents, b.fee_cents, b.total_cents,
     b.qr_token, b.seats_reserved, b.created_at,
     b.users_id,
@@ -36,20 +36,20 @@ SELECT
     COALESCE(tc.cnt, 0)::int AS ticket_count,
     e.created_by_users_id,
     COALESCE(pt_labels.labels, ARRAY[]::text[]) AS table_labels
-FROM purchases b
+FROM bookings b
 JOIN users u ON b.users_id = u.users_id
 JOIN events e ON b.events_id = e.events_id
 JOIN venues v ON e.venues_id = v.venues_id
 LEFT JOIN addresses addr ON v.addresses_id = addr.addresses_id
 LEFT JOIN tables tbl ON b.tables_id = tbl.tables_id
 LEFT JOIN event_ticket_types ett ON b.event_ticket_types_id = ett.event_ticket_types_id
-LEFT JOIN stripe_transactions st ON st.purchases_id = b.purchases_id
+LEFT JOIN stripe_transactions st ON st.bookings_id = b.bookings_id
 LEFT JOIN LATERAL (
-    SELECT COUNT(*)::int AS cnt FROM purchase_tickets bt WHERE bt.purchases_id = b.purchases_id
+    SELECT COUNT(*)::int AS cnt FROM tickets bt WHERE bt.bookings_id = b.bookings_id
 ) tc ON true
 LEFT JOIN LATERAL (
     SELECT array_agg(t.label ORDER BY t.label) AS labels
-    FROM purchase_tables pt
+    FROM booking_tables pt
     JOIN tables t ON t.tables_id = pt.tables_id
-    WHERE pt.purchases_id = b.purchases_id
+    WHERE pt.bookings_id = b.bookings_id
 ) pt_labels ON true;
