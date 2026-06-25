@@ -5,7 +5,7 @@ RETURNS TABLE(
     is_used boolean,
     expires_at timestamptz,
     user_email text
-) LANGUAGE sql STABLE
+) LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path = public, extensions, pg_catalog
 AS $$
     SELECT

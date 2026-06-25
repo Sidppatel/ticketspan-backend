@@ -15,6 +15,8 @@ service AuthService {
   rpc RequestMagicLink (MagicLinkRequest) returns (svyne.common.AckResponse);
   rpc VerifyMagicLink (MagicLinkVerifyRequest) returns (AuthResponse);
   rpc RequestPasswordReset (PasswordResetRequest) returns (svyne.common.AckResponse);
+  // Validate a reset token without consuming it (called when the reset page loads).
+  rpc ValidatePasswordResetToken (ValidateResetTokenRequest) returns (svyne.common.AckResponse);
   rpc SetPassword (SetPasswordRequest) returns (svyne.common.AckResponse);
   rpc Me (svyne.common.Empty) returns (UserProfile);
   rpc UpdateProfile (UpdateProfileRequest) returns (UserProfile);
@@ -82,6 +84,10 @@ message PasswordResetRequest {
   // Origin of the portal the request came from (e.g. http://admin.localhost:5173).
   // The reset link is built on this host so it returns to the same portal.
   string origin = 3;
+}
+
+message ValidateResetTokenRequest {
+  string token = 1;
 }
 
 message SetPasswordRequest {

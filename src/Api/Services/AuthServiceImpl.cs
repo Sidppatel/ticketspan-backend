@@ -471,6 +471,34 @@ public sealed class AuthServiceImpl : AuthService.AuthServiceBase
         return new Svyne.Protos.Common.AckResponse { Success = true, Message = "If the account exists, a reset link was sent" };
     }
 
+    // Called when the reset page loads: validates the token without consuming it so
+    // the form is only shown for a live, single-use link. Consumption happens in
+    // SetPassword on submit. A used/expired/unknown token returns an error telling
+    // the user to request a new reset link.
+    public override async Task<Svyne.Protos.Common.AckResponse> ValidatePasswordResetToken(ValidateResetTokenRequest request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        var hash = EmailHasher.Hash(request.Token);
+        await using var connection = await db.OpenAsync(null, null, ct);
+        await using var cmd = new NpgsqlCommand(
+            "SELECT is_used, expires_at FROM sp_get_password_reset_token(@h)", connection);
+        cmd.Parameters.AddWithValue("h", hash);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct))
+        {
+            throw new RpcException(new Status(StatusCode.Unauthenticated,
+                "Invalid token. Please request a new password reset link."));
+        }
+        var isUsed = reader.GetBoolean(0);
+        var expiresAt = reader.GetDateTime(1);
+        if (isUsed || expiresAt <= DateTime.UtcNow)
+        {
+            throw new RpcException(new Status(StatusCode.Unauthenticated,
+                "This reset link has already been used or has expired. Please request a new one."));
+        }
+        return new Svyne.Protos.Common.AckResponse { Success = true, Message = "Token valid" };
+    }
+
     public override async Task<Svyne.Protos.Common.AckResponse> SetPassword(SetPasswordRequest request, ServerCallContext context)
     {
         var ct = context.CancellationToken;
