@@ -38,11 +38,14 @@ BEGIN
     )
     RETURNING users_id INTO v_user;
 
-    INSERT INTO magic_link_tokens (
-        tenants_id, token_hash, email, expires_at, is_used,
+    -- Tenant admin setup is a first-time password set: store a password-reset
+    -- token so the existing /set-password flow (sp_consume_password_reset_token)
+    -- consumes it. The emailed link points to the admin portal /set-password page.
+    INSERT INTO password_reset_tokens (
+        users_id, token_hash, email, expires_at, is_used,
         created_at, updated_at
     ) VALUES (
-        v_tenant, p_magic_token_hash, p_admin_email, p_magic_expires_at, false,
+        v_user, p_magic_token_hash, p_admin_email, p_magic_expires_at, false,
         now(), now()
     );
 

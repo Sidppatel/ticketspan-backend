@@ -10,8 +10,32 @@ CREATE OR REPLACE FUNCTION sp_create_booking(
     SET search_path = public, extensions, pg_catalog
 AS $$
 DECLARE v_id uuid; v_tenant uuid; v_number text; v_attempt int := 0; v_hold int; v_tbl_status text;
+        v_unit_price int; v_formula uuid;
+        v_subtotal int := p_subtotal_cents; v_fee int := p_fee_cents; v_total int := p_total_cents;
 BEGIN
     SELECT tenants_id INTO v_tenant FROM events WHERE events_id = p_event_id;
+
+    -- Server-authoritative pricing: recompute subtotal/fee/total from the
+    -- table or ticket type, ignoring client-sent amounts. A table books as a
+    -- single unit; a ticket type multiplies by seats.
+    IF p_table_id IS NOT NULL THEN
+        SELECT et.price_cents, et.fee_formulas_id INTO v_unit_price, v_formula
+          FROM tables t JOIN event_tables et ON et.event_tables_id = t.event_tables_id
+         WHERE t.tables_id = p_table_id;
+        IF v_unit_price IS NOT NULL THEN
+            v_subtotal := v_unit_price;
+            v_fee := app.compute_fee(v_unit_price, v_formula);
+            v_total := v_subtotal + v_fee;
+        END IF;
+    ELSIF p_event_ticket_type_id IS NOT NULL THEN
+        SELECT price_cents, fee_formulas_id INTO v_unit_price, v_formula
+          FROM event_ticket_types WHERE event_ticket_types_id = p_event_ticket_type_id;
+        IF v_unit_price IS NOT NULL THEN
+            v_subtotal := v_unit_price * COALESCE(p_seats, 1);
+            v_fee := app.compute_fee(v_unit_price, v_formula) * COALESCE(p_seats, 1);
+            v_total := v_subtotal + v_fee;
+        END IF;
+    END IF;
 
     SELECT COALESCE((SELECT value::int FROM app_settings WHERE key = 'booking_hold_seconds'), 600)
       INTO v_hold;
@@ -68,7 +92,7 @@ BEGIN
                 seats_reserved, event_ticket_types_id, subtotal_cents, fee_cents, total_cents,
                 hold_expires_at, created_at, updated_at)
             VALUES (v_tenant, v_number, p_status, p_user_id, p_event_id, p_table_id,
-                p_seats, p_event_ticket_type_id, p_subtotal_cents, p_fee_cents, p_total_cents,
+                p_seats, p_event_ticket_type_id, v_subtotal, v_fee, v_total,
                 CASE WHEN p_status = 'Pending' THEN now() + make_interval(secs => v_hold) ELSE NULL END,
                 now(), now())
             RETURNING bookings.bookings_id INTO v_id;

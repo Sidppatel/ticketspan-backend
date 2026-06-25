@@ -31,6 +31,7 @@ public class EventPlatformDbContext(
     public DbSet<UserEvent> UserEvents => Set<UserEvent>();
     public DbSet<EventTable> EventTables => Set<EventTable>();
     public DbSet<EventTicketType> EventTicketTypes => Set<EventTicketType>();
+    public DbSet<FeeFormula> FeeFormulas => Set<FeeFormula>();
     public DbSet<Table> Tables => Set<Table>();
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<Ticket> Tickets => Set<Ticket>();
@@ -361,6 +362,18 @@ public class EventPlatformDbContext(
             entity.HasOne(e => e.TableTemplate).WithMany(tt => tt.EventTables)
                 .HasForeignKey(e => e.TableTemplatesId)
                 .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.FeeFormula).WithMany().HasForeignKey(e => e.FeeFormulasId)
+                .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<FeeFormula>(entity =>
+        {
+            entity.ToTable("fee_formulas");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).HasMaxLength(128).IsRequired();
+            entity.Property(e => e.PercentBps).HasDefaultValue(0);
+            entity.Property(e => e.FlatCents).HasDefaultValue(0);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
         });
 
         modelBuilder.Entity<EventTicketType>(entity =>
@@ -381,6 +394,8 @@ public class EventPlatformDbContext(
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.Event).WithMany().HasForeignKey(e => e.EventsId)
                 .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.FeeFormula).WithMany().HasForeignKey(e => e.FeeFormulasId)
+                .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<Event>(entity =>

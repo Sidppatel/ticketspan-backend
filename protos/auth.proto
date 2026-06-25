@@ -39,6 +39,9 @@ message LoginRequest {
   string email = 1;
   string password = 2;
   string tenant_slug = 3;
+  // Portal the login originates from: "public" | "admin" | "staff" | "developer".
+  // Login is rejected if the account's role is not allowed in that portal.
+  string portal = 4;
 }
 
 message SignUpRequest {
@@ -52,6 +55,8 @@ message SignUpRequest {
 message GoogleSignInRequest {
   string google_token = 1;
   string tenant_slug = 2;
+  // See LoginRequest.portal.
+  string portal = 3;
 }
 
 message RefreshTokenRequest {
@@ -74,6 +79,9 @@ message MagicLinkVerifyRequest {
 message PasswordResetRequest {
   string email = 1;
   string tenant_slug = 2;
+  // Origin of the portal the request came from (e.g. http://admin.localhost:5173).
+  // The reset link is built on this host so it returns to the same portal.
+  string origin = 3;
 }
 
 message SetPasswordRequest {

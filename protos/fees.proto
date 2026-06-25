@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package svyne.fees;
+
+option csharp_namespace = "Svyne.Protos.Fees";
+
+import "common.proto";
+
+service FeeService {
+  // Read: any authenticated user (tenants pick a formula; UIs display it).
+  rpc ListFeeFormulas (svyne.common.Empty) returns (ListFeeFormulasResponse);
+  // Write: developer only.
+  rpc CreateFeeFormula (FeeFormulaInput) returns (svyne.common.UuidValue);
+  rpc UpdateFeeFormula (FeeFormula) returns (svyne.common.AckResponse);
+  rpc DeleteFeeFormula (svyne.common.UuidValue) returns (svyne.common.AckResponse);
+  // Developer cross-tenant overview of every event + its priced line items.
+  rpc ListAllEvents (svyne.common.Empty) returns (DeveloperEventsResponse);
+  // Attach a formula to a ticket type / table (developer or own tenant).
+  rpc AssignFeeFormula (AssignFeeFormulaRequest) returns (svyne.common.AckResponse);
+}
+
+message FeeFormula {
+  string fee_formulas_id = 1;
+  string name = 2;
+  int32 percent_bps = 3;     // 600 = 6.00%
+  int32 flat_cents = 4;      // 150 = $1.50
+  int32 min_fee_cents = 5;   // 0 = unset
+  int32 max_fee_cents = 6;   // 0 = unset
+  bool is_active = 7;
+}
+
+message FeeFormulaInput {
+  string name = 1;
+  int32 percent_bps = 2;
+  int32 flat_cents = 3;
+  int32 min_fee_cents = 4;
+  int32 max_fee_cents = 5;
+}
+
+message ListFeeFormulasResponse {
+  repeated FeeFormula formulas = 1;
+}
+
+// One priced item under an event: a ticket type or a table.
+message FeeLineItem {
+  string id = 1;
+  string kind = 2;           // "ticket" | "table"
+  string label = 3;
+  int32 price_cents = 4;
+  string fee_formulas_id = 5;
+  int32 fee_cents = 6;       // resolved platform_fee_cents
+}
+
+message DeveloperEvent {
+  string events_id = 1;
+  string tenants_id = 2;
+  string tenant_name = 3;
+  string title = 4;
+  string status = 5;
+  repeated FeeLineItem items = 6;
+}
+
+message DeveloperEventsResponse {
+  repeated DeveloperEvent events = 1;
+}
+
+message AssignFeeFormulaRequest {
+  string kind = 1;           // "ticket" | "table"
+  string target_id = 2;
+  string fee_formulas_id = 3; // empty clears the formula
+}

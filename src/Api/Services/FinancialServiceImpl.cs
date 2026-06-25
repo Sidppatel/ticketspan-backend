@@ -53,6 +53,50 @@ public sealed class FinancialServiceImpl : FinancialService.FinancialServiceBase
     {
         var ct = context.CancellationToken;
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+
+        // Pull the connected account id so we can refresh capability flags live
+        // from Stripe. Locally there are no account.updated webhooks, so the DB
+        // flags would otherwise stay stale after onboarding completes.
+        string? accountId = null;
+        await using (var look = new NpgsqlCommand(
+            "SELECT stripe_connected_account_id FROM tenants WHERE tenants_id = @t", connection))
+        {
+            look.Parameters.AddWithValue("t", Guid.Parse(request.Value));
+            accountId = await look.ExecuteScalarAsync(ct) as string;
+        }
+
+        if (!string.IsNullOrEmpty(accountId) && stripe.Configured)
+        {
+            try
+            {
+                var account = await stripe.GetAccountAsync(accountId, ct);
+                await using var sync = new NpgsqlCommand(
+                    "SELECT sp_update_tenant_stripe_status(@acct, @charges, @payouts, @details, @req)", connection);
+                sync.Parameters.AddWithValue("acct", account.Id);
+                sync.Parameters.AddWithValue("charges", account.ChargesEnabled);
+                sync.Parameters.AddWithValue("payouts", account.PayoutsEnabled);
+                sync.Parameters.AddWithValue("details", account.DetailsSubmitted);
+                var reqJson = account.Requirements?.CurrentlyDue is { } due
+                    ? System.Text.Json.JsonSerializer.Serialize(due)
+                    : null;
+                sync.Parameters.Add(new NpgsqlParameter("req", NpgsqlTypes.NpgsqlDbType.Jsonb)
+                {
+                    Value = (object?)reqJson ?? DBNull.Value
+                });
+                await sync.ExecuteNonQueryAsync(ct);
+                return new StripeStatus
+                {
+                    ChargesEnabled = account.ChargesEnabled,
+                    PayoutsEnabled = account.PayoutsEnabled,
+                    DetailsSubmitted = account.DetailsSubmitted
+                };
+            }
+            catch (Stripe.StripeException)
+            {
+                // Fall back to the persisted flags below if Stripe is unreachable.
+            }
+        }
+
         await using var cmd = new NpgsqlCommand(
             "SELECT stripe_charges_enabled, stripe_payouts_enabled, stripe_details_submitted FROM sp_get_tenant_stripe_status(@t)", connection);
         cmd.Parameters.AddWithValue("t", Guid.Parse(request.Value));

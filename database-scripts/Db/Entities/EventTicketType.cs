@@ -7,6 +7,8 @@ public class EventTicketType : BaseEntity
     public required string Label { get; set; }
     public int PriceCents { get; set; }
     public int? PlatformFeeCents { get; set; }
+    public Guid? FeeFormulasId { get; set; }
+    public FeeFormula? FeeFormula { get; set; }
     public int? MaxQuantity { get; set; }
     public int SortOrder { get; set; }
     public string? Description { get; set; }

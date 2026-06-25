@@ -28,7 +28,7 @@ public sealed class BookingServiceImpl : BookingService.BookingServiceBase
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
             "SELECT event_ticket_types_id, label, price_cents, COALESCE(platform_fee_cents, 0), "
-            + "COALESCE(max_quantity, 0), COALESCE(description, '') "
+            + "COALESCE(max_quantity, 0), COALESCE(description, ''), fee_formulas_id "
             + "FROM event_ticket_types WHERE events_id = @ev AND is_active = true ORDER BY sort_order, label", connection);
         cmd.Parameters.AddWithValue("ev", Guid.Parse(request.Value));
         await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -41,7 +41,8 @@ public sealed class BookingServiceImpl : BookingService.BookingServiceBase
                 PriceCents = reader.GetInt32(2),
                 PlatformFeeCents = reader.GetInt32(3),
                 MaxQuantity = reader.GetInt32(4),
-                Description = reader.GetString(5)
+                Description = reader.GetString(5),
+                FeeFormulasId = reader.IsDBNull(6) ? string.Empty : reader.GetGuid(6).ToString()
             });
         }
         return response;

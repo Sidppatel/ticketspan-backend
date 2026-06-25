@@ -18,8 +18,8 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
         this.tenantContext = tenantContext;
     }
 
-    // Columns 0..9: tables_id, event_tables_id, label, grid_row, grid_col,
-    // row_span, col_span, status, price_cents, platform_fee_cents.
+    // Columns 0..10: tables_id, event_tables_id, label, grid_row, grid_col,
+    // row_span, col_span, status, price_cents, platform_fee_cents, fee_formulas_id.
     private static Table MapTable(NpgsqlDataReader r) => new()
     {
         TablesId = r.GetGuid(0).ToString(),
@@ -31,8 +31,15 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
         ColSpan = r.GetInt32(6),
         Status = r.GetString(7),
         PriceCents = r.GetInt32(8),
-        PlatformFeeCents = r.GetInt32(9)
+        PlatformFeeCents = r.GetInt32(9),
+        FeeFormulasId = r.IsDBNull(10) ? string.Empty : r.GetGuid(10).ToString()
     };
+
+    private const string TableSelect =
+        "SELECT t.tables_id, t.event_tables_id, t.label, t.grid_row, t.grid_col, t.row_span, t.col_span, t.status, "
+        + "COALESCE(et.price_cents, 0), COALESCE(et.platform_fee_cents, 0), et.fee_formulas_id "
+        + "FROM tables t LEFT JOIN event_tables et ON et.event_tables_id = t.event_tables_id "
+        + "WHERE t.events_id = @ev ORDER BY t.sort_order";
 
     public override async Task<EventLayout> GetEventLayout(UuidValue request, ServerCallContext context)
     {
@@ -50,11 +57,7 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
                 layout.GridCols = gridReader.GetInt32(1);
             }
         }
-        await using var cmd = new NpgsqlCommand(
-            "SELECT t.tables_id, t.event_tables_id, t.label, t.grid_row, t.grid_col, t.row_span, t.col_span, t.status, "
-            + "COALESCE(et.price_cents, 0), COALESCE(et.platform_fee_cents, 0) "
-            + "FROM tables t LEFT JOIN event_tables et ON et.event_tables_id = t.event_tables_id "
-            + "WHERE t.events_id = @ev ORDER BY t.sort_order", connection);
+        await using var cmd = new NpgsqlCommand(TableSelect, connection);
         cmd.Parameters.AddWithValue("ev", eventsId);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
@@ -69,11 +72,7 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
         var ct = context.CancellationToken;
         var response = new ListTablesResponse();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
-        await using var cmd = new NpgsqlCommand(
-            "SELECT t.tables_id, t.event_tables_id, t.label, t.grid_row, t.grid_col, t.row_span, t.col_span, t.status, "
-            + "COALESCE(et.price_cents, 0), COALESCE(et.platform_fee_cents, 0) "
-            + "FROM tables t LEFT JOIN event_tables et ON et.event_tables_id = t.event_tables_id "
-            + "WHERE t.events_id = @ev ORDER BY t.sort_order", connection);
+        await using var cmd = new NpgsqlCommand(TableSelect, connection);
         cmd.Parameters.AddWithValue("ev", Guid.Parse(request.Value));
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
@@ -138,7 +137,7 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
         cmd.Parameters.AddWithValue("shape", string.IsNullOrEmpty(request.Shape) ? "Round" : request.Shape);
         cmd.Parameters.AddWithValue("color", (object?)NullIfEmpty(request.Color) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("price", request.PriceCents);
-        cmd.Parameters.AddWithValue("fee", request.PlatformFeeCents == 0 ? DBNull.Value : request.PlatformFeeCents);
+        cmd.Parameters.AddWithValue("fee", string.IsNullOrEmpty(request.FeeFormulasId) ? DBNull.Value : Guid.Parse(request.FeeFormulasId));
         cmd.Parameters.AddWithValue("tpl", string.IsNullOrEmpty(request.TableTemplatesId) ? DBNull.Value : Guid.Parse(request.TableTemplatesId));
         var id = (Guid)(await cmd.ExecuteScalarAsync(ct))!;
         return new UuidValue { Value = id.ToString() };
@@ -157,7 +156,7 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
         cmd.Parameters.AddWithValue("ev", Guid.Parse(request.EventsId));
         cmd.Parameters.AddWithValue("label", request.Label);
         cmd.Parameters.AddWithValue("price", request.PriceCents);
-        cmd.Parameters.AddWithValue("fee", request.PlatformFeeCents == 0 ? DBNull.Value : request.PlatformFeeCents);
+        cmd.Parameters.AddWithValue("fee", string.IsNullOrEmpty(request.FeeFormulasId) ? DBNull.Value : Guid.Parse(request.FeeFormulasId));
         cmd.Parameters.AddWithValue("max", request.MaxQuantity == 0 ? DBNull.Value : request.MaxQuantity);
         cmd.Parameters.AddWithValue("sort", request.SortOrder);
         cmd.Parameters.AddWithValue("desc", (object?)NullIfEmpty(request.Description) ?? DBNull.Value);

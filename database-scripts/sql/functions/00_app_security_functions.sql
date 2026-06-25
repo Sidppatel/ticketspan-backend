@@ -14,9 +14,12 @@ AS $$
     SELECT NULLIF(current_setting('app.current_tenant', true), '')::uuid;
 $$;
 
+-- SECURITY DEFINER so the internal users lookup bypasses RLS. Without this the
+-- users RLS policy (which calls is_developer()) recurses infinitely.
 CREATE OR REPLACE FUNCTION app.is_developer()
 RETURNS boolean
-LANGUAGE sql STABLE
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public, pg_catalog
 AS $$
     SELECT EXISTS (
         SELECT 1 FROM users

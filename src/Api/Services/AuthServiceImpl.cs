@@ -70,6 +70,7 @@ public sealed class AuthServiceImpl : AuthService.AuthServiceBase
             {
                 break;
             }
+            EnsurePortalAllowsRole(request.Portal, role);
             var profile = new UserProfile
             {
                 UsersId = usersId.ToString(),
@@ -190,6 +191,7 @@ public sealed class AuthServiceImpl : AuthService.AuthServiceBase
             TenantSlug = request.TenantSlug,
             EmailVerified = reader.GetBoolean(6)
         };
+        EnsurePortalAllowsRole(request.Portal, role);
         return BuildAuth(usersId, profile.Email, rowTenant, role, request.TenantSlug, profile);
     }
 
@@ -403,9 +405,29 @@ public sealed class AuthServiceImpl : AuthService.AuthServiceBase
         {
             var fromAddress = await settings.GetStringAsync("password_reset_email", "noreply@svyne.com", ct);
             var subject = await settings.GetStringAsync("password_reset_subject", "Reset your Svyne password", ct);
-            var resetBase = await settings.GetStringAsync("password_reset_link_base", "http://localhost:5173/reset-password", ct);
+            // Prefer the caller's portal origin so the reset link returns to the same
+            // host the user requested it from (admin/staff portal or tenant subdomain).
+            // Fall back to the configured {slug} template when no origin is supplied.
+            string resetBase;
+            if (!string.IsNullOrEmpty(request.Origin))
+            {
+                resetBase = $"{request.Origin.TrimEnd('/')}/set-password";
+            }
+            else
+            {
+                var template = await settings.GetStringAsync("password_reset_link_base", "http://{slug}.localhost:5173/set-password", ct);
+                resetBase = string.IsNullOrEmpty(request.TenantSlug)
+                    ? template.Replace("{slug}.", string.Empty).Replace("{slug}", string.Empty)
+                    : template.Replace("{slug}", request.TenantSlug);
+            }
             var separator = resetBase.Contains('?') ? "&" : "?";
             var resetLink = $"{resetBase}{separator}token={token}";
+            // Shared portals (admin/staff host) need the tenant slug to resolve the
+            // tenant at login. Tenant subdomains carry it in the host already.
+            if (!string.IsNullOrEmpty(request.TenantSlug))
+            {
+                resetLink += $"&tenant={Uri.EscapeDataString(request.TenantSlug)}";
+            }
             var values = new Dictionary<string, string>
             {
                 ["Subject"] = subject,
@@ -528,6 +550,30 @@ public sealed class AuthServiceImpl : AuthService.AuthServiceBase
             reader.GetString(3),
             reader.GetString(4),
             reader.GetBoolean(5));
+    }
+
+    // Enforce that the account's role is allowed on the portal it's logging into.
+    // Empty portal = no restriction (back-compat for non-portal callers).
+    // Roles: Attendee=0, Admin=1, Staff=2, SubTenant=3, Developer=99.
+    private static void EnsurePortalAllowsRole(string portal, int role)
+    {
+        if (string.IsNullOrEmpty(portal))
+        {
+            return;
+        }
+        var allowed = portal switch
+        {
+            "public" => role == 0,
+            "admin" => role == 1 || role == 3,
+            "staff" => role == 2,
+            "developer" => role == 99,
+            _ => true
+        };
+        if (!allowed)
+        {
+            throw new RpcException(new Status(StatusCode.PermissionDenied,
+                "This account cannot sign in on this portal. Use the correct portal, or sign up for an account here."));
+        }
     }
 
     private async Task<Guid?> ResolveTenantAsync(string slug, CancellationToken ct)

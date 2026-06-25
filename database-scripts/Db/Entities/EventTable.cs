@@ -12,6 +12,8 @@ public class EventTable : BaseEntity
     public string? Color { get; set; }
     public int PriceCents { get; set; }
     public int? PlatformFeeCents { get; set; }
+    public Guid? FeeFormulasId { get; set; }
+    public FeeFormula? FeeFormula { get; set; }
     public int? RowSpan { get; set; }
     public int? ColSpan { get; set; }
     public bool IsActive { get; set; } = true;

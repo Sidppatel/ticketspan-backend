@@ -108,6 +108,7 @@ app.MapGrpcService<LogServiceImpl>();
 app.MapGrpcService<FinancialServiceImpl>();
 app.MapGrpcService<HealthServiceImpl>();
 app.MapGrpcService<EnumServiceImpl>();
+app.MapGrpcService<FeeServiceImpl>();
 app.MapGet("/", () => "Svyne gRPC API");
 app.MapGet("/health/live", () => Results.Ok("live"));
 app.MapGet("/health/ready", async (Db db, CancellationToken ct) =>
@@ -233,5 +234,18 @@ app.MapGet("/images/{imagesId}", async (string imagesId, Db db, Svyne.Api.Storag
     var stream = await storage.OpenReadAsync(storageKey, ct);
     return stream is null ? Results.NotFound() : Results.File(stream, contentType);
 }).AllowAnonymous();
+
+// Stripe Connect onboarding bounces the browser back to these URLs (set in
+// FinancialServiceImpl via PUBLIC_BASE_URL = this backend origin). The actual
+// UI lives in the frontend admin portal, so redirect there. FRONTEND_ADMIN_URL
+// defaults to the local admin dev origin.
+static string AdminFrontend(IConfiguration config) =>
+    config["FRONTEND_ADMIN_URL"]?.TrimEnd('/') ?? "http://admin.localhost:5173";
+
+app.MapGet("/stripe/onboard/return", (string? tenant, IConfiguration config) =>
+    Results.Redirect($"{AdminFrontend(config)}/financial?stripe=return")).AllowAnonymous();
+
+app.MapGet("/stripe/onboard/refresh", (string? tenant, IConfiguration config) =>
+    Results.Redirect($"{AdminFrontend(config)}/financial?stripe=refresh")).AllowAnonymous();
 
 app.Run();

@@ -116,9 +116,19 @@ public sealed class TenantServiceImpl : TenantService.TenantServiceBase
             }
         }
 
-        var setupBase = await settings.GetStringAsync("tenant_setup_link_base", "http://admin.localhost:5173/setup", ct);
+        // Setup opens on the admin portal host. {slug} still supported for back-compat if configured.
+        var setupBase = await settings.GetStringAsync("tenant_setup_link_base", "http://admin.localhost:5173/set-password", ct);
+        setupBase = string.IsNullOrEmpty(request.Slug)
+            ? setupBase.Replace("{slug}.", string.Empty).Replace("{slug}", string.Empty)
+            : setupBase.Replace("{slug}", request.Slug);
         var separator = setupBase.Contains('?') ? "&" : "?";
         var setupUrl = $"{setupBase}{separator}token={magicToken}";
+        // The admin portal is a shared host (admin.localhost); carry the tenant slug
+        // so the portal stores it and login can resolve the correct tenant.
+        if (!string.IsNullOrEmpty(request.Slug))
+        {
+            setupUrl += $"&tenant={Uri.EscapeDataString(request.Slug)}";
+        }
 
         // Local dev writes the email as .html to LOCAL_EMAIL_DIR instead of sending.
         // Best-effort: a delivery failure must not abort tenant creation.

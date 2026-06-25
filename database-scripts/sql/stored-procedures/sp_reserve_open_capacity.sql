@@ -23,6 +23,11 @@ DECLARE
     v_number text;
     v_attempt int := 0;
     v_hold int;
+    v_unit_price int;
+    v_formula uuid;
+    v_subtotal int := p_subtotal_cents;
+    v_fee int := p_fee_cents;
+    v_total int := p_total_cents;
 BEGIN
     -- Hard hold window (seconds) the Pending booking reserves the seats for.
     SELECT COALESCE((SELECT value::int FROM app_settings WHERE key = 'booking_hold_seconds'), 600)
@@ -85,10 +90,17 @@ BEGIN
     END IF;
 
     IF p_event_ticket_type_id IS NOT NULL THEN
-        SELECT max_quantity INTO v_tt_max
+        SELECT max_quantity, price_cents, fee_formulas_id
+          INTO v_tt_max, v_unit_price, v_formula
           FROM event_ticket_types
           WHERE event_ticket_types_id = p_event_ticket_type_id
           FOR UPDATE;
+
+        -- Server-authoritative pricing: recompute from the ticket type, ignoring
+        -- the client-sent amounts (they could be tampered to underpay svyne).
+        v_subtotal := v_unit_price * p_seats;
+        v_fee := app.compute_fee(v_unit_price, v_formula) * p_seats;
+        v_total := v_subtotal + v_fee;
 
         IF v_tt_max IS NOT NULL THEN
             SELECT COALESCE(SUM(seats_reserved), 0)
@@ -115,7 +127,7 @@ BEGIN
                 seats_reserved, event_ticket_types_id, subtotal_cents, fee_cents, total_cents,
                 hold_expires_at, created_at, updated_at)
             VALUES (v_tenant, v_number, 'Pending', p_user_id, p_event_id, NULL,
-                p_seats, p_event_ticket_type_id, p_subtotal_cents, p_fee_cents, p_total_cents,
+                p_seats, p_event_ticket_type_id, v_subtotal, v_fee, v_total,
                 now() + make_interval(secs => v_hold), now(), now())
             RETURNING bookings.bookings_id INTO v_id;
             EXIT;

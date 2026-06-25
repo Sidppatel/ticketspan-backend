@@ -5,6 +5,7 @@ namespace Svyne.Api.Data;
 public sealed class Db
 {
     private readonly string connectionString;
+    private readonly string bootstrapConnectionString;
 
     public Db(IConfiguration configuration)
     {
@@ -25,6 +26,20 @@ public sealed class Db
             SslMode = Enum.Parse<SslMode>(sslMode, ignoreCase: true)
         };
         connectionString = builder.ConnectionString;
+
+        // Bootstrap (seed) connection uses a privileged role that bypasses RLS.
+        // The runtime DB_USER is the least-privilege ep_app, which RLS applies to.
+        builder.Username = configuration["DB_BOOTSTRAP_USER"] ?? "ep_dev";
+        builder.Password = configuration["DB_BOOTSTRAP_PASSWORD"] ?? "ep_dev_password";
+        bootstrapConnectionString = builder.ConnectionString;
+    }
+
+    // Privileged connection for startup seeding/bootstrap only. Not tenant-scoped.
+    public async Task<NpgsqlConnection> OpenBootstrapAsync(CancellationToken ct)
+    {
+        var connection = new NpgsqlConnection(bootstrapConnectionString);
+        await connection.OpenAsync(ct);
+        return connection;
     }
 
     public async Task<NpgsqlConnection> OpenAsync(Guid? usersId, Guid? tenantsId, CancellationToken ct)

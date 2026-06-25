@@ -47,18 +47,18 @@ public sealed class StartupSeeder
         ("admin_invitation_link_base", "http://admin.localhost:5173/accept-invitation", "Frontend base URL for the admin invitation accept link."),
         ("tenant_setup_email", "noreply@svyne.com", "From address for tenant admin setup emails."),
         ("tenant_setup_subject", "Activate your Svyne workspace", "Subject line for tenant admin setup emails."),
-        ("tenant_setup_link_base", "http://admin.localhost:5173/setup", "Frontend base URL for the tenant admin setup link."),
+        ("tenant_setup_link_base", "http://admin.localhost:5173/set-password", "Frontend base URL for the tenant admin setup link (admin portal /set-password). After setting password the admin is redirected to the admin login."),
         ("tenant_setup_expiry_days", "7", "Tenant admin setup link validity window in days."),
         ("password_reset_email", "noreply@svyne.com", "From address for password reset emails."),
         ("password_reset_subject", "Reset your Svyne password", "Subject line for password reset emails."),
-        ("password_reset_link_base", "http://localhost:5173/reset-password", "Frontend base URL for the password reset link."),
+        ("password_reset_link_base", "http://{slug}.localhost:5173/set-password", "Frontend base URL for the password reset link. {slug} is replaced by the tenant subdomain."),
         ("password_reset_expiry_hours", "1", "Password reset link validity window in hours."),
         ("booking_hold_seconds", "600", "Hard seat/table hold window in seconds while a booking awaits payment (10 minutes)."),
     };
 
     public async Task SeedAsync(CancellationToken ct)
     {
-        await using var connection = await db.OpenAsync(null, null, ct);
+        await using var connection = await db.OpenBootstrapAsync(ct);
 
         foreach (var group in EnumGroups)
         {
@@ -89,6 +89,17 @@ public sealed class StartupSeeder
             cmd.Parameters.AddWithValue("value", value);
             cmd.Parameters.AddWithValue("desc", description);
             await cmd.ExecuteNonQueryAsync(ct);
+        }
+
+        // Default service-fee formula: 6% of ticket price + $1.50 flat.
+        await using (var formula = new NpgsqlCommand(
+            "INSERT INTO fee_formulas (fee_formulas_id, name, percent_bps, flat_cents, is_active, created_at, updated_at) "
+            + "SELECT gen_random_uuid(), @name, 600, 150, true, now(), now() "
+            + "WHERE NOT EXISTS (SELECT 1 FROM fee_formulas WHERE name = @name)",
+            connection))
+        {
+            formula.Parameters.AddWithValue("name", "Standard 6% + $1.50");
+            await formula.ExecuteNonQueryAsync(ct);
         }
     }
 

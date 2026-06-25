@@ -76,6 +76,7 @@ message EventTicketType {
   int32 platform_fee_cents = 4;
   int32 max_quantity = 5;
   string description = 6;
+  string fee_formulas_id = 7;
 }
 
 message ListEventTicketTypesResponse {
