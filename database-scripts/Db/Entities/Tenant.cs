@@ -14,4 +14,11 @@ public class Tenant : BaseEntity
     public string? StripeRequirementsDue { get; set; }
 
     public DateTime? ArchivedAt { get; set; }
+
+    /// <summary>
+    /// Tenant-level default fee formula auto-applied to every price unless a price
+    /// overrides it. Settable only by developers (role 99).
+    /// </summary>
+    public Guid? DefaultFeeFormulasId { get; set; }
+    public FeeFormula? DefaultFeeFormula { get; set; }
 }

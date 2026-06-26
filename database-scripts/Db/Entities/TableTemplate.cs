@@ -16,4 +16,5 @@ public class TableTemplate : BaseEntity
     public bool IsActive { get; set; } = true;
 
     public ICollection<EventTable> EventTables { get; set; } = [];
+    public ICollection<TableTemplatePriceRule> PriceRules { get; set; } = [];
 }

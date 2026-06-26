@@ -1,7 +1,7 @@
 CREATE OR REPLACE FUNCTION sp_consume_magic_link(p_token_hash text)
 RETURNS TABLE (
     id uuid, email text, expires_at timestamptz, tenants_id uuid
-) LANGUAGE plpgsql
+) LANGUAGE plpgsql SECURITY DEFINER
     SET search_path = public, extensions, pg_catalog
 AS $$
 DECLARE

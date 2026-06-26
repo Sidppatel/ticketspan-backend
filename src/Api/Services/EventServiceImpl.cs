@@ -137,6 +137,18 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         return new AckResponse { Success = true, Message = "Event updated" };
     }
 
+    public override async Task<AckResponse> SetEventFeesIncluded(SetEventFeesIncludedRequest request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        RequireTenant();
+        await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await using var cmd = new NpgsqlCommand("SELECT sp_set_event_fees_included(@id, @inc)", connection);
+        cmd.Parameters.AddWithValue("id", Guid.Parse(request.EventsId));
+        cmd.Parameters.AddWithValue("inc", request.FeesIncluded);
+        await cmd.ExecuteNonQueryAsync(ct);
+        return new AckResponse { Success = true, Message = "Fee display updated" };
+    }
+
     public override async Task<AckResponse> DeleteEvent(UuidValue request, ServerCallContext context)
     {
         var ct = context.CancellationToken;
@@ -219,7 +231,7 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
 
     private const string EventSelect =
         "SELECT events_id, title, slug, description, status, category, start_date, end_date, image_path, "
-        + "is_featured, layout_mode, max_capacity, venues_id, performers::text, sponsors::text FROM vw_events";
+        + "is_featured, layout_mode, max_capacity, venues_id, performers::text, sponsors::text, fees_included FROM vw_events";
 
     private static Event MapEvent(NpgsqlDataReader r) => new()
     {
@@ -237,7 +249,8 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         MaxCapacity = r.IsDBNull(11) ? 0 : r.GetInt32(11),
         VenuesId = r.IsDBNull(12) ? string.Empty : r.GetGuid(12).ToString(),
         PerformersJson = r.IsDBNull(13) ? "[]" : r.GetString(13),
-        SponsorsJson = r.IsDBNull(14) ? "[]" : r.GetString(14)
+        SponsorsJson = r.IsDBNull(14) ? "[]" : r.GetString(14),
+        FeesIncluded = !r.IsDBNull(15) && r.GetBoolean(15)
     };
 
     private static string? NullIfEmpty(string value) => string.IsNullOrEmpty(value) ? null : value;

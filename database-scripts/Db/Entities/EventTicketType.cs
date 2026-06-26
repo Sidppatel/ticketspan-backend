@@ -16,4 +16,8 @@ public class EventTicketType : BaseEntity
 
     public Guid EventsId { get; set; }
     public Event Event { get; set; } = null!;
+
+    /// <summary>Link to the Pricing Module price (authoritative). Null during migration of legacy rows.</summary>
+    public Guid? PricesId { get; set; }
+    public Price? Price { get; set; }
 }

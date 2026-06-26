@@ -1,7 +1,7 @@
 CREATE OR REPLACE FUNCTION sp_create_magic_link(
     p_email text, p_token_hash text, p_expires_at timestamptz,
     p_tenants_id uuid DEFAULT NULL
-) RETURNS uuid LANGUAGE plpgsql
+) RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER
     SET search_path = public, extensions, pg_catalog
 AS $$
 DECLARE v_id uuid;

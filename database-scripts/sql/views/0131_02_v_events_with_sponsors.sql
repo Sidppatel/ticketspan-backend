@@ -13,6 +13,7 @@ SELECT
     e.is_featured AS is_featured,
     e.layout_mode::text AS layout_mode,
     e.max_capacity AS max_capacity,
+    e.fees_included AS fees_included,
     ettp.min_price::int AS price_per_person_cents,
     e.grid_rows AS grid_rows,
     e.grid_cols AS grid_cols,

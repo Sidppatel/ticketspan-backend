@@ -12,10 +12,21 @@ service TableBookingService {
   rpc LockTable (LockTableRequest) returns (svyne.common.AckResponse);
   rpc ReleaseTableLock (LockTableRequest) returns (svyne.common.AckResponse);
   rpc ListTablesForEvent (svyne.common.UuidValue) returns (ListTablesResponse);
+  rpc ListEventTableTypes (svyne.common.UuidValue) returns (ListEventTableTypesResponse);
   rpc CreateEventTable (CreateEventTableRequest) returns (svyne.common.UuidValue);
   rpc DeleteEventTable (svyne.common.UuidValue) returns (svyne.common.AckResponse);
   rpc CreateEventTicketType (CreateEventTicketTypeRequest) returns (svyne.common.UuidValue);
   rpc DeleteEventTicketType (svyne.common.UuidValue) returns (svyne.common.AckResponse);
+  // Catalog table-type price rules: reusable presale/last-minute rules attached to
+  // a table template and snapshotted onto event prices when a table type is created
+  // from that template.
+  rpc CreateTableTemplatePriceRule (CreateTableTemplatePriceRuleRequest) returns (svyne.common.UuidValue);
+  rpc ListTableTemplatePriceRules (svyne.common.UuidValue) returns (ListTableTemplatePriceRulesResponse);
+  rpc DeleteTableTemplatePriceRule (svyne.common.UuidValue) returns (svyne.common.AckResponse);
+  // Catalog table-type templates (tenant-scoped, reusable across events).
+  rpc ListTableTemplates (svyne.common.Empty) returns (ListTableTemplatesResponse);
+  rpc CreateTableTemplate (CreateTableTemplateRequest) returns (svyne.common.UuidValue);
+  rpc DeleteTableTemplate (svyne.common.UuidValue) returns (svyne.common.AckResponse);
 }
 
 message Table {
@@ -30,6 +41,25 @@ message Table {
   int32 price_cents = 9;
   int32 platform_fee_cents = 10;
   string fee_formulas_id = 11;
+  // Per-individual-table overrides of the parent event_table type (empty/0 = inherit).
+  string shape_override = 12;
+  string color_override = 13;
+  int32 capacity_override = 14;
+  // Linked Pricing Module price (authoritative). Empty = legacy cached price.
+  string prices_id = 15;
+}
+
+// A non-table object placed on the floor-plan grid (Entry/Exit/Stage).
+message LayoutObject {
+  string layout_objects_id = 1;
+  string object_type = 2;
+  string label = 3;
+  int32 grid_row = 4;
+  int32 grid_col = 5;
+  int32 row_span = 6;
+  int32 col_span = 7;
+  string color = 8;
+  int32 sort_order = 9;
 }
 
 message EventLayout {
@@ -37,6 +67,7 @@ message EventLayout {
   int32 grid_rows = 2;
   int32 grid_cols = 3;
   repeated Table tables = 4;
+  repeated LayoutObject objects = 5;
 }
 
 message SaveEventLayoutRequest {
@@ -45,6 +76,8 @@ message SaveEventLayoutRequest {
   int32 grid_cols = 3;
   string tables_json = 4;
   repeated string locked_ids = 5;
+  // JSON array of layout objects (Entry/Exit/Stage) to upsert/delete.
+  string objects_json = 6;
 }
 
 message LockTableRequest {
@@ -53,6 +86,24 @@ message LockTableRequest {
 
 message ListTablesResponse {
   repeated Table tables = 1;
+}
+
+// A table TYPE (event_tables) used as a palette item in the floor-plan builder.
+message EventTableType {
+  string event_tables_id = 1;
+  string label = 2;
+  int32 capacity = 3;
+  string shape = 4;
+  string color = 5;
+  int32 price_cents = 6;
+  string prices_id = 7;
+  // Grid footprint used when placing this type on the floor plan.
+  int32 row_span = 8;
+  int32 col_span = 9;
+}
+
+message ListEventTableTypesResponse {
+  repeated EventTableType table_types = 1;
 }
 
 message CreateEventTableRequest {
@@ -64,6 +115,14 @@ message CreateEventTableRequest {
   int32 price_cents = 6;
   string fee_formulas_id = 7;
   string table_templates_id = 8;
+  // Table pricing mode for the linked Price. Default (is_all_inclusive=true):
+  // the price_cents covers the whole table. When false, price_cents is the table
+  // base and per_attendee_cents is added per reserved seat.
+  bool is_all_inclusive = 9;
+  int32 per_attendee_cents = 10;
+  // Grid footprint override (0 = inherit the catalog template default).
+  int32 row_span = 11;
+  int32 col_span = 12;
 }
 
 message CreateEventTicketTypeRequest {
@@ -74,4 +133,62 @@ message CreateEventTicketTypeRequest {
   int32 max_quantity = 5;
   int32 sort_order = 6;
   string description = 7;
+}
+
+// A catalog price rule on a table template (mirrors pricing.PriceRule, keyed by
+// table_templates_id instead of prices_id).
+message TableTemplatePriceRule {
+  string table_template_price_rules_id = 1;
+  string table_templates_id = 2;
+  string name = 3;
+  string rule_type = 4;       // Presale | LastMinute | TimeWindow | Dynamic
+  int32 priority = 5;         // higher wins
+  int32 price_cents = 6;
+  int64 active_from = 7;      // unix seconds; 0 = unset
+  int64 active_until = 8;     // unix seconds; 0 = unset
+  int32 min_remaining = 9;    // -1 = unset
+  int32 max_remaining = 10;   // -1 = unset
+  bool is_active = 11;
+}
+
+message CreateTableTemplatePriceRuleRequest {
+  string table_templates_id = 1;
+  string name = 2;
+  string rule_type = 3;
+  int32 priority = 4;
+  int32 price_cents = 5;
+  int64 active_from = 6;
+  int64 active_until = 7;
+  int32 min_remaining = 8;
+  int32 max_remaining = 9;
+}
+
+message ListTableTemplatePriceRulesResponse {
+  repeated TableTemplatePriceRule rules = 1;
+}
+
+message TableTemplate {
+  string table_templates_id = 1;
+  string name = 2;
+  int32 default_capacity = 3;
+  string default_shape = 4;
+  string default_color = 5;
+  int32 default_price_cents = 6;
+  bool is_active = 7;
+  int32 default_row_span = 8;
+  int32 default_col_span = 9;
+}
+
+message CreateTableTemplateRequest {
+  string name = 1;
+  int32 default_capacity = 2;
+  string default_shape = 3;
+  string default_color = 4;
+  int32 default_price_cents = 5;
+  int32 default_row_span = 6;
+  int32 default_col_span = 7;
+}
+
+message ListTableTemplatesResponse {
+  repeated TableTemplate templates = 1;
 }

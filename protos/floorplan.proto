@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package svyne.floorplan;
+
+option csharp_namespace = "Svyne.Protos.FloorPlan";
+
+import "common.proto";
+
+// Reusable whole-floor-plan templates (grid + tables + objects). Distinct from
+// per-table table_templates. Layout objects and per-table overrides are saved
+// through TableBookingService.SaveEventLayout.
+service FloorPlanService {
+  rpc SaveAsTemplate (SaveAsTemplateRequest) returns (svyne.common.UuidValue);
+  rpc ListFloorPlanTemplates (svyne.common.Empty) returns (ListFloorPlanTemplatesResponse);
+  rpc ApplyTemplate (ApplyTemplateRequest) returns (svyne.common.AckResponse);
+  rpc DeleteFloorPlanTemplate (svyne.common.UuidValue) returns (svyne.common.AckResponse);
+}
+
+message SaveAsTemplateRequest {
+  string events_id = 1;
+  string name = 2;
+}
+
+message ApplyTemplateRequest {
+  string floor_plan_templates_id = 1;
+  string events_id = 2;
+}
+
+message FloorPlanTemplate {
+  string floor_plan_templates_id = 1;
+  string name = 2;
+  int32 grid_rows = 3;
+  int32 grid_cols = 4;
+  int32 table_count = 5;
+  int32 object_count = 6;
+  bool is_active = 7;
+}
+
+message ListFloorPlanTemplatesResponse {
+  repeated FloorPlanTemplate templates = 1;
+}

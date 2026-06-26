@@ -16,6 +16,12 @@ service EventService {
   rpc SearchEvents (SearchEventsRequest) returns (ListEventsResponse);
   rpc ChangeEventStatus (ChangeEventStatusRequest) returns (svyne.common.AckResponse);
   rpc GetEventStats (svyne.common.UuidValue) returns (EventStats);
+  rpc SetEventFeesIncluded (SetEventFeesIncludedRequest) returns (svyne.common.AckResponse);
+}
+
+message SetEventFeesIncludedRequest {
+  string events_id = 1;
+  bool fees_included = 2;
 }
 
 message Event {
@@ -35,6 +41,7 @@ message Event {
   string venues_id = 14;
   string performers_json = 15;
   string sponsors_json = 16;
+  bool fees_included = 17;
 }
 
 message GetEventBySlugRequest { string slug = 1; }

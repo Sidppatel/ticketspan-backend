@@ -4,7 +4,7 @@ CREATE OR REPLACE FUNCTION sp_create_password_reset_token(
     p_expires_at timestamptz,
     p_email text DEFAULT NULL,
     p_ip_address text DEFAULT NULL
-) RETURNS uuid LANGUAGE plpgsql
+) RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER
     SET search_path = public, extensions, pg_catalog
 AS $$
 DECLARE v_id uuid;

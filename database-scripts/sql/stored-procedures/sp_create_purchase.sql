@@ -10,27 +10,39 @@ CREATE OR REPLACE FUNCTION sp_create_booking(
     SET search_path = public, extensions, pg_catalog
 AS $$
 DECLARE v_id uuid; v_tenant uuid; v_number text; v_attempt int := 0; v_hold int; v_tbl_status text;
-        v_unit_price int; v_formula uuid;
+        v_unit_price int; v_formula uuid; v_prices_id uuid;
         v_subtotal int := p_subtotal_cents; v_fee int := p_fee_cents; v_total int := p_total_cents;
 BEGIN
     SELECT tenants_id INTO v_tenant FROM events WHERE events_id = p_event_id;
 
-    -- Server-authoritative pricing: recompute subtotal/fee/total from the
-    -- table or ticket type, ignoring client-sent amounts. A table books as a
-    -- single unit; a ticket type multiplies by seats.
+    -- Server-authoritative pricing via the Pricing Module: resolve subtotal/fee/
+    -- total from the linked price (app.resolve_price applies presale/last-minute/
+    -- dynamic rules, table per-attendee math and the resolved fee formula),
+    -- ignoring client-sent amounts. Falls back to the legacy cached price_cents +
+    -- compute_fee path for sellables not yet linked to a price.
     IF p_table_id IS NOT NULL THEN
-        SELECT et.price_cents, et.fee_formulas_id INTO v_unit_price, v_formula
+        SELECT et.prices_id, et.price_cents, et.fee_formulas_id
+          INTO v_prices_id, v_unit_price, v_formula
           FROM tables t JOIN event_tables et ON et.event_tables_id = t.event_tables_id
          WHERE t.tables_id = p_table_id;
-        IF v_unit_price IS NOT NULL THEN
+        IF v_prices_id IS NOT NULL THEN
+            SELECT subtotal_cents, fee_cents, total_cents INTO v_subtotal, v_fee, v_total
+              FROM app.resolve_price(v_prices_id, now(), COALESCE(p_seats, 1),
+                                     app.remaining_for_price(v_prices_id));
+        ELSIF v_unit_price IS NOT NULL THEN
             v_subtotal := v_unit_price;
             v_fee := app.compute_fee(v_unit_price, v_formula);
             v_total := v_subtotal + v_fee;
         END IF;
     ELSIF p_event_ticket_type_id IS NOT NULL THEN
-        SELECT price_cents, fee_formulas_id INTO v_unit_price, v_formula
+        SELECT prices_id, price_cents, fee_formulas_id
+          INTO v_prices_id, v_unit_price, v_formula
           FROM event_ticket_types WHERE event_ticket_types_id = p_event_ticket_type_id;
-        IF v_unit_price IS NOT NULL THEN
+        IF v_prices_id IS NOT NULL THEN
+            SELECT subtotal_cents, fee_cents, total_cents INTO v_subtotal, v_fee, v_total
+              FROM app.resolve_price(v_prices_id, now(), COALESCE(p_seats, 1),
+                                     app.remaining_for_price(v_prices_id));
+        ELSIF v_unit_price IS NOT NULL THEN
             v_subtotal := v_unit_price * COALESCE(p_seats, 1);
             v_fee := app.compute_fee(v_unit_price, v_formula) * COALESCE(p_seats, 1);
             v_total := v_subtotal + v_fee;

@@ -1,0 +1,127 @@
+syntax = "proto3";
+
+package svyne.pricing;
+
+option csharp_namespace = "Svyne.Protos.Pricing";
+
+import "common.proto";
+
+// The Pricing Module: the single source of truth for all pricing. Floor plan and
+// checkout consume CalculatePrice; they never compute prices themselves.
+service PricingService {
+  rpc CreatePrice (CreatePriceRequest) returns (svyne.common.UuidValue);
+  rpc UpdatePrice (UpdatePriceRequest) returns (svyne.common.AckResponse);
+  rpc GetPrice (svyne.common.UuidValue) returns (Price);
+  rpc ListPricesForEvent (svyne.common.UuidValue) returns (ListPricesResponse);
+  rpc DeletePrice (svyne.common.UuidValue) returns (svyne.common.AckResponse);
+
+  rpc CreatePriceRule (CreatePriceRuleRequest) returns (svyne.common.UuidValue);
+  rpc UpdatePriceRule (UpdatePriceRuleRequest) returns (svyne.common.AckResponse);
+  rpc DeletePriceRule (svyne.common.UuidValue) returns (svyne.common.AckResponse);
+  rpc ListPriceRules (svyne.common.UuidValue) returns (ListPriceRulesResponse);
+
+  rpc CalculatePrice (CalculatePriceRequest) returns (PriceBreakdown);
+  rpc SetTenantDefaultFeeFormula (SetTenantDefaultFeeFormulaRequest) returns (svyne.common.AckResponse);
+}
+
+message Price {
+  string prices_id = 1;
+  string events_id = 2;
+  string name = 3;
+  string pricing_type = 4;          // TicketTier | Table | AddOn
+  int32 base_price_cents = 5;
+  int32 per_attendee_cents = 6;
+  bool is_all_inclusive = 7;
+  string fee_formulas_id = 8;        // developer-only override; empty = tenant default
+  string parent_prices_id = 9;       // AddOn parent; empty = none
+  int32 max_quantity = 10;           // 0 = unlimited
+  bool is_active = 11;
+}
+
+message CreatePriceRequest {
+  string events_id = 1;
+  string name = 2;
+  string pricing_type = 3;
+  int32 base_price_cents = 4;
+  int32 per_attendee_cents = 5;
+  bool is_all_inclusive = 6;
+  string fee_formulas_id = 7;        // honored only for developers
+  string parent_prices_id = 8;
+  int32 max_quantity = 9;
+}
+
+message UpdatePriceRequest {
+  string prices_id = 1;
+  string name = 2;
+  int32 base_price_cents = 3;
+  int32 per_attendee_cents = 4;
+  bool is_all_inclusive = 5;
+  int32 max_quantity = 6;
+  bool is_active = 7;
+  string fee_formulas_id = 8;        // applied only for developers
+}
+
+message ListPricesResponse {
+  repeated Price prices = 1;
+}
+
+message PriceRule {
+  string price_rules_id = 1;
+  string prices_id = 2;
+  string name = 3;
+  string rule_type = 4;              // Presale | LastMinute | TimeWindow | Dynamic
+  int32 priority = 5;                // higher wins
+  int32 price_cents = 6;
+  int64 active_from = 7;             // unix seconds; 0 = unset
+  int64 active_until = 8;            // unix seconds; 0 = unset
+  int32 min_remaining = 9;           // -1 = unset
+  int32 max_remaining = 10;          // -1 = unset
+  bool is_active = 11;
+}
+
+message CreatePriceRuleRequest {
+  string prices_id = 1;
+  string name = 2;
+  string rule_type = 3;
+  int32 priority = 4;
+  int32 price_cents = 5;
+  int64 active_from = 6;
+  int64 active_until = 7;
+  int32 min_remaining = 8;
+  int32 max_remaining = 9;
+}
+
+message UpdatePriceRuleRequest {
+  string price_rules_id = 1;
+  string name = 2;
+  string rule_type = 3;
+  int32 priority = 4;
+  int32 price_cents = 5;
+  int64 active_from = 6;
+  int64 active_until = 7;
+  int32 min_remaining = 8;
+  int32 max_remaining = 9;
+  bool is_active = 10;
+}
+
+message ListPriceRulesResponse {
+  repeated PriceRule rules = 1;
+}
+
+message CalculatePriceRequest {
+  string prices_id = 1;
+  int32 seats = 2;
+  int64 at = 3;                      // unix seconds; 0 = now
+  int32 remaining = 4;               // -1 = unknown
+}
+
+message PriceBreakdown {
+  int32 subtotal_cents = 1;
+  int32 fee_cents = 2;
+  int32 total_cents = 3;
+}
+
+message SetTenantDefaultFeeFormulaRequest {
+  string tenants_id = 1;
+  string fee_formulas_id = 2;        // empty = clear default
+}

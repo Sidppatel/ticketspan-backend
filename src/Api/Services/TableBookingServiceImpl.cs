@@ -18,8 +18,9 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
         this.tenantContext = tenantContext;
     }
 
-    // Columns 0..10: tables_id, event_tables_id, label, grid_row, grid_col,
-    // row_span, col_span, status, price_cents, platform_fee_cents, fee_formulas_id.
+    // Columns 0..13: tables_id, event_tables_id, label, grid_row, grid_col,
+    // row_span, col_span, status, price_cents, platform_fee_cents, fee_formulas_id,
+    // shape_override, color_override, capacity_override.
     private static Table MapTable(NpgsqlDataReader r) => new()
     {
         TablesId = r.GetGuid(0).ToString(),
@@ -32,12 +33,17 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
         Status = r.GetString(7),
         PriceCents = r.GetInt32(8),
         PlatformFeeCents = r.GetInt32(9),
-        FeeFormulasId = r.IsDBNull(10) ? string.Empty : r.GetGuid(10).ToString()
+        FeeFormulasId = r.IsDBNull(10) ? string.Empty : r.GetGuid(10).ToString(),
+        ShapeOverride = r.IsDBNull(11) ? string.Empty : r.GetString(11),
+        ColorOverride = r.IsDBNull(12) ? string.Empty : r.GetString(12),
+        CapacityOverride = r.IsDBNull(13) ? 0 : r.GetInt32(13),
+        PricesId = r.IsDBNull(14) ? string.Empty : r.GetGuid(14).ToString()
     };
 
     private const string TableSelect =
         "SELECT t.tables_id, t.event_tables_id, t.label, t.grid_row, t.grid_col, t.row_span, t.col_span, t.status, "
-        + "COALESCE(et.price_cents, 0), COALESCE(et.platform_fee_cents, 0), et.fee_formulas_id "
+        + "COALESCE(et.price_cents, 0), COALESCE(et.platform_fee_cents, 0), et.fee_formulas_id, "
+        + "t.shape_override, t.color_override, t.capacity_override, et.prices_id "
         + "FROM tables t LEFT JOIN event_tables et ON et.event_tables_id = t.event_tables_id "
         + "WHERE t.events_id = @ev ORDER BY t.sort_order";
 
@@ -59,10 +65,32 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
         }
         await using var cmd = new NpgsqlCommand(TableSelect, connection);
         cmd.Parameters.AddWithValue("ev", eventsId);
-        await using var reader = await cmd.ExecuteReaderAsync(ct);
-        while (await reader.ReadAsync(ct))
+        await using (var reader = await cmd.ExecuteReaderAsync(ct))
         {
-            layout.Tables.Add(MapTable(reader));
+            while (await reader.ReadAsync(ct))
+            {
+                layout.Tables.Add(MapTable(reader));
+            }
+        }
+        await using (var objCmd = new NpgsqlCommand("SELECT * FROM sp_list_layout_objects_for_event(@ev)", connection))
+        {
+            objCmd.Parameters.AddWithValue("ev", eventsId);
+            await using var objReader = await objCmd.ExecuteReaderAsync(ct);
+            while (await objReader.ReadAsync(ct))
+            {
+                layout.Objects.Add(new LayoutObject
+                {
+                    LayoutObjectsId = objReader.GetGuid(0).ToString(),
+                    ObjectType = objReader.GetString(1),
+                    Label = objReader.IsDBNull(2) ? string.Empty : objReader.GetString(2),
+                    GridRow = objReader.GetInt32(3),
+                    GridCol = objReader.GetInt32(4),
+                    RowSpan = objReader.GetInt32(5),
+                    ColSpan = objReader.GetInt32(6),
+                    Color = objReader.IsDBNull(7) ? string.Empty : objReader.GetString(7),
+                    SortOrder = objReader.GetInt32(8)
+                });
+            }
         }
         return layout;
     }
@@ -82,18 +110,48 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
         return response;
     }
 
+    public override async Task<ListEventTableTypesResponse> ListEventTableTypes(UuidValue request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        var response = new ListEventTableTypesResponse();
+        await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await using var cmd = new NpgsqlCommand(
+            "SELECT event_tables_id, label, capacity, shape, COALESCE(color, ''), price_cents, prices_id, "
+            + "COALESCE(row_span, 1), COALESCE(col_span, 1) "
+            + "FROM event_tables WHERE events_id = @ev AND is_active = true ORDER BY label", connection);
+        cmd.Parameters.AddWithValue("ev", Guid.Parse(request.Value));
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            response.TableTypes.Add(new EventTableType
+            {
+                EventTablesId = reader.GetGuid(0).ToString(),
+                Label = reader.GetString(1),
+                Capacity = reader.GetInt32(2),
+                Shape = reader.GetString(3),
+                Color = reader.GetString(4),
+                PriceCents = reader.GetInt32(5),
+                PricesId = reader.IsDBNull(6) ? string.Empty : reader.GetGuid(6).ToString(),
+                RowSpan = reader.GetInt32(7),
+                ColSpan = reader.GetInt32(8)
+            });
+        }
+        return response;
+    }
+
     public override async Task<AckResponse> SaveEventLayout(SaveEventLayoutRequest request, ServerCallContext context)
     {
         var ct = context.CancellationToken;
         RequireTenant();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT sp_save_event_layout(@ev, @rows, @cols, @tables::jsonb, @locked)", connection);
+            "SELECT sp_save_event_layout(@ev, @rows, @cols, @tables::jsonb, @locked, @objects::jsonb)", connection);
         cmd.Parameters.AddWithValue("ev", Guid.Parse(request.EventsId));
         cmd.Parameters.AddWithValue("rows", request.GridRows);
         cmd.Parameters.AddWithValue("cols", request.GridCols);
         cmd.Parameters.AddWithValue("tables", string.IsNullOrEmpty(request.TablesJson) ? "[]" : request.TablesJson);
         cmd.Parameters.AddWithValue("locked", request.LockedIds.Select(Guid.Parse).ToArray());
+        cmd.Parameters.AddWithValue("objects", string.IsNullOrEmpty(request.ObjectsJson) ? "[]" : request.ObjectsJson);
         await cmd.ExecuteNonQueryAsync(ct);
         return new AckResponse { Success = true, Message = "Layout saved" };
     }
@@ -130,7 +188,7 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
         RequireTenant();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT sp_create_event_table(@ev, @label, @cap, @shape, @color, @price, @fee, @tpl)", connection);
+            "SELECT sp_create_event_table(@ev, @label, @cap, @shape, @color, @price, @fee, @tpl, @allinc, @per, @row, @col)", connection);
         cmd.Parameters.AddWithValue("ev", Guid.Parse(request.EventsId));
         cmd.Parameters.AddWithValue("label", request.Label);
         cmd.Parameters.AddWithValue("cap", request.Capacity);
@@ -139,6 +197,10 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
         cmd.Parameters.AddWithValue("price", request.PriceCents);
         cmd.Parameters.AddWithValue("fee", string.IsNullOrEmpty(request.FeeFormulasId) ? DBNull.Value : Guid.Parse(request.FeeFormulasId));
         cmd.Parameters.AddWithValue("tpl", string.IsNullOrEmpty(request.TableTemplatesId) ? DBNull.Value : Guid.Parse(request.TableTemplatesId));
+        cmd.Parameters.AddWithValue("allinc", request.IsAllInclusive);
+        cmd.Parameters.AddWithValue("per", request.PerAttendeeCents);
+        cmd.Parameters.AddWithValue("row", request.RowSpan <= 0 ? DBNull.Value : request.RowSpan);
+        cmd.Parameters.AddWithValue("col", request.ColSpan <= 0 ? DBNull.Value : request.ColSpan);
         var id = (Guid)(await cmd.ExecuteScalarAsync(ct))!;
         return new UuidValue { Value = id.ToString() };
     }
@@ -166,6 +228,120 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
 
     public override Task<AckResponse> DeleteEventTicketType(UuidValue request, ServerCallContext context)
         => RunVoid("SELECT sp_delete_event_ticket_type(@id)", request.Value, context, "Ticket type deleted");
+
+    public override async Task<UuidValue> CreateTableTemplatePriceRule(CreateTableTemplatePriceRuleRequest request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        RequireTenant();
+        await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await using var cmd = new NpgsqlCommand(
+            "SELECT sp_create_table_template_price_rule(@tpl, @name, @type, @prio, @price, @from, @until, @min, @max)", connection);
+        cmd.Parameters.AddWithValue("tpl", Guid.Parse(request.TableTemplatesId));
+        cmd.Parameters.AddWithValue("name", request.Name);
+        cmd.Parameters.AddWithValue("type", string.IsNullOrEmpty(request.RuleType) ? "TimeWindow" : request.RuleType);
+        cmd.Parameters.AddWithValue("prio", request.Priority);
+        cmd.Parameters.AddWithValue("price", request.PriceCents);
+        cmd.Parameters.AddWithValue("from", ToTimestamp(request.ActiveFrom));
+        cmd.Parameters.AddWithValue("until", ToTimestamp(request.ActiveUntil));
+        cmd.Parameters.AddWithValue("min", request.MinRemaining < 0 ? DBNull.Value : request.MinRemaining);
+        cmd.Parameters.AddWithValue("max", request.MaxRemaining < 0 ? DBNull.Value : request.MaxRemaining);
+        var id = (Guid)(await cmd.ExecuteScalarAsync(ct))!;
+        return new UuidValue { Value = id.ToString() };
+    }
+
+    public override async Task<ListTableTemplatePriceRulesResponse> ListTableTemplatePriceRules(UuidValue request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        RequireTenant();
+        var response = new ListTableTemplatePriceRulesResponse();
+        await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await using var cmd = new NpgsqlCommand("SELECT * FROM sp_list_table_template_price_rules(@tpl)", connection);
+        cmd.Parameters.AddWithValue("tpl", Guid.Parse(request.Value));
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            response.Rules.Add(new TableTemplatePriceRule
+            {
+                TableTemplatePriceRulesId = reader.GetGuid(0).ToString(),
+                TableTemplatesId = reader.GetGuid(1).ToString(),
+                Name = reader.GetString(2),
+                RuleType = reader.GetString(3),
+                Priority = reader.GetInt32(4),
+                PriceCents = reader.GetInt32(5),
+                ActiveFrom = FromTimestamp(reader, 6),
+                ActiveUntil = FromTimestamp(reader, 7),
+                MinRemaining = reader.IsDBNull(8) ? -1 : reader.GetInt32(8),
+                MaxRemaining = reader.IsDBNull(9) ? -1 : reader.GetInt32(9),
+                IsActive = reader.GetBoolean(10)
+            });
+        }
+        return response;
+    }
+
+    public override Task<AckResponse> DeleteTableTemplatePriceRule(UuidValue request, ServerCallContext context)
+        => RunVoid("SELECT sp_delete_table_template_price_rule(@id)", request.Value, context, "Template price rule deleted");
+
+    public override async Task<ListTableTemplatesResponse> ListTableTemplates(Empty request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        RequireTenant();
+        var response = new ListTableTemplatesResponse();
+        await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await using var cmd = new NpgsqlCommand(
+            "SELECT table_templates_id, name, default_capacity, default_shape, "
+            + "COALESCE(default_color, ''), default_price_cents, is_active, "
+            + "COALESCE(default_row_span, 1), COALESCE(default_col_span, 1) "
+            + "FROM table_templates WHERE is_active = true ORDER BY name", connection);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            response.Templates.Add(new TableTemplate
+            {
+                TableTemplatesId = reader.GetGuid(0).ToString(),
+                Name = reader.GetString(1),
+                DefaultCapacity = reader.GetInt32(2),
+                DefaultShape = reader.GetString(3),
+                DefaultColor = reader.GetString(4),
+                DefaultPriceCents = reader.GetInt32(5),
+                IsActive = reader.GetBoolean(6),
+                DefaultRowSpan = reader.GetInt32(7),
+                DefaultColSpan = reader.GetInt32(8)
+            });
+        }
+        return response;
+    }
+
+    public override async Task<UuidValue> CreateTableTemplate(CreateTableTemplateRequest request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        RequireTenant();
+        if (tenantContext.TenantsId is null)
+        {
+            throw new RpcException(new Status(StatusCode.PermissionDenied, "Tenant context required"));
+        }
+        await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await using var cmd = new NpgsqlCommand(
+            "SELECT sp_create_table_template(@t, @name, @cap, @shape, @color, @price, @row, @col)", connection);
+        cmd.Parameters.AddWithValue("t", tenantContext.TenantsId);
+        cmd.Parameters.AddWithValue("name", request.Name);
+        cmd.Parameters.AddWithValue("cap", request.DefaultCapacity);
+        cmd.Parameters.AddWithValue("shape", string.IsNullOrEmpty(request.DefaultShape) ? "Round" : request.DefaultShape);
+        cmd.Parameters.AddWithValue("color", (object?)NullIfEmpty(request.DefaultColor) ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("price", request.DefaultPriceCents);
+        cmd.Parameters.AddWithValue("row", request.DefaultRowSpan <= 0 ? 1 : request.DefaultRowSpan);
+        cmd.Parameters.AddWithValue("col", request.DefaultColSpan <= 0 ? 1 : request.DefaultColSpan);
+        var id = (Guid)(await cmd.ExecuteScalarAsync(ct))!;
+        return new UuidValue { Value = id.ToString() };
+    }
+
+    public override Task<AckResponse> DeleteTableTemplate(UuidValue request, ServerCallContext context)
+        => RunVoid("SELECT sp_deactivate_table_template(@id)", request.Value, context, "Table template deactivated");
+
+    private static object ToTimestamp(long unixSeconds) =>
+        unixSeconds <= 0 ? DBNull.Value : DateTimeOffset.FromUnixTimeSeconds(unixSeconds).UtcDateTime;
+
+    private static long FromTimestamp(NpgsqlDataReader r, int ordinal) =>
+        r.IsDBNull(ordinal) ? 0 : new DateTimeOffset(DateTime.SpecifyKind(r.GetDateTime(ordinal), DateTimeKind.Utc)).ToUnixTimeSeconds();
 
     private async Task<AckResponse> RunVoid(string sql, string id, ServerCallContext context, string okMessage)
     {

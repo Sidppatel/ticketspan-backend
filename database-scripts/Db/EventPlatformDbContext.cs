@@ -22,6 +22,7 @@ public class EventPlatformDbContext(
 
     public DbSet<Venue> Venues => Set<Venue>();
     public DbSet<TableTemplate> TableTemplates => Set<TableTemplate>();
+    public DbSet<TableTemplatePriceRule> TableTemplatePriceRules => Set<TableTemplatePriceRule>();
 
     public DbSet<Event> Events => Set<Event>();
     public DbSet<Performer> Performers => Set<Performer>();
@@ -32,6 +33,12 @@ public class EventPlatformDbContext(
     public DbSet<EventTable> EventTables => Set<EventTable>();
     public DbSet<EventTicketType> EventTicketTypes => Set<EventTicketType>();
     public DbSet<FeeFormula> FeeFormulas => Set<FeeFormula>();
+    public DbSet<Price> Prices => Set<Price>();
+    public DbSet<PriceRule> PriceRules => Set<PriceRule>();
+    public DbSet<LayoutObject> LayoutObjects => Set<LayoutObject>();
+    public DbSet<FloorPlanTemplate> FloorPlanTemplates => Set<FloorPlanTemplate>();
+    public DbSet<FloorPlanTemplateTable> FloorPlanTemplateTables => Set<FloorPlanTemplateTable>();
+    public DbSet<FloorPlanTemplateObject> FloorPlanTemplateObjects => Set<FloorPlanTemplateObject>();
     public DbSet<Table> Tables => Set<Table>();
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<Ticket> Tickets => Set<Ticket>();
@@ -115,6 +122,9 @@ public class EventPlatformDbContext(
             entity.Property(e => e.StripePayoutsEnabled).HasDefaultValue(false);
             entity.Property(e => e.StripeDetailsSubmitted).HasDefaultValue(false);
             entity.Property(e => e.StripeRequirementsDue).HasColumnType("jsonb");
+            entity.HasOne(e => e.DefaultFeeFormula).WithMany()
+                .HasForeignKey(e => e.DefaultFeeFormulasId)
+                .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<TenantStripeProfile>(entity =>
@@ -340,6 +350,30 @@ public class EventPlatformDbContext(
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        modelBuilder.Entity<TableTemplatePriceRule>(entity =>
+        {
+            entity.ToTable("table_template_price_rules", t =>
+            {
+                t.HasCheckConstraint("CK_table_template_price_rules_RuleType",
+                    "rule_type IN ('Presale','LastMinute','TimeWindow','Dynamic')");
+                t.HasCheckConstraint("CK_table_template_price_rules_PriceCents", "price_cents >= 0");
+                t.HasCheckConstraint("CK_table_template_price_rules_Window",
+                    "active_from IS NULL OR active_until IS NULL OR active_until > active_from");
+            });
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.TenantsId);
+            entity.HasIndex(e => new { e.TableTemplatesId, e.Priority });
+            entity.Property(e => e.Name).HasMaxLength(128).IsRequired();
+            entity.Property(e => e.RuleType).HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.Priority).HasDefaultValue(0);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.TableTemplate).WithMany(tt => tt.PriceRules)
+                .HasForeignKey(e => e.TableTemplatesId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<EventTable>(entity =>
         {
             entity.ToTable("event_tables", t =>
@@ -363,6 +397,8 @@ public class EventPlatformDbContext(
                 .HasForeignKey(e => e.TableTemplatesId)
                 .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
             entity.HasOne(e => e.FeeFormula).WithMany().HasForeignKey(e => e.FeeFormulasId)
+                .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.Price).WithMany().HasForeignKey(e => e.PricesId)
                 .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
         });
 
@@ -396,6 +432,141 @@ public class EventPlatformDbContext(
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(e => e.FeeFormula).WithMany().HasForeignKey(e => e.FeeFormulasId)
                 .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.Price).WithMany().HasForeignKey(e => e.PricesId)
+                .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<Price>(entity =>
+        {
+            entity.ToTable("prices", t =>
+            {
+                t.HasCheckConstraint("CK_prices_PricingType",
+                    "pricing_type IN ('TicketTier','Table','AddOn')");
+                t.HasCheckConstraint("CK_prices_BasePriceCents", "base_price_cents >= 0");
+                t.HasCheckConstraint("CK_prices_PerAttendeeCents", "per_attendee_cents >= 0");
+                t.HasCheckConstraint("CK_prices_MaxQuantity",
+                    "max_quantity IS NULL OR max_quantity > 0");
+            });
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.TenantsId);
+            entity.HasIndex(e => e.EventsId);
+            entity.Property(e => e.Name).HasMaxLength(128).IsRequired();
+            entity.Property(e => e.PricingType).HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.PerAttendeeCents).HasDefaultValue(0);
+            entity.Property(e => e.IsAllInclusive).HasDefaultValue(false);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Event).WithMany().HasForeignKey(e => e.EventsId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.FeeFormula).WithMany().HasForeignKey(e => e.FeeFormulasId)
+                .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.ParentPrice).WithMany().HasForeignKey(e => e.ParentPricesId)
+                .IsRequired(false).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<PriceRule>(entity =>
+        {
+            entity.ToTable("price_rules", t =>
+            {
+                t.HasCheckConstraint("CK_price_rules_RuleType",
+                    "rule_type IN ('Presale','LastMinute','TimeWindow','Dynamic')");
+                t.HasCheckConstraint("CK_price_rules_PriceCents", "price_cents >= 0");
+                t.HasCheckConstraint("CK_price_rules_Window",
+                    "active_from IS NULL OR active_until IS NULL OR active_until > active_from");
+            });
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.TenantsId);
+            entity.HasIndex(e => new { e.PricesId, e.Priority });
+            entity.Property(e => e.Name).HasMaxLength(128).IsRequired();
+            entity.Property(e => e.RuleType).HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.Priority).HasDefaultValue(0);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Price).WithMany(p => p.PriceRules).HasForeignKey(e => e.PricesId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LayoutObject>(entity =>
+        {
+            entity.ToTable("layout_objects", t =>
+            {
+                t.HasCheckConstraint("CK_layout_objects_ObjectType",
+                    "object_type IN ('Entry','Exit','Stage')");
+                t.HasCheckConstraint("CK_layout_objects_GridRow", "grid_row >= 0");
+                t.HasCheckConstraint("CK_layout_objects_GridCol", "grid_col >= 0");
+            });
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.TenantsId);
+            entity.HasIndex(e => e.EventsId);
+            entity.Property(e => e.ObjectType).HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.Label).HasMaxLength(64);
+            entity.Property(e => e.Color).HasMaxLength(20);
+            entity.Property(e => e.RowSpan).HasDefaultValue(1);
+            entity.Property(e => e.ColSpan).HasDefaultValue(1);
+            entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Event).WithMany().HasForeignKey(e => e.EventsId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<FloorPlanTemplate>(entity =>
+        {
+            entity.ToTable("floor_plan_templates", t =>
+            {
+                t.HasCheckConstraint("CK_floor_plan_templates_Grid",
+                    "(grid_rows IS NULL OR grid_rows > 0) AND (grid_cols IS NULL OR grid_cols > 0)");
+            });
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.TenantsId);
+            entity.Property(e => e.Name).HasMaxLength(128).IsRequired();
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<FloorPlanTemplateTable>(entity =>
+        {
+            entity.ToTable("floor_plan_template_tables", t =>
+            {
+                t.HasCheckConstraint("CK_fpt_tables_Shape",
+                    "shape IN ('Round','Rectangle','Square','Cocktail')");
+            });
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.TenantsId);
+            entity.HasIndex(e => e.FloorPlanTemplatesId);
+            entity.Property(e => e.Label).HasMaxLength(20);
+            entity.Property(e => e.TypeLabel).HasMaxLength(128);
+            entity.Property(e => e.Shape).HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.Color).HasMaxLength(20);
+            entity.Property(e => e.RowSpan).HasDefaultValue(1);
+            entity.Property(e => e.ColSpan).HasDefaultValue(1);
+            entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.FloorPlanTemplate).WithMany(f => f.Tables)
+                .HasForeignKey(e => e.FloorPlanTemplatesId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<FloorPlanTemplateObject>(entity =>
+        {
+            entity.ToTable("floor_plan_template_objects", t =>
+            {
+                t.HasCheckConstraint("CK_fpt_objects_ObjectType",
+                    "object_type IN ('Entry','Exit','Stage')");
+            });
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.TenantsId);
+            entity.HasIndex(e => e.FloorPlanTemplatesId);
+            entity.Property(e => e.ObjectType).HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.Label).HasMaxLength(64);
+            entity.Property(e => e.Color).HasMaxLength(20);
+            entity.Property(e => e.RowSpan).HasDefaultValue(1);
+            entity.Property(e => e.ColSpan).HasDefaultValue(1);
+            entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.FloorPlanTemplate).WithMany(f => f.Objects)
+                .HasForeignKey(e => e.FloorPlanTemplatesId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Event>(entity =>
@@ -433,6 +604,7 @@ public class EventPlatformDbContext(
             entity.Property(e => e.Category).HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.ImagePath).HasMaxLength(512);
             entity.Property(e => e.LayoutMode).HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.FeesIncluded).HasDefaultValue(false);
             entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.Venue).WithMany(v => v.Events).HasForeignKey(e => e.VenuesId)
@@ -482,6 +654,8 @@ public class EventPlatformDbContext(
             entity.Property(e => e.Label).HasMaxLength(20);
             entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20)
                 .HasDefaultValue(Db.Enums.TableStatus.Available);
+            entity.Property(e => e.ShapeOverride).HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.ColorOverride).HasMaxLength(20);
             entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.EventTable).WithMany(et => et.Tables)

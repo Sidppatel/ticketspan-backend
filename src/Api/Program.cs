@@ -109,6 +109,8 @@ app.MapGrpcService<FinancialServiceImpl>();
 app.MapGrpcService<HealthServiceImpl>();
 app.MapGrpcService<EnumServiceImpl>();
 app.MapGrpcService<FeeServiceImpl>();
+app.MapGrpcService<PricingServiceImpl>();
+app.MapGrpcService<FloorPlanServiceImpl>();
 app.MapGet("/", () => "Svyne gRPC API");
 app.MapGet("/health/live", () => Results.Ok("live"));
 app.MapGet("/health/ready", async (Db db, CancellationToken ct) =>

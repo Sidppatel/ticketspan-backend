@@ -4,7 +4,7 @@ CREATE OR REPLACE FUNCTION sp_set_user_password(
     p_pepper_version smallint DEFAULT 1,
     p_revoke_other_sessions boolean DEFAULT true,
     p_current_session_hash text DEFAULT NULL
-) RETURNS void LANGUAGE plpgsql
+) RETURNS void LANGUAGE plpgsql SECURITY DEFINER
     SET search_path = public, extensions, pg_catalog
 AS $$
 BEGIN

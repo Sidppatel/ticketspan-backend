@@ -21,6 +21,13 @@ public class Event : BaseEntity
     public int? GridRows { get; set; }
     public int? GridCols { get; set; }
 
+    /// <summary>
+    /// When true, buyers see a single all-in total (developer fee folded into the
+    /// shown price). When false, the fee is itemized: price + fee = total. Display
+    /// only — the math is identical; admins cannot change the fee amount itself.
+    /// </summary>
+    public bool FeesIncluded { get; set; }
+
     public NpgsqlTsVector? SearchVector { get; set; }
 
     public Guid TenantsId { get; set; }
