@@ -12,6 +12,7 @@ SELECT
     e.image_path AS image_path,
     e.is_featured AS is_featured,
     e.layout_mode::text AS layout_mode,
+    e.event_type::text AS event_type,
     e.max_capacity AS max_capacity,
     ettp.min_price::int AS price_per_person_cents,
     e.grid_rows AS grid_rows,
@@ -39,7 +40,8 @@ SELECT
     COALESCE(
         e.max_capacity,
         CASE
-            WHEN e.layout_mode::text = 'Grid' THEN table_cap.total_seats
+            WHEN e.event_type::text = 'Table' THEN table_cap.total_seats
+            WHEN e.event_type::text = 'Both' THEN COALESCE(table_cap.total_seats, 0) + COALESCE(ett_cap.total_qty, 0)
             ELSE ett_cap.total_qty
         END,
         0

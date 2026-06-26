@@ -108,8 +108,8 @@ public sealed class PricingServiceImpl : PricingService.PricingServiceBase
         RequireTenant();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT sp_create_price_rule(@p, @name, @type, @prio, @price, @from, @until, @min, @max)", connection);
-        cmd.Parameters.AddWithValue("p", Guid.Parse(request.PricesId));
+            "SELECT sp_create_price_rule(@owner, @name, @type, @prio, @price, @from, @until, @min, @max, @scope)", connection);
+        cmd.Parameters.AddWithValue("owner", Guid.Parse(request.OwnerId));
         cmd.Parameters.AddWithValue("name", request.Name);
         cmd.Parameters.AddWithValue("type", string.IsNullOrEmpty(request.RuleType) ? "TimeWindow" : request.RuleType);
         cmd.Parameters.AddWithValue("prio", request.Priority);
@@ -118,6 +118,7 @@ public sealed class PricingServiceImpl : PricingService.PricingServiceBase
         cmd.Parameters.AddWithValue("until", ToTimestamp(request.ActiveUntil));
         cmd.Parameters.AddWithValue("min", request.MinRemaining < 0 ? DBNull.Value : request.MinRemaining);
         cmd.Parameters.AddWithValue("max", request.MaxRemaining < 0 ? DBNull.Value : request.MaxRemaining);
+        cmd.Parameters.AddWithValue("scope", string.IsNullOrEmpty(request.Scope) ? "Price" : request.Scope);
         var id = (Guid)(await cmd.ExecuteScalarAsync(ct))!;
         return new UuidValue { Value = id.ToString() };
     }
@@ -146,21 +147,27 @@ public sealed class PricingServiceImpl : PricingService.PricingServiceBase
     public override async Task<AckResponse> DeletePriceRule(UuidValue request, ServerCallContext context)
         => await RunVoid("SELECT sp_delete_price_rule(@id)", "id", Guid.Parse(request.Value), context, "Price rule deleted");
 
-    public override async Task<ListPriceRulesResponse> ListPriceRules(UuidValue request, ServerCallContext context)
+    public override Task<ListPriceRulesResponse> ListPriceRules(UuidValue request, ServerCallContext context)
+        => ListRules("SELECT * FROM sp_list_price_rules(@id)", request, context);
+
+    public override Task<ListPriceRulesResponse> ListEventPriceRules(UuidValue request, ServerCallContext context)
+        => ListRules("SELECT * FROM sp_list_event_price_rules(@id)", request, context);
+
+    private async Task<ListPriceRulesResponse> ListRules(string sql, UuidValue request, ServerCallContext context)
     {
         var ct = context.CancellationToken;
         RequireUser();
         var response = new ListPriceRulesResponse();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
-        await using var cmd = new NpgsqlCommand("SELECT * FROM sp_list_price_rules(@p)", connection);
-        cmd.Parameters.AddWithValue("p", Guid.Parse(request.Value));
+        await using var cmd = new NpgsqlCommand(sql, connection);
+        cmd.Parameters.AddWithValue("id", Guid.Parse(request.Value));
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
         {
             response.Rules.Add(new PriceRule
             {
                 PriceRulesId = reader.GetGuid(0).ToString(),
-                PricesId = reader.GetGuid(1).ToString(),
+                PricesId = reader.IsDBNull(1) ? string.Empty : reader.GetGuid(1).ToString(),
                 Name = reader.GetString(2),
                 RuleType = reader.GetString(3),
                 Priority = reader.GetInt32(4),
@@ -169,7 +176,9 @@ public sealed class PricingServiceImpl : PricingService.PricingServiceBase
                 ActiveUntil = FromTimestamp(reader, 7),
                 MinRemaining = reader.IsDBNull(8) ? -1 : reader.GetInt32(8),
                 MaxRemaining = reader.IsDBNull(9) ? -1 : reader.GetInt32(9),
-                IsActive = reader.GetBoolean(10)
+                IsActive = reader.GetBoolean(10),
+                Scope = reader.IsDBNull(11) ? "Price" : reader.GetString(11),
+                EventsId = reader.IsDBNull(12) ? string.Empty : reader.GetGuid(12).ToString()
             });
         }
         return response;

@@ -474,18 +474,28 @@ public class EventPlatformDbContext(
                 t.HasCheckConstraint("CK_price_rules_PriceCents", "price_cents >= 0");
                 t.HasCheckConstraint("CK_price_rules_Window",
                     "active_from IS NULL OR active_until IS NULL OR active_until > active_from");
+                // Exactly one owner: a per-price rule targets a price; an event-wide
+                // rule targets an event. Scope and the populated FK must agree.
+                t.HasCheckConstraint("CK_price_rules_Scope",
+                    "(scope = 'Price' AND prices_id IS NOT NULL AND events_id IS NULL) "
+                    + "OR (scope = 'Event' AND events_id IS NOT NULL AND prices_id IS NULL)");
             });
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.TenantsId);
             entity.HasIndex(e => new { e.PricesId, e.Priority });
+            entity.HasIndex(e => new { e.EventsId, e.Scope, e.Priority });
             entity.Property(e => e.Name).HasMaxLength(128).IsRequired();
+            entity.Property(e => e.Scope).HasConversion<string>().HasMaxLength(20)
+                .HasDefaultValue(Db.Enums.PriceRuleScope.Price);
             entity.Property(e => e.RuleType).HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.Priority).HasDefaultValue(0);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.Price).WithMany(p => p.PriceRules).HasForeignKey(e => e.PricesId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .IsRequired(false).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Event).WithMany().HasForeignKey(e => e.EventsId)
+                .IsRequired(false).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<LayoutObject>(entity =>
@@ -578,6 +588,7 @@ public class EventPlatformDbContext(
                 t.HasCheckConstraint("CK_events_Category",
                     "category IS NULL OR category IN ('Music','Business','Social','Dining','Tech','Arts','Family','Sports')");
                 t.HasCheckConstraint("CK_events_LayoutMode", "layout_mode IN ('Grid','Open')");
+                t.HasCheckConstraint("CK_events_EventType", "event_type IN ('Open','Table','Both')");
                 t.HasCheckConstraint("CK_events_DateRange", "end_date > start_date");
                 t.HasCheckConstraint("CK_events_MaxCapacity",
                     "max_capacity IS NULL OR max_capacity > 0");
@@ -604,6 +615,8 @@ public class EventPlatformDbContext(
             entity.Property(e => e.Category).HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.ImagePath).HasMaxLength(512);
             entity.Property(e => e.LayoutMode).HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.EventType).HasConversion<string>().HasMaxLength(20)
+                .HasDefaultValue(Db.Enums.EventType.Open);
             entity.Property(e => e.FeesIncluded).HasDefaultValue(false);
             entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
                 .OnDelete(DeleteBehavior.Restrict);

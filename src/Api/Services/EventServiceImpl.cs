@@ -26,10 +26,16 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         {
             throw new RpcException(new Status(StatusCode.Unauthenticated, "Authenticated tenant user required"));
         }
+        // Guard the events_DateRange check constraint with a clean error instead of a
+        // raw Postgres 23514 (the form may submit empty/equal/reversed dates).
+        if (request.EndDate <= request.StartDate)
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "End date must be after start date"));
+        }
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
             "SELECT sp_create_event(@t, @title, @slug, @desc, @status, @cat, @start, @end, @img, @feat, @layout, "
-            + "@maxcap, NULL, NULL, NULL, @rows, @cols, @venue, @creator, @sched)", connection);
+            + "@maxcap, NULL, NULL, NULL, @rows, @cols, @venue, @creator, @sched, @etype)", connection);
         cmd.Parameters.AddWithValue("t", tenantContext.TenantsId!.Value);
         cmd.Parameters.AddWithValue("title", request.Title);
         cmd.Parameters.AddWithValue("slug", request.Slug);
@@ -41,6 +47,7 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         cmd.Parameters.AddWithValue("img", (object?)NullIfEmpty(request.ImagePath) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("feat", request.IsFeatured);
         cmd.Parameters.AddWithValue("layout", string.IsNullOrEmpty(request.LayoutMode) ? "Grid" : request.LayoutMode);
+        cmd.Parameters.AddWithValue("etype", string.IsNullOrEmpty(request.EventType) ? "Open" : request.EventType);
         cmd.Parameters.AddWithValue("maxcap", request.MaxCapacity == 0 ? DBNull.Value : request.MaxCapacity);
         cmd.Parameters.AddWithValue("rows", request.GridRows == 0 ? DBNull.Value : request.GridRows);
         cmd.Parameters.AddWithValue("cols", request.GridCols == 0 ? DBNull.Value : request.GridCols);
@@ -120,9 +127,15 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
     {
         var ct = context.CancellationToken;
         RequireTenant();
+        // Same date-range guard as CreateEvent, but only when both dates are supplied
+        // (0 = leave unchanged).
+        if (request.StartDate != 0 && request.EndDate != 0 && request.EndDate <= request.StartDate)
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "End date must be after start date"));
+        }
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT sp_update_event(@id, @title, NULL, @desc, @cat, @start, @end, @img, @feat, NULL, @maxcap, NULL, NULL, NULL, NULL, NULL, @venue, NULL)", connection);
+            "SELECT sp_update_event(@id, @title, NULL, @desc, @cat, @start, @end, @img, @feat, NULL, @maxcap, NULL, NULL, NULL, NULL, NULL, @venue, NULL, @etype)", connection);
         cmd.Parameters.AddWithValue("id", Guid.Parse(request.EventsId));
         cmd.Parameters.AddWithValue("title", (object?)NullIfEmpty(request.Title) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("desc", (object?)NullIfEmpty(request.Description) ?? DBNull.Value);
@@ -133,6 +146,7 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         cmd.Parameters.AddWithValue("feat", request.IsFeatured);
         cmd.Parameters.AddWithValue("maxcap", request.MaxCapacity == 0 ? DBNull.Value : request.MaxCapacity);
         cmd.Parameters.AddWithValue("venue", string.IsNullOrEmpty(request.VenuesId) ? DBNull.Value : Guid.Parse(request.VenuesId));
+        cmd.Parameters.AddWithValue("etype", string.IsNullOrEmpty(request.EventType) ? DBNull.Value : request.EventType);
         await cmd.ExecuteNonQueryAsync(ct);
         return new AckResponse { Success = true, Message = "Event updated" };
     }
@@ -231,7 +245,7 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
 
     private const string EventSelect =
         "SELECT events_id, title, slug, description, status, category, start_date, end_date, image_path, "
-        + "is_featured, layout_mode, max_capacity, venues_id, performers::text, sponsors::text, fees_included FROM vw_events";
+        + "is_featured, layout_mode, max_capacity, venues_id, performers::text, sponsors::text, fees_included, event_type FROM vw_events";
 
     private static Event MapEvent(NpgsqlDataReader r) => new()
     {
@@ -250,7 +264,8 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         VenuesId = r.IsDBNull(12) ? string.Empty : r.GetGuid(12).ToString(),
         PerformersJson = r.IsDBNull(13) ? "[]" : r.GetString(13),
         SponsorsJson = r.IsDBNull(14) ? "[]" : r.GetString(14),
-        FeesIncluded = !r.IsDBNull(15) && r.GetBoolean(15)
+        FeesIncluded = !r.IsDBNull(15) && r.GetBoolean(15),
+        EventType = r.IsDBNull(16) ? string.Empty : r.GetString(16)
     };
 
     private static string? NullIfEmpty(string value) => string.IsNullOrEmpty(value) ? null : value;

@@ -15,6 +15,15 @@ public class Event : BaseEntity
     public string? ImagePath { get; set; }
     public bool IsFeatured { get; set; }
     public LayoutMode LayoutMode { get; set; }
+
+    /// <summary>
+    /// How the event sells: <see cref="EventType.Open"/> (ticket tiers only),
+    /// <see cref="EventType.Table"/> (floor plan only), or <see cref="EventType.Both"/>
+    /// (optional open capacity + floor plan). Gates which sellables can be created
+    /// and which capacity rules apply at checkout.
+    /// </summary>
+    public EventType EventType { get; set; } = EventType.Open;
+
     public int? MaxCapacity { get; set; }
     public DateTime? PublishedAt { get; set; }
     public DateTime? ScheduledPublishAt { get; set; }

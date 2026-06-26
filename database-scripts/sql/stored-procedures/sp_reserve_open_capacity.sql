@@ -14,7 +14,7 @@ CREATE OR REPLACE FUNCTION sp_reserve_open_capacity(
 AS $$
 DECLARE
     v_id uuid;
-    v_layout text;
+    v_event_type text;
     v_max_capacity int;
     v_total_reserved int;
     v_tt_max int;
@@ -58,8 +58,8 @@ BEGIN
         RETURN;
     END IF;
 
-    SELECT layout_mode, max_capacity, tenants_id
-      INTO v_layout, v_max_capacity, v_tenant
+    SELECT event_type, max_capacity, tenants_id
+      INTO v_event_type, v_max_capacity, v_tenant
       FROM events
       WHERE events_id = p_event_id
       FOR UPDATE;
@@ -67,11 +67,10 @@ BEGIN
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Event not found' USING ERRCODE = 'P0002';
     END IF;
-    IF v_layout <> 'Open' THEN
-        RAISE EXCEPTION 'Event is not an Open-capacity event' USING ERRCODE = '22023';
-    END IF;
-    IF v_max_capacity IS NULL OR v_max_capacity <= 0 THEN
-        RAISE EXCEPTION 'Event has no capacity configured' USING ERRCODE = '22023';
+    -- Open ticket capacity is sold by Open and Both events; Table-only events have
+    -- no open seats.
+    IF v_event_type NOT IN ('Open', 'Both') THEN
+        RAISE EXCEPTION 'Event does not sell open capacity' USING ERRCODE = '22023';
     END IF;
 
     -- Live reservations: Paid/CheckedIn always count; Pending only counts while
@@ -84,7 +83,9 @@ BEGIN
         AND (status IN ('Paid', 'CheckedIn')
              OR (status = 'Pending' AND (hold_expires_at IS NULL OR hold_expires_at > now())));
 
-    IF v_total_reserved + p_seats > v_max_capacity THEN
+    -- Event-level cap is optional (esp. for Both events): only enforce when set.
+    IF v_max_capacity IS NOT NULL AND v_max_capacity > 0
+       AND v_total_reserved + p_seats > v_max_capacity THEN
         RAISE EXCEPTION 'Not enough capacity. Available: %, requested: %',
             v_max_capacity - v_total_reserved, p_seats USING ERRCODE = '23514';
     END IF;

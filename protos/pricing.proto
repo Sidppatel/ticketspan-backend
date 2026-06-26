@@ -19,6 +19,7 @@ service PricingService {
   rpc UpdatePriceRule (UpdatePriceRuleRequest) returns (svyne.common.AckResponse);
   rpc DeletePriceRule (svyne.common.UuidValue) returns (svyne.common.AckResponse);
   rpc ListPriceRules (svyne.common.UuidValue) returns (ListPriceRulesResponse);
+  rpc ListEventPriceRules (svyne.common.UuidValue) returns (ListPriceRulesResponse);
 
   rpc CalculatePrice (CalculatePriceRequest) returns (PriceBreakdown);
   rpc SetTenantDefaultFeeFormula (SetTenantDefaultFeeFormulaRequest) returns (svyne.common.AckResponse);
@@ -67,7 +68,7 @@ message ListPricesResponse {
 
 message PriceRule {
   string price_rules_id = 1;
-  string prices_id = 2;
+  string prices_id = 2;              // set when scope = Price; empty for event-wide
   string name = 3;
   string rule_type = 4;              // Presale | LastMinute | TimeWindow | Dynamic
   int32 priority = 5;                // higher wins
@@ -77,10 +78,14 @@ message PriceRule {
   int32 min_remaining = 9;           // -1 = unset
   int32 max_remaining = 10;          // -1 = unset
   bool is_active = 11;
+  string scope = 12;                 // Price | Event
+  string events_id = 13;             // set when scope = Event; empty otherwise
 }
 
 message CreatePriceRuleRequest {
-  string prices_id = 1;
+  // owner_id is the prices_id when scope = Price, or the events_id when scope =
+  // Event. Defaults to a per-price rule when scope is empty.
+  string owner_id = 1;
   string name = 2;
   string rule_type = 3;
   int32 priority = 4;
@@ -89,6 +94,7 @@ message CreatePriceRuleRequest {
   int64 active_until = 7;
   int32 min_remaining = 8;
   int32 max_remaining = 9;
+  string scope = 10;                 // Price | Event; empty = Price
 }
 
 message UpdatePriceRuleRequest {

@@ -12,8 +12,17 @@ CREATE OR REPLACE FUNCTION sp_create_event_ticket_type(
 ) RETURNS uuid LANGUAGE plpgsql
     SET search_path = public, extensions, pg_catalog
 AS $$
-DECLARE v_id uuid; v_prices_id uuid;
+DECLARE v_id uuid; v_prices_id uuid; v_event_type text;
 BEGIN
+    -- Open ticket tiers belong only to Open / Both events.
+    SELECT event_type INTO v_event_type FROM events WHERE events_id = p_event_id;
+    IF v_event_type IS NULL THEN
+        RAISE EXCEPTION 'Event not found' USING ERRCODE = 'P0002';
+    END IF;
+    IF v_event_type = 'Table' THEN
+        RAISE EXCEPTION 'Cannot add ticket tiers to a Table-only event' USING ERRCODE = '22023';
+    END IF;
+
     v_prices_id := app.create_price(p_event_id, p_label, 'TicketTier', p_price_cents,
         0, false, p_fee_formulas_id, NULL, p_max_quantity);
 

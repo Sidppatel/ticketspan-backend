@@ -192,7 +192,9 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
         cmd.Parameters.AddWithValue("ev", Guid.Parse(request.EventsId));
         cmd.Parameters.AddWithValue("label", request.Label);
         cmd.Parameters.AddWithValue("cap", request.Capacity);
-        cmd.Parameters.AddWithValue("shape", string.IsNullOrEmpty(request.Shape) ? "Round" : request.Shape);
+        // Shape is defined by the table template, not the event form; pass null when
+        // the client omits it so the SP inherits the template's default_shape.
+        cmd.Parameters.AddWithValue("shape", (object?)NullIfEmpty(request.Shape) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("color", (object?)NullIfEmpty(request.Color) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("price", request.PriceCents);
         cmd.Parameters.AddWithValue("fee", string.IsNullOrEmpty(request.FeeFormulasId) ? DBNull.Value : Guid.Parse(request.FeeFormulasId));
