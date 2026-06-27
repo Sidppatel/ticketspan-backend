@@ -216,6 +216,25 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
         return new UuidValue { Value = id.ToString() };
     }
 
+    public override async Task<AckResponse> UpdateEventTicketType(UpdateEventTicketTypeRequest request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        RequireTenant();
+        await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await using var cmd = new NpgsqlCommand(
+            "SELECT sp_update_event_ticket_type(@id, @label, @price, @fee, @max, @sort, @active, @desc)", connection);
+        cmd.Parameters.AddWithValue("id", Guid.Parse(request.EventTicketTypesId));
+        cmd.Parameters.AddWithValue("label", request.Label);
+        cmd.Parameters.AddWithValue("price", request.PriceCents);
+        cmd.Parameters.AddWithValue("fee", string.IsNullOrEmpty(request.FeeFormulasId) ? DBNull.Value : Guid.Parse(request.FeeFormulasId));
+        cmd.Parameters.AddWithValue("max", request.MaxQuantity == 0 ? DBNull.Value : request.MaxQuantity);
+        cmd.Parameters.AddWithValue("sort", request.SortOrder);
+        cmd.Parameters.AddWithValue("active", request.IsActive);
+        cmd.Parameters.AddWithValue("desc", (object?)NullIfEmpty(request.Description) ?? DBNull.Value);
+        await cmd.ExecuteNonQueryAsync(ct);
+        return new AckResponse { Success = true, Message = "Ticket type updated" };
+    }
+
     public override Task<AckResponse> DeleteEventTicketType(UuidValue request, ServerCallContext context)
         => RunVoid("SELECT sp_delete_event_ticket_type(@id)", request.Value, context, "Ticket type deleted");
 
