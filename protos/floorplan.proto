@@ -29,8 +29,6 @@ message ApplyTemplateRequest {
 message FloorPlanTemplate {
   string floor_plan_templates_id = 1;
   string name = 2;
-  int32 grid_rows = 3;
-  int32 grid_cols = 4;
   int32 table_count = 5;
   int32 object_count = 6;
   bool is_active = 7;

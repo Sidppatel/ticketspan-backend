@@ -50,11 +50,9 @@ public sealed class FloorPlanServiceImpl : FloorPlanService.FloorPlanServiceBase
             {
                 FloorPlanTemplatesId = reader.GetGuid(0).ToString(),
                 Name = reader.GetString(1),
-                GridRows = reader.GetInt32(2),
-                GridCols = reader.GetInt32(3),
-                TableCount = reader.GetInt32(4),
-                ObjectCount = reader.GetInt32(5),
-                IsActive = reader.GetBoolean(6)
+                TableCount = reader.GetInt32(2),
+                ObjectCount = reader.GetInt32(3),
+                IsActive = reader.GetBoolean(4)
             });
         }
         return response;

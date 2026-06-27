@@ -15,8 +15,6 @@ public class EventView
     public string LayoutMode { get; set; } = null!;
     public int? MaxCapacity { get; set; }
     public int? PricePerPersonCents { get; set; }
-    public int? GridRows { get; set; }
-    public int? GridCols { get; set; }
     public DateTime? PublishedAt { get; set; }
     public DateTime? ScheduledPublishAt { get; set; }
     public Guid VenueId { get; set; }

@@ -27,8 +27,6 @@ public class Event : BaseEntity
     public int? MaxCapacity { get; set; }
     public DateTime? PublishedAt { get; set; }
     public DateTime? ScheduledPublishAt { get; set; }
-    public int? GridRows { get; set; }
-    public int? GridCols { get; set; }
 
     /// <summary>
     /// When true, buyers see a single all-in total (developer fee folded into the

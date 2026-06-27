@@ -1,8 +1,8 @@
 CREATE OR REPLACE VIEW vw_tables AS
 SELECT
     t.tables_id AS tables_id, t.events_id, t.event_tables_id,
-    t.label, t.grid_row, t.grid_col,
-    t.row_span, t.col_span,
+    t.label, t.pos_x, t.pos_y,
+    t.width, t.height,
     t.is_active, t.sort_order,
     t.status::text,
     t.locked_by_users_id, t.lock_expires_at,

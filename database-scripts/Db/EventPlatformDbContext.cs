@@ -347,6 +347,8 @@ public class EventPlatformDbContext(
             entity.Property(e => e.Name).HasMaxLength(128);
             entity.Property(e => e.DefaultShape).HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.DefaultColor).HasMaxLength(20);
+            entity.Property(e => e.DefaultWidth).HasColumnType("numeric(10,2)").HasDefaultValue(80);
+            entity.Property(e => e.DefaultHeight).HasColumnType("numeric(10,2)").HasDefaultValue(80);
             entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
@@ -390,6 +392,8 @@ public class EventPlatformDbContext(
             entity.Property(e => e.Label).HasMaxLength(128);
             entity.Property(e => e.Shape).HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.Color).HasMaxLength(20);
+            entity.Property(e => e.DefaultWidth).HasColumnType("numeric(10,2)");
+            entity.Property(e => e.DefaultHeight).HasColumnType("numeric(10,2)");
             entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.Event).WithMany().HasForeignKey(e => e.EventsId)
@@ -505,8 +509,8 @@ public class EventPlatformDbContext(
             {
                 t.HasCheckConstraint("CK_layout_objects_ObjectType",
                     "object_type IN ('Entry','Exit','Stage')");
-                t.HasCheckConstraint("CK_layout_objects_GridRow", "grid_row >= 0");
-                t.HasCheckConstraint("CK_layout_objects_GridCol", "grid_col >= 0");
+                t.HasCheckConstraint("CK_layout_objects_PosX", "pos_x >= 0");
+                t.HasCheckConstraint("CK_layout_objects_PosY", "pos_y >= 0");
             });
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.TenantsId);
@@ -514,8 +518,10 @@ public class EventPlatformDbContext(
             entity.Property(e => e.ObjectType).HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.Label).HasMaxLength(64);
             entity.Property(e => e.Color).HasMaxLength(20);
-            entity.Property(e => e.RowSpan).HasDefaultValue(1);
-            entity.Property(e => e.ColSpan).HasDefaultValue(1);
+            entity.Property(e => e.PosX).HasColumnType("numeric(10,2)");
+            entity.Property(e => e.PosY).HasColumnType("numeric(10,2)");
+            entity.Property(e => e.Width).HasColumnType("numeric(10,2)").HasDefaultValue(80);
+            entity.Property(e => e.Height).HasColumnType("numeric(10,2)").HasDefaultValue(80);
             entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.Event).WithMany().HasForeignKey(e => e.EventsId)
@@ -524,11 +530,7 @@ public class EventPlatformDbContext(
 
         modelBuilder.Entity<FloorPlanTemplate>(entity =>
         {
-            entity.ToTable("floor_plan_templates", t =>
-            {
-                t.HasCheckConstraint("CK_floor_plan_templates_Grid",
-                    "(grid_rows IS NULL OR grid_rows > 0) AND (grid_cols IS NULL OR grid_cols > 0)");
-            });
+            entity.ToTable("floor_plan_templates");
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.TenantsId);
             entity.Property(e => e.Name).HasMaxLength(128).IsRequired();
@@ -551,8 +553,10 @@ public class EventPlatformDbContext(
             entity.Property(e => e.TypeLabel).HasMaxLength(128);
             entity.Property(e => e.Shape).HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.Color).HasMaxLength(20);
-            entity.Property(e => e.RowSpan).HasDefaultValue(1);
-            entity.Property(e => e.ColSpan).HasDefaultValue(1);
+            entity.Property(e => e.PosX).HasColumnType("numeric(10,2)");
+            entity.Property(e => e.PosY).HasColumnType("numeric(10,2)");
+            entity.Property(e => e.Width).HasColumnType("numeric(10,2)").HasDefaultValue(80);
+            entity.Property(e => e.Height).HasColumnType("numeric(10,2)").HasDefaultValue(80);
             entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.FloorPlanTemplate).WithMany(f => f.Tables)
@@ -572,8 +576,10 @@ public class EventPlatformDbContext(
             entity.Property(e => e.ObjectType).HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.Label).HasMaxLength(64);
             entity.Property(e => e.Color).HasMaxLength(20);
-            entity.Property(e => e.RowSpan).HasDefaultValue(1);
-            entity.Property(e => e.ColSpan).HasDefaultValue(1);
+            entity.Property(e => e.PosX).HasColumnType("numeric(10,2)");
+            entity.Property(e => e.PosY).HasColumnType("numeric(10,2)");
+            entity.Property(e => e.Width).HasColumnType("numeric(10,2)").HasDefaultValue(80);
+            entity.Property(e => e.Height).HasColumnType("numeric(10,2)").HasDefaultValue(80);
             entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.FloorPlanTemplate).WithMany(f => f.Objects)
@@ -593,8 +599,6 @@ public class EventPlatformDbContext(
                 t.HasCheckConstraint("CK_events_DateRange", "end_date > start_date");
                 t.HasCheckConstraint("CK_events_MaxCapacity",
                     "max_capacity IS NULL OR max_capacity > 0");
-                t.HasCheckConstraint("CK_events_GridDimensions",
-                    "(grid_rows IS NULL OR grid_rows > 0) AND (grid_cols IS NULL OR grid_cols > 0)");
                 t.HasCheckConstraint("CK_events_PublishLifecycle",
                     "status <> 'Published' OR published_at IS NOT NULL");
                 t.HasCheckConstraint("CK_events_DraftNoPublishDate",
@@ -656,20 +660,24 @@ public class EventPlatformDbContext(
                     "status <> 'Locked' OR (locked_by_users_id IS NOT NULL AND lock_expires_at IS NOT NULL)");
                 t.HasCheckConstraint("CK_tables_AvailableNoLock",
                     "status <> 'Available' OR (locked_by_users_id IS NULL AND lock_expires_at IS NULL)");
-                t.HasCheckConstraint("CK_tables_GridRow", "grid_row >= 0");
-                t.HasCheckConstraint("CK_tables_GridCol", "grid_col >= 0");
+                t.HasCheckConstraint("CK_tables_PosX", "pos_x >= 0");
+                t.HasCheckConstraint("CK_tables_PosY", "pos_y >= 0");
             });
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.TenantsId);
             entity.HasIndex(e => e.EventsId);
             entity.HasIndex(e => new { e.EventsId, e.Label }).IsUnique();
-            entity.HasIndex(e => new { e.EventsId, e.GridRow, e.GridCol }).IsUnique();
+            // No position uniqueness: pixel coords may overlap on a free canvas.
             entity.HasIndex(e => new { e.EventsId, e.Status });
             entity.Property(e => e.Label).HasMaxLength(20);
             entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20)
                 .HasDefaultValue(Db.Enums.TableStatus.Available);
             entity.Property(e => e.ShapeOverride).HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.ColorOverride).HasMaxLength(20);
+            entity.Property(e => e.PosX).HasColumnType("numeric(10,2)");
+            entity.Property(e => e.PosY).HasColumnType("numeric(10,2)");
+            entity.Property(e => e.Width).HasColumnType("numeric(10,2)").HasDefaultValue(80);
+            entity.Property(e => e.Height).HasColumnType("numeric(10,2)").HasDefaultValue(80);
             entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.EventTable).WithMany(et => et.Tables)

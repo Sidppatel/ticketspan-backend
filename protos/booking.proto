@@ -33,10 +33,10 @@ message Table {
   string tables_id = 1;
   string event_tables_id = 2;
   string label = 3;
-  int32 grid_row = 4;
-  int32 grid_col = 5;
-  int32 row_span = 6;
-  int32 col_span = 7;
+  double pos_x = 4;
+  double pos_y = 5;
+  double width = 6;
+  double height = 7;
   string status = 8;
   int32 price_cents = 9;
   int32 platform_fee_cents = 10;
@@ -49,31 +49,27 @@ message Table {
   string prices_id = 15;
 }
 
-// A non-table object placed on the floor-plan grid (Entry/Exit/Stage).
+// A non-table object placed on the floor-plan canvas (Entry/Exit/Stage).
 message LayoutObject {
   string layout_objects_id = 1;
   string object_type = 2;
   string label = 3;
-  int32 grid_row = 4;
-  int32 grid_col = 5;
-  int32 row_span = 6;
-  int32 col_span = 7;
+  double pos_x = 4;
+  double pos_y = 5;
+  double width = 6;
+  double height = 7;
   string color = 8;
   int32 sort_order = 9;
 }
 
 message EventLayout {
   string events_id = 1;
-  int32 grid_rows = 2;
-  int32 grid_cols = 3;
   repeated Table tables = 4;
   repeated LayoutObject objects = 5;
 }
 
 message SaveEventLayoutRequest {
   string events_id = 1;
-  int32 grid_rows = 2;
-  int32 grid_cols = 3;
   string tables_json = 4;
   repeated string locked_ids = 5;
   // JSON array of layout objects (Entry/Exit/Stage) to upsert/delete.
@@ -97,9 +93,9 @@ message EventTableType {
   string color = 5;
   int32 price_cents = 6;
   string prices_id = 7;
-  // Grid footprint used when placing this type on the floor plan.
-  int32 row_span = 8;
-  int32 col_span = 9;
+  // Default pixel footprint used when placing this type on the floor plan.
+  double default_width = 8;
+  double default_height = 9;
 }
 
 message ListEventTableTypesResponse {
@@ -120,9 +116,9 @@ message CreateEventTableRequest {
   // base and per_attendee_cents is added per reserved seat.
   bool is_all_inclusive = 9;
   int32 per_attendee_cents = 10;
-  // Grid footprint override (0 = inherit the catalog template default).
-  int32 row_span = 11;
-  int32 col_span = 12;
+  // Pixel footprint override (0 = inherit the catalog template default).
+  double width = 11;
+  double height = 12;
 }
 
 message CreateEventTicketTypeRequest {
@@ -175,8 +171,8 @@ message TableTemplate {
   string default_color = 5;
   int32 default_price_cents = 6;
   bool is_active = 7;
-  int32 default_row_span = 8;
-  int32 default_col_span = 9;
+  double default_width = 8;
+  double default_height = 9;
 }
 
 message CreateTableTemplateRequest {
@@ -185,8 +181,8 @@ message CreateTableTemplateRequest {
   string default_shape = 3;
   string default_color = 4;
   int32 default_price_cents = 5;
-  int32 default_row_span = 6;
-  int32 default_col_span = 7;
+  double default_width = 6;
+  double default_height = 7;
 }
 
 message ListTableTemplatesResponse {

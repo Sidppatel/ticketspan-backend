@@ -10,8 +10,8 @@ public class EventTablesSummaryView
     public string? Color { get; set; }
     public int PriceCents { get; set; }
     public int? PlatformFeeCents { get; set; }
-    public int DefaultRowSpan { get; set; }
-    public int DefaultColSpan { get; set; }
+    public decimal DefaultWidth { get; set; }
+    public decimal DefaultHeight { get; set; }
     public bool IsActive { get; set; }
 
     // Aggregates

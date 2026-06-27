@@ -22,9 +22,9 @@ public class FloorPlanTemplateTable : BaseEntity
     public string? Color { get; set; }
     public int PriceCents { get; set; }
 
-    public int GridRow { get; set; }
-    public int GridCol { get; set; }
-    public int RowSpan { get; set; } = 1;
-    public int ColSpan { get; set; } = 1;
+    public decimal PosX { get; set; }
+    public decimal PosY { get; set; }
+    public decimal Width { get; set; } = 80;
+    public decimal Height { get; set; } = 80;
     public int SortOrder { get; set; }
 }

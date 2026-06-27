@@ -1,9 +1,10 @@
 DROP FUNCTION IF EXISTS sp_update_table_template(uuid, text, int, text, text, int, bool);
+DROP FUNCTION IF EXISTS sp_update_table_template(uuid, text, int, text, text, int, bool, int, int);
 
 CREATE OR REPLACE FUNCTION sp_update_table_template(
     p_id uuid, p_name text, p_capacity int, p_shape text,
     p_color text, p_price_cents int, p_is_active bool,
-    p_default_row_span int DEFAULT NULL, p_default_col_span int DEFAULT NULL
+    p_default_width numeric DEFAULT NULL, p_default_height numeric DEFAULT NULL
 ) RETURNS void LANGUAGE plpgsql
     SET search_path = public, extensions, pg_catalog
 AS $$
@@ -15,8 +16,8 @@ BEGIN
         default_color = p_color,
         default_price_cents = COALESCE(p_price_cents, default_price_cents),
         is_active = COALESCE(p_is_active, is_active),
-        default_row_span = COALESCE(p_default_row_span, default_row_span),
-        default_col_span = COALESCE(p_default_col_span, default_col_span),
+        default_width = COALESCE(p_default_width, default_width),
+        default_height = COALESCE(p_default_height, default_height),
         updated_at = now()
     WHERE table_templates_id = p_id;
 END; $$;

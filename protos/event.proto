@@ -59,8 +59,6 @@ message CreateEventRequest {
   bool is_featured = 9;
   string layout_mode = 10;
   int32 max_capacity = 11;
-  int32 grid_rows = 12;
-  int32 grid_cols = 13;
   string venues_id = 14;
   int64 scheduled_publish_at = 15;
   string event_type = 16;            // Open | Table | Both; default Open

@@ -14,8 +14,8 @@ public class EventTable : BaseEntity
     public int? PlatformFeeCents { get; set; }
     public Guid? FeeFormulasId { get; set; }
     public FeeFormula? FeeFormula { get; set; }
-    public int? RowSpan { get; set; }
-    public int? ColSpan { get; set; }
+    public decimal? DefaultWidth { get; set; }
+    public decimal? DefaultHeight { get; set; }
     public bool IsActive { get; set; } = true;
 
     public Guid EventsId { get; set; }

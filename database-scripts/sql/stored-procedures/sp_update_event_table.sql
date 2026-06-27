@@ -1,11 +1,12 @@
 DROP FUNCTION IF EXISTS sp_update_event_table(uuid, text, int, text, text, int, bool);
 DROP FUNCTION IF EXISTS sp_update_event_table(uuid, text, int, text, text, int, bool, int);
 DROP FUNCTION IF EXISTS sp_update_event_table(uuid, text, int, text, text, int, bool, int, int, int);
+DROP FUNCTION IF EXISTS sp_update_event_table(uuid, text, int, text, text, int, bool, uuid, int, int);
 
 CREATE OR REPLACE FUNCTION sp_update_event_table(
     p_id uuid, p_label text, p_capacity int, p_shape text, p_color text,
     p_price_cents int, p_is_active bool, p_fee_formulas_id uuid,
-    p_row_span int DEFAULT NULL, p_col_span int DEFAULT NULL
+    p_width numeric DEFAULT NULL, p_height numeric DEFAULT NULL
 ) RETURNS void LANGUAGE plpgsql
     SET search_path = public, extensions, pg_catalog
 AS $$
@@ -24,8 +25,8 @@ BEGIN
         is_active = COALESCE(p_is_active, is_active),
         fee_formulas_id = p_fee_formulas_id,
         platform_fee_cents = app.compute_fee(v_price, v_formula),
-        row_span = COALESCE(p_row_span, row_span),
-        col_span = COALESCE(p_col_span, col_span),
+        default_width = COALESCE(p_width, default_width),
+        default_height = COALESCE(p_height, default_height),
         updated_at = now()
     WHERE event_tables_id = p_id;
 END; $$;

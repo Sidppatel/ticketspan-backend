@@ -11,8 +11,6 @@ public class FloorPlanTemplate : BaseEntity
     public Tenant Tenant { get; set; } = null!;
 
     public required string Name { get; set; }
-    public int GridRows { get; set; }
-    public int GridCols { get; set; }
     public bool IsActive { get; set; } = true;
 
     public ICollection<FloorPlanTemplateTable> Tables { get; set; } = [];

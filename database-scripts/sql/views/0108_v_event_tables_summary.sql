@@ -2,8 +2,8 @@ CREATE OR REPLACE VIEW vw_event_tables_summary AS
 SELECT
     et.event_tables_id AS event_tables_id, et.events_id, et.label, et.capacity,
     et.shape::text, et.color, et.price_cents, et.platform_fee_cents,
-    COALESCE(et.row_span, 1)::int AS default_row_span,
-    COALESCE(et.col_span, 1)::int AS default_col_span,
+    COALESCE(et.default_width, 80)::numeric AS default_width,
+    COALESCE(et.default_height, 80)::numeric AS default_height,
     et.is_active,
     COALESCE(ts.total, 0)::int AS total_tables,
     COALESCE(ts.available, 0)::int AS available_tables,

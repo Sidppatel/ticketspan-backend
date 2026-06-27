@@ -1,6 +1,7 @@
 DROP FUNCTION IF EXISTS sp_create_event_table(uuid, text, int, text, text, int, int, uuid, int, int);
 DROP FUNCTION IF EXISTS sp_create_event_table(uuid, text, int, text, text, int, uuid, uuid, int, int);
 DROP FUNCTION IF EXISTS sp_create_event_table(uuid, text, int, text, text, int, uuid, uuid, bool, int, int, int);
+DROP FUNCTION IF EXISTS sp_create_event_table(uuid, text, int, text, text, int, uuid, uuid, bool, int, numeric, numeric);
 
 -- Creates an event table TYPE and links it to a real Pricing Module price
 -- (pricing_type='Table') so presale/last-minute/dynamic rules and the resolved
@@ -11,11 +12,11 @@ CREATE OR REPLACE FUNCTION sp_create_event_table(
     p_event_id uuid, p_label text, p_capacity int, p_shape text, p_color text,
     p_price_cents int, p_fee_formulas_id uuid, p_template_id uuid,
     p_is_all_inclusive bool DEFAULT true, p_per_attendee_cents int DEFAULT 0,
-    p_row_span int DEFAULT NULL, p_col_span int DEFAULT NULL
+    p_width numeric DEFAULT NULL, p_height numeric DEFAULT NULL
 ) RETURNS uuid LANGUAGE plpgsql
     SET search_path = public, extensions, pg_catalog
 AS $$
-DECLARE v_id uuid; v_prices_id uuid; v_row int; v_col int; v_event_type text; v_shape text;
+DECLARE v_id uuid; v_prices_id uuid; v_width numeric; v_height numeric; v_event_type text; v_shape text;
         v_tenant uuid; v_formula uuid;
 BEGIN
     -- Tables belong only to Table / Both events.
@@ -28,17 +29,17 @@ BEGIN
         RAISE EXCEPTION 'Cannot add tables to an Open-only event' USING ERRCODE = '22023';
     END IF;
 
-    -- Grid footprint + shape: explicit override wins, else inherit the catalog
+    -- Pixel footprint + shape: explicit override wins, else inherit the catalog
     -- template default. Shape is owned by the template (the event form only edits
-    -- row/col span, capacity, price, color), so it falls back to template default,
-    -- then 'Round'. Footprint falls back to 1x1.
-    SELECT COALESCE(p_row_span, default_row_span, 1),
-           COALESCE(p_col_span, default_col_span, 1),
+    -- size, capacity, price, color), so it falls back to template default,
+    -- then 'Round'. Footprint falls back to 80x80 px.
+    SELECT COALESCE(p_width, default_width, 80),
+           COALESCE(p_height, default_height, 80),
            COALESCE(NULLIF(p_shape, ''), default_shape::text)
-      INTO v_row, v_col, v_shape
+      INTO v_width, v_height, v_shape
       FROM table_templates WHERE table_templates_id = p_template_id;
-    v_row := COALESCE(v_row, p_row_span, 1);
-    v_col := COALESCE(v_col, p_col_span, 1);
+    v_width := COALESCE(v_width, p_width, 80);
+    v_height := COALESCE(v_height, p_height, 80);
     v_shape := COALESCE(v_shape, NULLIF(p_shape, ''), 'Round');
 
     v_prices_id := app.create_price(p_event_id, p_label, 'Table', p_price_cents,
@@ -50,12 +51,12 @@ BEGIN
 
     INSERT INTO event_tables (tenants_id, events_id, label, capacity, shape, color,
         price_cents, fee_formulas_id, platform_fee_cents, is_active, table_templates_id,
-        prices_id, row_span, col_span, created_at, updated_at)
+        prices_id, default_width, default_height, created_at, updated_at)
     VALUES (v_tenant,
         p_event_id, p_label, p_capacity, v_shape, p_color,
         p_price_cents, p_fee_formulas_id, app.compute_fee(p_price_cents, v_formula),
         true, p_template_id,
-        v_prices_id, v_row, v_col, now(), now())
+        v_prices_id, v_width, v_height, now(), now())
     RETURNING event_tables_id INTO v_id;
 
     -- Snapshot catalog template price rules onto the new event price. Admins may
