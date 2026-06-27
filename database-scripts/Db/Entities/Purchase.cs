@@ -38,4 +38,7 @@ public class Booking : BaseEntity
     public StripeTransaction? StripeTransaction { get; set; }
 
     public ICollection<Ticket> Tickets { get; set; } = [];
+
+    /// <summary>Multi-item cart lines. Empty for single-line legacy bookings.</summary>
+    public ICollection<BookingLine> Lines { get; set; } = [];
 }

@@ -43,6 +43,7 @@ public class EventPlatformDbContext(
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<Ticket> Tickets => Set<Ticket>();
     public DbSet<BookingTable> BookingTables => Set<BookingTable>();
+    public DbSet<BookingLine> BookingLines => Set<BookingLine>();
     public DbSet<StripeTransaction> StripeTransactions => Set<StripeTransaction>();
     public DbSet<StripeTransfer> StripeTransfers => Set<StripeTransfer>();
     public DbSet<StripePayout> StripePayouts => Set<StripePayout>();
@@ -763,6 +764,39 @@ public class EventPlatformDbContext(
                 .HasForeignKey(e => e.BookingsId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(e => e.Table).WithMany()
                 .HasForeignKey(e => e.TablesId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BookingLine>(entity =>
+        {
+            entity.ToTable("booking_lines", t =>
+            {
+                t.HasCheckConstraint("CK_booking_lines_Kind", "kind IN ('Ticket','Table')");
+                // Exactly one sellable ref, matching the kind.
+                t.HasCheckConstraint("CK_booking_lines_Ref",
+                    "(kind = 'Ticket' AND event_ticket_types_id IS NOT NULL AND tables_id IS NULL) "
+                    + "OR (kind = 'Table' AND tables_id IS NOT NULL AND event_ticket_types_id IS NULL)");
+                t.HasCheckConstraint("CK_booking_lines_Seats", "seats > 0");
+                t.HasCheckConstraint("CK_booking_lines_SubtotalCents", "subtotal_cents >= 0");
+                t.HasCheckConstraint("CK_booking_lines_FeeCents", "fee_cents >= 0");
+                t.HasCheckConstraint("CK_booking_lines_TotalFormula",
+                    "total_cents = subtotal_cents + fee_cents");
+            });
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.TenantsId);
+            entity.HasIndex(e => e.BookingsId);
+            entity.HasIndex(e => e.EventTicketTypesId);
+            entity.HasIndex(e => e.TablesId);
+            entity.Property(e => e.Kind).HasMaxLength(20);
+            entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Booking).WithMany(b => b.Lines)
+                .HasForeignKey(e => e.BookingsId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.EventTicketType).WithMany().HasForeignKey(e => e.EventTicketTypesId)
+                .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.Table).WithMany().HasForeignKey(e => e.TablesId)
+                .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.Price).WithMany().HasForeignKey(e => e.PricesId)
+                .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<StripeTransaction>(entity =>

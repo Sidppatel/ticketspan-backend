@@ -73,15 +73,9 @@ BEGIN
         RAISE EXCEPTION 'Event does not sell open capacity' USING ERRCODE = '22023';
     END IF;
 
-    -- Live reservations: Paid/CheckedIn always count; Pending only counts while
-    -- its hold is still alive (expired holds are free seats again).
-    SELECT COALESCE(SUM(seats_reserved), 0)
-      INTO v_total_reserved
-      FROM bookings
-      WHERE events_id = p_event_id
-        AND seats_reserved IS NOT NULL
-        AND (status IN ('Paid', 'CheckedIn')
-             OR (status = 'Pending' AND (hold_expires_at IS NULL OR hold_expires_at > now())));
+    -- Live reservations across both booking models (single-line + multi-line cart),
+    -- Paid/CheckedIn always counting and Pending only while its hold is alive.
+    v_total_reserved := app.event_seats_live(p_event_id);
 
     -- Event-level cap is optional (esp. for Both events): only enforce when set.
     IF v_max_capacity IS NOT NULL AND v_max_capacity > 0
@@ -104,13 +98,7 @@ BEGIN
         v_total := v_subtotal + v_fee;
 
         IF v_tt_max IS NOT NULL THEN
-            SELECT COALESCE(SUM(seats_reserved), 0)
-              INTO v_tt_sold
-              FROM bookings
-              WHERE event_ticket_types_id = p_event_ticket_type_id
-                AND seats_reserved IS NOT NULL
-                AND (status IN ('Paid', 'CheckedIn')
-                     OR (status = 'Pending' AND (hold_expires_at IS NULL OR hold_expires_at > now())));
+            v_tt_sold := app.ticket_type_seats_live(p_event_ticket_type_id);
 
             IF v_tt_sold + p_seats > v_tt_max THEN
                 RAISE EXCEPTION 'Not enough availability for ticket type. Available: %, requested: %',

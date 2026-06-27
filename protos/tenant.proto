@@ -49,6 +49,9 @@ message Tenant {
   int32 event_count = 7;
   int64 total_revenue_cents = 8;
   bool archived = 9;
+  // Tenant default service-fee formula. Auto-applied to every new event price;
+  // empty = no default set. Developer-only (set via PricingService).
+  string default_fee_formulas_id = 10;
 }
 
 message CreateTenantRequest {

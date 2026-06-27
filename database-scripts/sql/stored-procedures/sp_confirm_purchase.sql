@@ -21,7 +21,10 @@ BEGIN
     WHERE tables_id IN (SELECT tables_id FROM booking_tables WHERE bookings_id = p_booking_id)
       AND status IN ('Locked', 'Available');
 
-    v_seats := COALESCE(v_seats, 1);
+    -- Tickets to issue: a single-line booking carries seats_reserved; a multi-line
+    -- cart booking carries them on its lines (seats_reserved is NULL there).
+    v_seats := COALESCE(v_seats,
+        (SELECT SUM(seats)::int FROM booking_lines WHERE bookings_id = p_booking_id), 1);
     FOR v_seat IN 1..v_seats LOOP
         -- Ticket number TK-* must be unique within the event; retry on collision.
         v_attempt := 0;

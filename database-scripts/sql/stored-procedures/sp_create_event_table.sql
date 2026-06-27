@@ -16,9 +16,11 @@ CREATE OR REPLACE FUNCTION sp_create_event_table(
     SET search_path = public, extensions, pg_catalog
 AS $$
 DECLARE v_id uuid; v_prices_id uuid; v_row int; v_col int; v_event_type text; v_shape text;
+        v_tenant uuid; v_formula uuid;
 BEGIN
     -- Tables belong only to Table / Both events.
-    SELECT event_type INTO v_event_type FROM events WHERE events_id = p_event_id;
+    SELECT event_type, tenants_id INTO v_event_type, v_tenant
+      FROM events WHERE events_id = p_event_id;
     IF v_event_type IS NULL THEN
         RAISE EXCEPTION 'Event not found' USING ERRCODE = 'P0002';
     END IF;
@@ -42,12 +44,16 @@ BEGIN
     v_prices_id := app.create_price(p_event_id, p_label, 'Table', p_price_cents,
         p_per_attendee_cents, p_is_all_inclusive, p_fee_formulas_id, NULL, NULL);
 
+    -- Auto-apply the tenant's default fee when the admin sets no explicit override,
+    -- so every new table carries the tenant fee (the developer override wins when set).
+    v_formula := app.resolve_fee_formula(p_fee_formulas_id, v_tenant);
+
     INSERT INTO event_tables (tenants_id, events_id, label, capacity, shape, color,
         price_cents, fee_formulas_id, platform_fee_cents, is_active, table_templates_id,
         prices_id, row_span, col_span, created_at, updated_at)
-    VALUES ((SELECT tenants_id FROM events WHERE events_id = p_event_id),
+    VALUES (v_tenant,
         p_event_id, p_label, p_capacity, v_shape, p_color,
-        p_price_cents, p_fee_formulas_id, app.compute_fee(p_price_cents, p_fee_formulas_id),
+        p_price_cents, p_fee_formulas_id, app.compute_fee(p_price_cents, v_formula),
         true, p_template_id,
         v_prices_id, v_row, v_col, now(), now())
     RETURNING event_tables_id INTO v_id;

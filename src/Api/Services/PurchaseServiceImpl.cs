@@ -87,6 +87,43 @@ public sealed class BookingServiceImpl : BookingService.BookingServiceBase
         return new CreateBookingResponse { BookingsId = reader.GetGuid(0).ToString(), BookingNumber = reader.GetString(1) };
     }
 
+    public override async Task<CreateBookingResponse> CreateMultiBooking(CreateMultiBookingRequest request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        RequireUser();
+        if (request.Lines.Count == 0)
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "Cart is empty"));
+        }
+
+        // Build the lines payload the SP consumes. Pricing is resolved server-side,
+        // so only kind/ref/seats are passed through.
+        var lines = request.Lines.Select(l => new
+        {
+            kind = l.Kind,
+            ref_id = l.RefId,
+            seats = l.Seats
+        });
+        var linesJson = System.Text.Json.JsonSerializer.Serialize(lines);
+
+        await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await using var cmd = new NpgsqlCommand(
+            "SELECT bookings_id, booking_number FROM sp_create_multi_booking(@u, @ev, @lines::jsonb)", connection);
+        cmd.Parameters.AddWithValue("u", tenantContext.UsersId!);
+        cmd.Parameters.AddWithValue("ev", Guid.Parse(request.EventsId));
+        cmd.Parameters.AddWithValue("lines", linesJson);
+        try
+        {
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            await reader.ReadAsync(ct);
+            return new CreateBookingResponse { BookingsId = reader.GetGuid(0).ToString(), BookingNumber = reader.GetString(1) };
+        }
+        catch (PostgresException ex)
+        {
+            throw MapPostgres(ex);
+        }
+    }
+
     public override async Task<PaymentIntentResponse> CreatePaymentIntent(PaymentIntentRequest request, ServerCallContext context)
     {
         var ct = context.CancellationToken;
@@ -283,14 +320,49 @@ public sealed class BookingServiceImpl : BookingService.BookingServiceBase
     {
         var ct = context.CancellationToken;
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
-        await using var cmd = new NpgsqlCommand(BookingSelect + " WHERE bookings_id = @id", connection);
-        cmd.Parameters.AddWithValue("id", Guid.Parse(request.Value));
-        await using var reader = await cmd.ExecuteReaderAsync(ct);
-        if (!await reader.ReadAsync(ct))
+        var bookingId = Guid.Parse(request.Value);
+        Booking booking;
+        await using (var cmd = new NpgsqlCommand(BookingSelect + " WHERE bookings_id = @id", connection))
         {
-            throw new RpcException(new Status(StatusCode.NotFound, "Booking not found"));
+            cmd.Parameters.AddWithValue("id", bookingId);
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            if (!await reader.ReadAsync(ct))
+            {
+                throw new RpcException(new Status(StatusCode.NotFound, "Booking not found"));
+            }
+            booking = MapBooking(reader);
         }
-        return MapBooking(reader);
+
+        // Cart lines (empty for legacy single-line bookings). Label resolves from
+        // the linked tier / table.
+        await using (var lc = new NpgsqlCommand(
+            "SELECT bl.booking_lines_id, bl.kind, "
+            + "COALESCE(ett.label, t.label, '') AS label, bl.event_ticket_types_id, bl.tables_id, "
+            + "bl.seats, bl.subtotal_cents, bl.fee_cents, bl.total_cents "
+            + "FROM booking_lines bl "
+            + "LEFT JOIN event_ticket_types ett ON ett.event_ticket_types_id = bl.event_ticket_types_id "
+            + "LEFT JOIN tables t ON t.tables_id = bl.tables_id "
+            + "WHERE bl.bookings_id = @id ORDER BY bl.created_at", connection))
+        {
+            lc.Parameters.AddWithValue("id", bookingId);
+            await using var lr = await lc.ExecuteReaderAsync(ct);
+            while (await lr.ReadAsync(ct))
+            {
+                booking.Lines.Add(new BookingLine
+                {
+                    BookingLinesId = lr.GetGuid(0).ToString(),
+                    Kind = lr.GetString(1),
+                    Label = lr.GetString(2),
+                    EventTicketTypesId = lr.IsDBNull(3) ? string.Empty : lr.GetGuid(3).ToString(),
+                    TablesId = lr.IsDBNull(4) ? string.Empty : lr.GetGuid(4).ToString(),
+                    Seats = lr.GetInt32(5),
+                    SubtotalCents = lr.GetInt32(6),
+                    FeeCents = lr.GetInt32(7),
+                    TotalCents = lr.GetInt32(8)
+                });
+            }
+        }
+        return booking;
     }
 
     public override async Task<ListBookingsResponse> ListBookings(ListBookingsRequest request, ServerCallContext context)

@@ -9,9 +9,12 @@ CREATE OR REPLACE FUNCTION sp_update_event_table(
 ) RETURNS void LANGUAGE plpgsql
     SET search_path = public, extensions, pg_catalog
 AS $$
-DECLARE v_price int;
+DECLARE v_price int; v_formula uuid;
 BEGIN
-    v_price := COALESCE(p_price_cents, (SELECT price_cents FROM event_tables WHERE event_tables_id = p_id));
+    SELECT COALESCE(p_price_cents, price_cents),
+           app.resolve_fee_formula(p_fee_formulas_id, tenants_id)
+      INTO v_price, v_formula
+      FROM event_tables WHERE event_tables_id = p_id;
     UPDATE event_tables SET
         label = COALESCE(p_label, label),
         capacity = COALESCE(p_capacity, capacity),
@@ -20,7 +23,7 @@ BEGIN
         price_cents = COALESCE(p_price_cents, price_cents),
         is_active = COALESCE(p_is_active, is_active),
         fee_formulas_id = p_fee_formulas_id,
-        platform_fee_cents = app.compute_fee(v_price, p_fee_formulas_id),
+        platform_fee_cents = app.compute_fee(v_price, v_formula),
         row_span = COALESCE(p_row_span, row_span),
         col_span = COALESCE(p_col_span, col_span),
         updated_at = now()

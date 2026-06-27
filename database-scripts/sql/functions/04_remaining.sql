@@ -33,13 +33,11 @@ BEGIN
     END IF;
     IF v_max IS NULL THEN RETURN NULL; END IF;  -- unlimited
 
-    SELECT COALESCE(SUM(b.seats_reserved), 0) INTO v_sold
-      FROM bookings b
-      JOIN event_ticket_types ett ON ett.event_ticket_types_id = b.event_ticket_types_id
-     WHERE ett.prices_id = p_prices_id
-       AND (b.status = 'Paid'
-            OR (b.status = 'Pending'
-                AND (b.hold_expires_at IS NULL OR b.hold_expires_at > now())));
+    -- Live seats across both booking models (single-line + multi-line cart lines),
+    -- summed over every ticket tier linked to this price (normally one).
+    SELECT COALESCE(SUM(app.ticket_type_seats_live(ett.event_ticket_types_id)), 0) INTO v_sold
+      FROM event_ticket_types ett
+     WHERE ett.prices_id = p_prices_id;
 
     v_remaining := GREATEST(v_max - v_sold, 0);
     RETURN v_remaining;

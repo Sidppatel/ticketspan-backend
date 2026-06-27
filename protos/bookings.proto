@@ -10,6 +10,8 @@ service BookingService {
   rpc ListEventTicketTypes (svyne.common.UuidValue) returns (ListEventTicketTypesResponse);
   rpc CreateBooking (CreateBookingRequest) returns (CreateBookingResponse);
   rpc ReserveOpenCapacity (ReserveOpenCapacityRequest) returns (CreateBookingResponse);
+  // Cart checkout: one booking aggregating many ticket/table lines, one payment.
+  rpc CreateMultiBooking (CreateMultiBookingRequest) returns (CreateBookingResponse);
   rpc CreatePaymentIntent (PaymentIntentRequest) returns (PaymentIntentResponse);
   rpc GetPaymentStatus (svyne.common.UuidValue) returns (PaymentStatusResponse);
   rpc ConfirmBooking (ConfirmBookingRequest) returns (svyne.common.AckResponse);
@@ -43,6 +45,32 @@ message Booking {
   int32 fee_cents = 8;
   int32 total_cents = 9;
   int32 seats_reserved = 10;
+  // Cart lines (empty for single-line legacy bookings).
+  repeated BookingLine lines = 11;
+}
+
+// One line of a multi-item booking, for display on checkout / booking detail.
+message BookingLine {
+  string booking_lines_id = 1;
+  string kind = 2;            // Ticket | Table
+  string label = 3;          // tier label or table label
+  string event_ticket_types_id = 4;
+  string tables_id = 5;
+  int32 seats = 6;
+  int32 subtotal_cents = 7;
+  int32 fee_cents = 8;
+  int32 total_cents = 9;
+}
+
+message CreateMultiBookingRequest {
+  string events_id = 1;
+  repeated BookingLineInput lines = 2;
+}
+
+message BookingLineInput {
+  string kind = 1;            // Ticket | Table
+  string ref_id = 2;         // event_ticket_types_id (Ticket) or tables_id (Table)
+  int32 seats = 3;           // ticket quantity; ignored for tables (= capacity)
 }
 
 message CreateBookingRequest {

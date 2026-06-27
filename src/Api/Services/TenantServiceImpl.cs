@@ -241,8 +241,9 @@ public sealed class TenantServiceImpl : TenantService.TenantServiceBase
         var ct = context.CancellationToken;
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT tenants_id, slug, name, legal_name, country_code, member_count, event_count, total_revenue_cents, archived_at IS NOT NULL "
-            + "FROM vw_tenants WHERE tenants_id = @id", connection);
+            "SELECT v.tenants_id, v.slug, v.name, v.legal_name, v.country_code, v.member_count, v.event_count, v.total_revenue_cents, v.archived_at IS NOT NULL, "
+            + "(SELECT default_fee_formulas_id FROM tenants t WHERE t.tenants_id = v.tenants_id) "
+            + "FROM vw_tenants v WHERE v.tenants_id = @id", connection);
         cmd.Parameters.AddWithValue("id", Guid.Parse(request.Value));
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct))
@@ -259,7 +260,8 @@ public sealed class TenantServiceImpl : TenantService.TenantServiceBase
             MemberCount = reader.GetInt32(5),
             EventCount = reader.GetInt32(6),
             TotalRevenueCents = reader.GetInt64(7),
-            Archived = reader.GetBoolean(8)
+            Archived = reader.GetBoolean(8),
+            DefaultFeeFormulasId = reader.IsDBNull(9) ? string.Empty : reader.GetGuid(9).ToString()
         };
     }
 
