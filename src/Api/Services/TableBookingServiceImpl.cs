@@ -301,8 +301,8 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
         await using var cmd = new NpgsqlCommand(
             "SELECT table_templates_id, name, default_capacity, default_shape, "
             + "COALESCE(default_color, ''), default_price_cents, is_active, "
-            + "COALESCE(default_width, 80), COALESCE(default_height, 80) "
-            + "FROM table_templates WHERE is_active = true ORDER BY name", connection);
+            + "COALESCE(default_width, 80), COALESCE(default_height, 80), default_is_all_inclusive "
+            + "FROM table_templates ORDER BY name", connection);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
         {
@@ -316,7 +316,8 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
                 DefaultPriceCents = reader.GetInt32(5),
                 IsActive = reader.GetBoolean(6),
                 DefaultWidth = (double)reader.GetDecimal(7),
-                DefaultHeight = (double)reader.GetDecimal(8)
+                DefaultHeight = (double)reader.GetDecimal(8),
+                DefaultIsAllInclusive = reader.GetBoolean(9)
             });
         }
         return response;
@@ -332,7 +333,7 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
         }
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT sp_create_table_template(@t, @name, @cap, @shape, @color, @price, @width, @height)", connection);
+            "SELECT sp_create_table_template(@t, @name, @cap, @shape, @color, @price, @width, @height, @inc)", connection);
         cmd.Parameters.AddWithValue("t", tenantContext.TenantsId);
         cmd.Parameters.AddWithValue("name", request.Name);
         cmd.Parameters.AddWithValue("cap", request.DefaultCapacity);
@@ -341,12 +342,54 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
         cmd.Parameters.AddWithValue("price", request.DefaultPriceCents);
         cmd.Parameters.AddWithValue("width", request.DefaultWidth <= 0 ? 80m : (decimal)request.DefaultWidth);
         cmd.Parameters.AddWithValue("height", request.DefaultHeight <= 0 ? 80m : (decimal)request.DefaultHeight);
-        var id = (Guid)(await cmd.ExecuteScalarAsync(ct))!;
-        return new UuidValue { Value = id.ToString() };
+        cmd.Parameters.AddWithValue("inc", request.DefaultIsAllInclusive);
+        try
+        {
+            var id = (Guid)(await cmd.ExecuteScalarAsync(ct))!;
+            return new UuidValue { Value = id.ToString() };
+        }
+        catch (PostgresException ex)
+        {
+            throw MapTemplateConflict(ex);
+        }
+    }
+
+    public override async Task<AckResponse> UpdateTableTemplate(UpdateTableTemplateRequest request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        RequireTenant();
+        await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await using var cmd = new NpgsqlCommand(
+            "SELECT sp_update_table_template(@id, NULL, @cap, @shape, @color, @price, @active, @width, @height, @inc)", connection);
+        cmd.Parameters.AddWithValue("id", Guid.Parse(request.TableTemplatesId));
+        cmd.Parameters.AddWithValue("cap", request.DefaultCapacity);
+        cmd.Parameters.AddWithValue("shape", string.IsNullOrEmpty(request.DefaultShape) ? "Round" : request.DefaultShape);
+        cmd.Parameters.AddWithValue("color", (object?)NullIfEmpty(request.DefaultColor) ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("price", request.DefaultPriceCents);
+        cmd.Parameters.AddWithValue("active", request.IsActive);
+        cmd.Parameters.AddWithValue("width", request.DefaultWidth <= 0 ? 80m : (decimal)request.DefaultWidth);
+        cmd.Parameters.AddWithValue("height", request.DefaultHeight <= 0 ? 80m : (decimal)request.DefaultHeight);
+        cmd.Parameters.AddWithValue("inc", request.DefaultIsAllInclusive);
+        try
+        {
+            await cmd.ExecuteNonQueryAsync(ct);
+            return new AckResponse { Success = true, Message = "Table template updated" };
+        }
+        catch (PostgresException ex)
+        {
+            throw MapTemplateConflict(ex);
+        }
     }
 
     public override Task<AckResponse> DeleteTableTemplate(UuidValue request, ServerCallContext context)
         => RunVoid("SELECT sp_deactivate_table_template(@id)", request.Value, context, "Table template deactivated");
+
+    private static RpcException MapTemplateConflict(PostgresException ex) => ex.SqlState == "23505"
+        ? new RpcException(new Status(StatusCode.AlreadyExists,
+            ex.ConstraintName?.Contains("color") == true
+                ? "A table type with this color already exists"
+                : "A table type with this name already exists"))
+        : new RpcException(new Status(StatusCode.Internal, ex.MessageText));
 
     private static object ToTimestamp(long unixSeconds) =>
         unixSeconds <= 0 ? DBNull.Value : DateTimeOffset.FromUnixTimeSeconds(unixSeconds).UtcDateTime;

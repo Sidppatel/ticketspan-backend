@@ -1,9 +1,12 @@
+DROP FUNCTION IF EXISTS sp_update_performer(uuid, text, text, text, jsonb);
+
 CREATE OR REPLACE FUNCTION sp_update_performer(
     p_id uuid,
     p_name text,
     p_slug text,
     p_image_path text,
-    p_meta jsonb
+    p_meta jsonb,
+    p_is_active bool DEFAULT NULL
 ) RETURNS void LANGUAGE plpgsql
 SET search_path = public, extensions, pg_catalog
 AS $$
@@ -17,6 +20,7 @@ BEGIN
             ELSE p_image_path
         END,
         meta = COALESCE(p_meta, meta),
+        is_active = COALESCE(p_is_active, is_active),
         updated_at = now()
     WHERE performers_id = p_id;
 END; $$;

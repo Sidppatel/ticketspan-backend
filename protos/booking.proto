@@ -27,6 +27,7 @@ service TableBookingService {
   // Catalog table-type templates (tenant-scoped, reusable across events).
   rpc ListTableTemplates (svyne.common.Empty) returns (ListTableTemplatesResponse);
   rpc CreateTableTemplate (CreateTableTemplateRequest) returns (svyne.common.UuidValue);
+  rpc UpdateTableTemplate (UpdateTableTemplateRequest) returns (svyne.common.AckResponse);
   rpc DeleteTableTemplate (svyne.common.UuidValue) returns (svyne.common.AckResponse);
 }
 
@@ -187,6 +188,9 @@ message TableTemplate {
   bool is_active = 7;
   double default_width = 8;
   double default_height = 9;
+  // When true the price covers everyone at the table; when false it is the
+  // per-attendee price. Snapshotted onto event prices at table-create time.
+  bool default_is_all_inclusive = 10;
 }
 
 message CreateTableTemplateRequest {
@@ -197,6 +201,21 @@ message CreateTableTemplateRequest {
   int32 default_price_cents = 5;
   double default_width = 6;
   double default_height = 7;
+  bool default_is_all_inclusive = 8;
+}
+
+// Edit a catalog table type. Name is intentionally absent: it is locked after
+// creation. is_active drives the enable/disable toggle.
+message UpdateTableTemplateRequest {
+  string table_templates_id = 1;
+  int32 default_capacity = 2;
+  string default_shape = 3;
+  string default_color = 4;
+  int32 default_price_cents = 5;
+  double default_width = 6;
+  double default_height = 7;
+  bool default_is_all_inclusive = 8;
+  bool is_active = 9;
 }
 
 message ListTableTemplatesResponse {

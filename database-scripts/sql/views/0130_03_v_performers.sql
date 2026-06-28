@@ -8,7 +8,8 @@ SELECT
     COALESCE(ec.total, 0)::int AS event_count,
     COALESCE(ec.upcoming, 0)::int AS upcoming_event_count,
     p.created_at AS created_at,
-    p.updated_at AS updated_at
+    p.updated_at AS updated_at,
+    p.is_active AS is_active
 FROM performers p
 LEFT JOIN LATERAL (
     SELECT

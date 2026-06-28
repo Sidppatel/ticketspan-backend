@@ -326,6 +326,7 @@ public class EventPlatformDbContext(
             entity.Property(e => e.Phone).HasMaxLength(20);
             entity.Property(e => e.Email).HasMaxLength(256);
             entity.Property(e => e.Website).HasMaxLength(512);
+
             entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.Address).WithMany().HasForeignKey(e => e.AddressesId)
@@ -345,11 +346,16 @@ public class EventPlatformDbContext(
             });
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.TenantsId);
+            entity.HasIndex(e => new { e.TenantsId, e.Name }).IsUnique();
+            entity.HasIndex(e => new { e.TenantsId, e.DefaultColor })
+                .IsUnique()
+                .HasFilter("default_color IS NOT NULL");
             entity.Property(e => e.Name).HasMaxLength(128);
             entity.Property(e => e.DefaultShape).HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.DefaultColor).HasMaxLength(20);
             entity.Property(e => e.DefaultWidth).HasColumnType("numeric(10,2)").HasDefaultValue(80);
             entity.Property(e => e.DefaultHeight).HasColumnType("numeric(10,2)").HasDefaultValue(80);
+            entity.Property(e => e.DefaultIsAllInclusive).HasDefaultValue(true);
             entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
@@ -1008,6 +1014,7 @@ public class EventPlatformDbContext(
             entity.Property(e => e.Slug).HasMaxLength(220).IsRequired();
             entity.Property(e => e.PrimaryImagePath).HasMaxLength(512);
             entity.Property(e => e.Meta).HasColumnType("jsonb").HasDefaultValueSql("'[]'::jsonb");
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
@@ -1041,6 +1048,7 @@ public class EventPlatformDbContext(
             entity.Property(e => e.Slug).HasMaxLength(220).IsRequired();
             entity.Property(e => e.PrimaryImagePath).HasMaxLength(512);
             entity.Property(e => e.Meta).HasColumnType("jsonb").HasDefaultValueSql("'[]'::jsonb");
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
                 .OnDelete(DeleteBehavior.Restrict);
         });

@@ -11,6 +11,11 @@ service VenueService {
   rpc UpdateVenue (UpdateVenueRequest) returns (svyne.common.AckResponse);
   rpc GetVenue (svyne.common.UuidValue) returns (Venue);
   rpc ListVenues (svyne.common.PageRequest) returns (ListVenuesResponse);
+  rpc ListVenueImages (svyne.common.UuidValue) returns (ListVenueImagesResponse);
+  rpc AddVenueImage (AddVenueImageRequest) returns (VenueImage);
+  rpc RemoveVenueImage (RemoveVenueImageRequest) returns (svyne.common.AckResponse);
+  rpc SetPrimaryVenueImage (RemoveVenueImageRequest) returns (svyne.common.AckResponse);
+  rpc ReorderVenueImages (ReorderVenueImagesRequest) returns (svyne.common.AckResponse);
 }
 
 service PerformerService {
@@ -39,6 +44,10 @@ message Venue {
   string website = 7;
   bool is_active = 8;
   string state = 9;
+  string line1 = 10;
+  string line2 = 11;
+  string city = 12;
+  string zip = 13;
 }
 
 message CreateVenueRequest {
@@ -62,11 +71,43 @@ message UpdateVenueRequest {
   string phone = 4;
   string email = 5;
   string website = 6;
+  string line1 = 7;
+  string line2 = 8;
+  string city = 9;
+  string state = 10;
+  string zip = 11;
+  bool is_active = 14;
 }
 
 message ListVenuesResponse {
   repeated Venue venues = 1;
   svyne.common.PageMeta meta = 2;
+}
+
+message VenueImage {
+  string images_id = 1;
+  string storage_key = 2;
+  bool is_primary = 3;
+  int32 sort_order = 4;
+}
+
+message ListVenueImagesResponse {
+  repeated VenueImage images = 1;
+}
+
+message AddVenueImageRequest {
+  string venues_id = 1;
+  string images_id = 2;
+}
+
+message RemoveVenueImageRequest {
+  string venues_id = 1;
+  string images_id = 2;
+}
+
+message ReorderVenueImagesRequest {
+  string venues_id = 1;
+  repeated string images_id = 2;
 }
 
 message Performer {
@@ -75,6 +116,7 @@ message Performer {
   string slug = 3;
   string primary_image_path = 4;
   string meta_json = 5;
+  bool is_active = 6;
 }
 
 message CreatePerformerRequest {
@@ -82,6 +124,7 @@ message CreatePerformerRequest {
   string slug = 2;
   string image_path = 3;
   string meta_json = 4;
+  bool is_active = 5;
 }
 
 message UpdatePerformerRequest {
@@ -89,6 +132,7 @@ message UpdatePerformerRequest {
   string name = 2;
   string image_path = 3;
   string meta_json = 4;
+  bool is_active = 5;
 }
 
 message ListPerformersResponse {
@@ -102,6 +146,7 @@ message Sponsor {
   string slug = 3;
   string primary_image_path = 4;
   string meta_json = 5;
+  bool is_active = 6;
 }
 
 message CreateSponsorRequest {
@@ -109,6 +154,7 @@ message CreateSponsorRequest {
   string slug = 2;
   string image_path = 3;
   string meta_json = 4;
+  bool is_active = 5;
 }
 
 message UpdateSponsorRequest {
@@ -116,6 +162,7 @@ message UpdateSponsorRequest {
   string name = 2;
   string image_path = 3;
   string meta_json = 4;
+  bool is_active = 5;
 }
 
 message ListSponsorsResponse {

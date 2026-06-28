@@ -13,6 +13,7 @@ public class TableTemplate : BaseEntity
     public int DefaultPriceCents { get; set; }
     public decimal DefaultWidth { get; set; } = 80;
     public decimal DefaultHeight { get; set; } = 80;
+    public bool DefaultIsAllInclusive { get; set; } = true;
     public bool IsActive { get; set; } = true;
 
     public ICollection<EventTable> EventTables { get; set; } = [];

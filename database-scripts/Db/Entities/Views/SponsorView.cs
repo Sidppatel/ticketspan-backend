@@ -7,6 +7,7 @@ public class SponsorView
     public string Slug { get; set; } = null!;
     public string? PrimaryImagePath { get; set; }
     public string Meta { get; set; } = "[]";
+    public bool IsActive { get; set; }
     public int EventCount { get; set; }
     public int UpcomingEventCount { get; set; }
     public DateTime CreatedAt { get; set; }

@@ -10,6 +10,7 @@ public class VenueView
     public string? Email { get; set; }
     public string? Website { get; set; }
     public bool IsActive { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     // Address

@@ -47,6 +47,7 @@ builder.Services.AddCors(options =>
     }));
 
 builder.Services.AddGrpc();
+builder.Services.AddHttpClient();
 builder.Services.AddSingleton<Db>();
 builder.Services.AddSingleton<StartupSeeder>();
 builder.Services.AddSingleton<AppSettingsProvider>();
@@ -236,6 +237,30 @@ app.MapGet("/images/{imagesId}", async (string imagesId, Db db, Svyne.Api.Storag
     var stream = await storage.OpenReadAsync(storageKey, ct);
     return stream is null ? Results.NotFound() : Results.File(stream, contentType);
 }).AllowAnonymous();
+
+app.MapGet("/geocode/autocomplete", async (string text, IConfiguration config, IHttpClientFactory httpFactory, ILoggerFactory logs, CancellationToken ct) =>
+{
+    var empty = Results.Json(new { results = Array.Empty<object>() });
+    var key = config["GEOAPIFY_KEY"];
+    if (string.IsNullOrEmpty(key) || string.IsNullOrWhiteSpace(text) || text.Trim().Length < 3)
+    {
+        return empty;
+    }
+    var url = "https://api.geoapify.com/v1/geocode/autocomplete"
+        + $"?text={Uri.EscapeDataString(text)}&format=json&filter=countrycode:us&limit=6&apiKey={key}";
+    try
+    {
+        var client = httpFactory.CreateClient();
+        var resp = await client.GetAsync(url, ct);
+        var body = await resp.Content.ReadAsStringAsync(ct);
+        return Results.Content(body, "application/json", statusCode: (int)resp.StatusCode);
+    }
+    catch (HttpRequestException ex)
+    {
+        logs.CreateLogger("Geocode").LogWarning(ex, "Geoapify request failed");
+        return empty;
+    }
+}).RequireAuthorization();
 
 // Stripe Connect onboarding bounces the browser back to these URLs (set in
 // FinancialServiceImpl via PUBLIC_BASE_URL = this backend origin). The actual

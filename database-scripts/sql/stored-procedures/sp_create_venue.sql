@@ -1,3 +1,5 @@
+DROP FUNCTION IF EXISTS sp_create_venue(uuid, text, text, text, text, text, text, text, text, text, text, text);
+
 CREATE OR REPLACE FUNCTION sp_create_venue(
     p_tenants_id uuid, p_name text, p_description text, p_image_path text,
     p_phone text, p_email text, p_website text,

@@ -24,12 +24,13 @@ public sealed class SponsorServiceImpl : SponsorService.SponsorServiceBase
         RequireTenant();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT sp_create_sponsor(@t, @name, @slug, @img, @meta::jsonb)", connection);
+            "SELECT sp_create_sponsor(@t, @name, @slug, @img, @meta::jsonb, @active)", connection);
         cmd.Parameters.AddWithValue("t", tenantContext.TenantsId!);
         cmd.Parameters.AddWithValue("name", request.Name);
         cmd.Parameters.AddWithValue("slug", request.Slug);
         cmd.Parameters.AddWithValue("img", (object?)NullIfEmpty(request.ImagePath) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("meta", string.IsNullOrEmpty(request.MetaJson) ? "[]" : request.MetaJson);
+        cmd.Parameters.AddWithValue("active", request.IsActive);
         var id = (Guid)(await cmd.ExecuteScalarAsync(ct))!;
         return new UuidValue { Value = id.ToString() };
     }
@@ -40,11 +41,12 @@ public sealed class SponsorServiceImpl : SponsorService.SponsorServiceBase
         RequireTenant();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT sp_update_sponsor(@id, @name, NULL, @img, @meta::jsonb)", connection);
+            "SELECT sp_update_sponsor(@id, @name, NULL, @img, @meta::jsonb, @active)", connection);
         cmd.Parameters.AddWithValue("id", Guid.Parse(request.SponsorsId));
         cmd.Parameters.AddWithValue("name", (object?)NullIfEmpty(request.Name) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("img", (object?)NullIfEmpty(request.ImagePath) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("meta", (object?)NullIfEmpty(request.MetaJson) ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("active", request.IsActive);
         await cmd.ExecuteNonQueryAsync(ct);
         return new AckResponse { Success = true, Message = "Sponsor updated" };
     }
@@ -66,7 +68,7 @@ public sealed class SponsorServiceImpl : SponsorService.SponsorServiceBase
         var response = new ListSponsorsResponse { Meta = new PageMeta { Offset = request.Offset, Limit = request.Limit } };
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT sponsors_id, name, slug, primary_image_path, meta::text FROM vw_sponsors ORDER BY name", connection);
+            "SELECT sponsors_id, name, slug, primary_image_path, meta::text, is_active FROM vw_sponsors ORDER BY name", connection);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
         {
@@ -76,7 +78,8 @@ public sealed class SponsorServiceImpl : SponsorService.SponsorServiceBase
                 Name = reader.GetString(1),
                 Slug = reader.GetString(2),
                 PrimaryImagePath = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
-                MetaJson = reader.IsDBNull(4) ? "[]" : reader.GetString(4)
+                MetaJson = reader.IsDBNull(4) ? "[]" : reader.GetString(4),
+                IsActive = reader.GetBoolean(5)
             });
         }
         response.Meta.Total = response.Sponsors.Count;

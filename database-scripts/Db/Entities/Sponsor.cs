@@ -8,4 +8,5 @@ public class Sponsor : BaseEntity
     public required string Slug { get; set; }
     public string? PrimaryImagePath { get; set; }
     public string Meta { get; set; } = "[]";
+    public bool IsActive { get; set; } = true;
 }

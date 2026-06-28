@@ -8,7 +8,8 @@ SELECT
     COALESCE(ec.total, 0)::int AS event_count,
     COALESCE(ec.upcoming, 0)::int AS upcoming_event_count,
     s.created_at AS created_at,
-    s.updated_at AS updated_at
+    s.updated_at AS updated_at,
+    s.is_active AS is_active
 FROM sponsors s
 LEFT JOIN LATERAL (
     SELECT
