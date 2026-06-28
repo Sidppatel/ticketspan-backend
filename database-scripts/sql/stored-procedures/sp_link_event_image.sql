@@ -11,6 +11,7 @@ CREATE OR REPLACE FUNCTION sp_link_event_image(
 ) LANGUAGE plpgsql
     SET search_path = public, extensions, pg_catalog
 AS $$
+#variable_conflict use_column
 DECLARE
     v_tenant uuid;
     v_sort int;
@@ -40,5 +41,5 @@ BEGIN
         VALUES (v_tenant, p_event_id, p_image_id, v_sort, v_is_primary, p_type, now(), now())
         RETURNING event_images_id, sort_order, is_primary, type
     )
-    SELECT inserted.event_images_id, inserted.sort_order, inserted.is_primary, inserted.type FROM inserted;
+    SELECT inserted.event_images_id, inserted.sort_order, inserted.is_primary, inserted.type::text FROM inserted;
 END; $$;

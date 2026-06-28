@@ -34,8 +34,7 @@ public sealed class ObjectStorage
                 BucketName = bucket,
                 Key = key,
                 InputStream = content,
-                ContentType = contentType,
-                DisablePayloadSigning = !string.IsNullOrEmpty(serviceUrl)
+                ContentType = contentType
             }, ct);
             return;
         }
