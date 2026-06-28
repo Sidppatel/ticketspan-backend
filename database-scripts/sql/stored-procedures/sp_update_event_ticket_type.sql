@@ -1,8 +1,10 @@
 DROP FUNCTION IF EXISTS sp_update_event_ticket_type(uuid, text, int, int, int, int, bool, text);
+DROP FUNCTION IF EXISTS sp_update_event_ticket_type(uuid, text, int, uuid, int, int, bool, text);
+DROP FUNCTION IF EXISTS sp_update_event_ticket_type(uuid, text, int, uuid, int, int, int, bool, text);
 
 CREATE OR REPLACE FUNCTION sp_update_event_ticket_type(
     p_id uuid, p_label text, p_price_cents int,
-    p_fee_formulas_id uuid, p_max_quantity int, p_sort_order int, p_is_active bool,
+    p_fee_formulas_id uuid, p_max_quantity int, p_sort_order int, p_capacity int, p_is_active bool,
     p_description text DEFAULT NULL
 ) RETURNS void LANGUAGE plpgsql
     SET search_path = public, extensions, pg_catalog
@@ -20,6 +22,7 @@ BEGIN
         fee_formulas_id = p_fee_formulas_id,
         platform_fee_cents = app.compute_fee(v_price, v_formula),
         max_quantity = p_max_quantity,
+        capacity = p_capacity,
         sort_order = COALESCE(p_sort_order, sort_order),
         description = COALESCE(p_description, description),
         is_active = COALESCE(p_is_active, is_active),

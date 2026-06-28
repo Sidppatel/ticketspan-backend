@@ -42,5 +42,8 @@ public class PriceRule : BaseEntity
     /// <summary>Inventory gate: rule active only when remaining &lt;= this.</summary>
     public int? MaxRemaining { get; set; }
 
+    /// <summary>The discount applies only to this many people/seats. Null = no seat cap.</summary>
+    public int? Capacity { get; set; }
+
     public bool IsActive { get; set; } = true;
 }

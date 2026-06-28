@@ -58,8 +58,8 @@ BEGIN
         RETURN;
     END IF;
 
-    SELECT event_type, max_capacity, tenants_id
-      INTO v_event_type, v_max_capacity, v_tenant
+    SELECT event_type, tenants_id
+      INTO v_event_type, v_tenant
       FROM events
       WHERE events_id = p_event_id
       FOR UPDATE;
@@ -67,6 +67,13 @@ BEGIN
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Event not found' USING ERRCODE = 'P0002';
     END IF;
+
+    -- Event-level open cap = sum of active ticket-type capacities (replaces the
+    -- removed events.max_capacity column). 0 = uncapped.
+    SELECT COALESCE(SUM(capacity), 0)
+      INTO v_max_capacity
+      FROM event_ticket_types
+      WHERE events_id = p_event_id AND is_active = true;
     -- Open ticket capacity is sold by Open and Both events; Table-only events have
     -- no open seats.
     IF v_event_type NOT IN ('Open', 'Both') THEN

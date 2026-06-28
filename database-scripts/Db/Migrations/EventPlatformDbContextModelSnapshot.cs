@@ -671,10 +671,6 @@ namespace Db.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("layout_mode");
 
-                    b.Property<int?>("MaxCapacity")
-                        .HasColumnType("integer")
-                        .HasColumnName("max_capacity");
-
                     b.Property<DateTime?>("PublishedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("published_at");
@@ -770,8 +766,6 @@ namespace Db.Migrations
                             t.HasCheckConstraint("CK_events_EventType", "event_type IN ('Open','Table','Both')");
 
                             t.HasCheckConstraint("CK_events_LayoutMode", "layout_mode IN ('Grid','Open')");
-
-                            t.HasCheckConstraint("CK_events_MaxCapacity", "max_capacity IS NULL OR max_capacity > 0");
 
                             t.HasCheckConstraint("CK_events_PublishLifecycle", "status <> 'Published' OR published_at IS NOT NULL");
 
@@ -1048,6 +1042,10 @@ namespace Db.Migrations
                         .HasColumnName("event_ticket_types_id")
                         .HasDefaultValueSql("gen_random_uuid()");
 
+                    b.Property<int?>("Capacity")
+                        .HasColumnType("integer")
+                        .HasColumnName("capacity");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -1122,6 +1120,8 @@ namespace Db.Migrations
 
                     b.ToTable("event_ticket_types", null, t =>
                         {
+                            t.HasCheckConstraint("CK_event_ticket_types_Capacity", "capacity IS NULL OR capacity > 0");
+
                             t.HasCheckConstraint("CK_event_ticket_types_MaxQuantity", "max_quantity IS NULL OR max_quantity > 0");
 
                             t.HasCheckConstraint("CK_event_ticket_types_PriceCents", "price_cents >= 0");
@@ -2100,6 +2100,10 @@ namespace Db.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("active_until");
 
+                    b.Property<int?>("Capacity")
+                        .HasColumnType("integer")
+                        .HasColumnName("capacity");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -2178,6 +2182,8 @@ namespace Db.Migrations
 
                     b.ToTable("price_rules", null, t =>
                         {
+                            t.HasCheckConstraint("CK_price_rules_Capacity", "capacity IS NULL OR capacity > 0");
+
                             t.HasCheckConstraint("CK_price_rules_PriceCents", "price_cents >= 0");
 
                             t.HasCheckConstraint("CK_price_rules_RuleType", "rule_type IN ('Presale','LastMinute','TimeWindow','Dynamic')");
@@ -4024,10 +4030,6 @@ namespace Db.Migrations
                         .HasColumnType("text")
                         .HasColumnName("layout_mode");
 
-                    b.Property<int?>("MaxCapacity")
-                        .HasColumnType("integer")
-                        .HasColumnName("max_capacity");
-
                     b.Property<int?>("MinTablePriceCents")
                         .HasColumnType("integer")
                         .HasColumnName("min_table_price_cents");
@@ -4303,10 +4305,6 @@ namespace Db.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("layout_mode");
-
-                    b.Property<int?>("MaxCapacity")
-                        .HasColumnType("integer")
-                        .HasColumnName("max_capacity");
 
                     b.Property<int?>("MinTablePriceCents")
                         .HasColumnType("integer")

@@ -35,7 +35,7 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
             "SELECT sp_create_event(@t, @title, @slug, @desc, @status, @cat, @start, @end, @img, @feat, @layout, "
-            + "@maxcap, NULL, NULL, NULL, @venue, @creator, @sched, @etype)", connection);
+            + "NULL, NULL, NULL, @venue, @creator, @sched, @etype)", connection);
         cmd.Parameters.AddWithValue("t", tenantContext.TenantsId!.Value);
         cmd.Parameters.AddWithValue("title", request.Title);
         cmd.Parameters.AddWithValue("slug", request.Slug);
@@ -48,7 +48,6 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         cmd.Parameters.AddWithValue("feat", request.IsFeatured);
         cmd.Parameters.AddWithValue("layout", string.IsNullOrEmpty(request.LayoutMode) ? "Grid" : request.LayoutMode);
         cmd.Parameters.AddWithValue("etype", string.IsNullOrEmpty(request.EventType) ? "Open" : request.EventType);
-        cmd.Parameters.AddWithValue("maxcap", request.MaxCapacity == 0 ? DBNull.Value : request.MaxCapacity);
         cmd.Parameters.AddWithValue("venue", Guid.Parse(request.VenuesId));
         cmd.Parameters.AddWithValue("creator", tenantContext.UsersId!.Value);
         cmd.Parameters.AddWithValue("sched", request.ScheduledPublishAt == 0
@@ -133,7 +132,7 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         }
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT sp_update_event(@id, @title, NULL, @desc, @cat, @start, @end, @img, @feat, NULL, @maxcap, NULL, NULL, NULL, @venue, NULL, @etype)", connection);
+            "SELECT sp_update_event(@id, @title, NULL, @desc, @cat, @start, @end, @img, @feat, NULL, NULL, NULL, NULL, @venue, NULL, @etype)", connection);
         cmd.Parameters.AddWithValue("id", Guid.Parse(request.EventsId));
         cmd.Parameters.AddWithValue("title", (object?)NullIfEmpty(request.Title) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("desc", (object?)NullIfEmpty(request.Description) ?? DBNull.Value);
@@ -142,7 +141,6 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         cmd.Parameters.AddWithValue("end", request.EndDate == 0 ? DBNull.Value : DateTimeOffset.FromUnixTimeSeconds(request.EndDate).UtcDateTime);
         cmd.Parameters.AddWithValue("img", (object?)NullIfEmpty(request.ImagePath) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("feat", request.IsFeatured);
-        cmd.Parameters.AddWithValue("maxcap", request.MaxCapacity == 0 ? DBNull.Value : request.MaxCapacity);
         cmd.Parameters.AddWithValue("venue", string.IsNullOrEmpty(request.VenuesId) ? DBNull.Value : Guid.Parse(request.VenuesId));
         cmd.Parameters.AddWithValue("etype", string.IsNullOrEmpty(request.EventType) ? DBNull.Value : request.EventType);
         await cmd.ExecuteNonQueryAsync(ct);
@@ -243,7 +241,7 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
 
     private const string EventSelect =
         "SELECT events_id, title, slug, description, status, category, start_date, end_date, image_path, "
-        + "is_featured, layout_mode, max_capacity, venues_id, performers::text, sponsors::text, fees_included, event_type FROM vw_events";
+        + "is_featured, layout_mode, total_capacity, venues_id, performers::text, sponsors::text, fees_included, event_type FROM vw_events";
 
     private static Event MapEvent(NpgsqlDataReader r) => new()
     {
@@ -258,7 +256,7 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         ImagePath = r.IsDBNull(8) ? string.Empty : r.GetString(8),
         IsFeatured = !r.IsDBNull(9) && r.GetBoolean(9),
         LayoutMode = r.IsDBNull(10) ? string.Empty : r.GetString(10),
-        MaxCapacity = r.IsDBNull(11) ? 0 : r.GetInt32(11),
+        TotalCapacity = r.IsDBNull(11) ? 0 : r.GetInt32(11),
         VenuesId = r.IsDBNull(12) ? string.Empty : r.GetGuid(12).ToString(),
         PerformersJson = r.IsDBNull(13) ? "[]" : r.GetString(13),
         SponsorsJson = r.IsDBNull(14) ? "[]" : r.GetString(14),

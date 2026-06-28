@@ -424,6 +424,8 @@ public class EventPlatformDbContext(
                 t.HasCheckConstraint("CK_event_ticket_types_PriceCents", "price_cents >= 0");
                 t.HasCheckConstraint("CK_event_ticket_types_MaxQuantity",
                     "max_quantity IS NULL OR max_quantity > 0");
+                t.HasCheckConstraint("CK_event_ticket_types_Capacity",
+                    "capacity IS NULL OR capacity > 0");
                 t.HasCheckConstraint("CK_event_ticket_types_SortOrder", "sort_order >= 0");
             });
             entity.HasKey(e => e.Id);
@@ -477,6 +479,8 @@ public class EventPlatformDbContext(
                 t.HasCheckConstraint("CK_price_rules_RuleType",
                     "rule_type IN ('Presale','LastMinute','TimeWindow','Dynamic')");
                 t.HasCheckConstraint("CK_price_rules_PriceCents", "price_cents >= 0");
+                t.HasCheckConstraint("CK_price_rules_Capacity",
+                    "capacity IS NULL OR capacity > 0");
                 t.HasCheckConstraint("CK_price_rules_Window",
                     "active_from IS NULL OR active_until IS NULL OR active_until > active_from");
                 // Exactly one owner: a per-price rule targets a price; an event-wide
@@ -597,8 +601,6 @@ public class EventPlatformDbContext(
                 t.HasCheckConstraint("CK_events_LayoutMode", "layout_mode IN ('Grid','Open')");
                 t.HasCheckConstraint("CK_events_EventType", "event_type IN ('Open','Table','Both')");
                 t.HasCheckConstraint("CK_events_DateRange", "end_date > start_date");
-                t.HasCheckConstraint("CK_events_MaxCapacity",
-                    "max_capacity IS NULL OR max_capacity > 0");
                 t.HasCheckConstraint("CK_events_PublishLifecycle",
                     "status <> 'Published' OR published_at IS NOT NULL");
                 t.HasCheckConstraint("CK_events_DraftNoPublishDate",

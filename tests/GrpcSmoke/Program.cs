@@ -61,7 +61,7 @@ var eventClient = new Svyne.Protos.Event.EventService.EventServiceClient(channel
 var ev = await eventClient.CreateEventAsync(new Svyne.Protos.Event.CreateEventRequest
 {
     Title = "Gala Night", Slug = "gala-" + slug, Status = "Draft", LayoutMode = "Open",
-    MaxCapacity = 200, VenuesId = venue.Value,
+    VenuesId = venue.Value,
     StartDate = DateTimeOffset.UtcNow.AddDays(10).ToUnixTimeSeconds(),
     EndDate = DateTimeOffset.UtcNow.AddDays(11).ToUnixTimeSeconds()
 }, adminHeaders);

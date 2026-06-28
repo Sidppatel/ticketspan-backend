@@ -12,7 +12,6 @@ SELECT
     e.is_featured AS is_featured,
     e.layout_mode::text AS layout_mode,
     ettp.min_price::int AS price_per_person_cents,
-    e.max_capacity AS max_capacity,
     e.venues_id AS venues_id,
     v.name AS venue_name,
     COALESCE(a.city, '') AS venue_city,
@@ -20,7 +19,6 @@ SELECT
     e.created_by_users_id AS users_id,
     COALESCE(au.first_name || ' ' || au.last_name, '') AS organizer_name,
     COALESCE(
-        e.max_capacity,
         CASE
             WHEN e.layout_mode::text = 'Grid' THEN table_cap.total_seats
             ELSE ett_cap.total_qty
@@ -62,7 +60,7 @@ LEFT JOIN LATERAL (
     WHERE ett.events_id = e.events_id AND ett.is_active = true
 ) ettp ON true
 LEFT JOIN LATERAL (
-    SELECT SUM(ett.max_quantity) AS total_qty
+    SELECT SUM(ett.capacity) AS total_qty
     FROM event_ticket_types ett
     WHERE ett.events_id = e.events_id AND ett.is_active = true
 ) ett_cap ON true

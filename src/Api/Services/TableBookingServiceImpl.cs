@@ -204,13 +204,14 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
         RequireTenant();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT sp_create_event_ticket_type(@ev, @label, @price, @fee, @max, @sort, @desc)", connection);
+            "SELECT sp_create_event_ticket_type(@ev, @label, @price, @fee, @max, @sort, @cap, @desc)", connection);
         cmd.Parameters.AddWithValue("ev", Guid.Parse(request.EventsId));
         cmd.Parameters.AddWithValue("label", request.Label);
         cmd.Parameters.AddWithValue("price", request.PriceCents);
         cmd.Parameters.AddWithValue("fee", string.IsNullOrEmpty(request.FeeFormulasId) ? DBNull.Value : Guid.Parse(request.FeeFormulasId));
         cmd.Parameters.AddWithValue("max", request.MaxQuantity == 0 ? DBNull.Value : request.MaxQuantity);
         cmd.Parameters.AddWithValue("sort", request.SortOrder);
+        cmd.Parameters.AddWithValue("cap", request.Capacity == 0 ? DBNull.Value : request.Capacity);
         cmd.Parameters.AddWithValue("desc", (object?)NullIfEmpty(request.Description) ?? DBNull.Value);
         var id = (Guid)(await cmd.ExecuteScalarAsync(ct))!;
         return new UuidValue { Value = id.ToString() };
@@ -222,13 +223,14 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
         RequireTenant();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT sp_update_event_ticket_type(@id, @label, @price, @fee, @max, @sort, @active, @desc)", connection);
+            "SELECT sp_update_event_ticket_type(@id, @label, @price, @fee, @max, @sort, @cap, @active, @desc)", connection);
         cmd.Parameters.AddWithValue("id", Guid.Parse(request.EventTicketTypesId));
         cmd.Parameters.AddWithValue("label", request.Label);
         cmd.Parameters.AddWithValue("price", request.PriceCents);
         cmd.Parameters.AddWithValue("fee", string.IsNullOrEmpty(request.FeeFormulasId) ? DBNull.Value : Guid.Parse(request.FeeFormulasId));
         cmd.Parameters.AddWithValue("max", request.MaxQuantity == 0 ? DBNull.Value : request.MaxQuantity);
         cmd.Parameters.AddWithValue("sort", request.SortOrder);
+        cmd.Parameters.AddWithValue("cap", request.Capacity == 0 ? DBNull.Value : request.Capacity);
         cmd.Parameters.AddWithValue("active", request.IsActive);
         cmd.Parameters.AddWithValue("desc", (object?)NullIfEmpty(request.Description) ?? DBNull.Value);
         await cmd.ExecuteNonQueryAsync(ct);

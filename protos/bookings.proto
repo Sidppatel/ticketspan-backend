@@ -105,6 +105,7 @@ message EventTicketType {
   int32 max_quantity = 5;
   string description = 6;
   string fee_formulas_id = 7;
+  int32 capacity = 8;                 // seats this tier contributes to event capacity (0 = uncapped)
 }
 
 message ListEventTicketTypesResponse {

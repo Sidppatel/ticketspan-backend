@@ -75,11 +75,11 @@ BEGIN
         (CASE
             WHEN e.layout_mode::text = 'Open' AND ettp.min_price IS NOT NULL
                 THEN ettp.capped_revenue
-                     + GREATEST(COALESCE(e.max_capacity, ts.total_capacity) - ettp.capped_seats, 0)::bigint
+                     + GREATEST(ts.total_capacity - ettp.capped_seats, 0)::bigint
                        * ettp.min_price::bigint
             ELSE ts.total_price::bigint
         END)::bigint                                    AS potential_revenue_cents,
-        COALESCE(e.max_capacity, ts.total_capacity)    AS total_capacity,
+        ts.total_capacity                              AS total_capacity,
         (ps.tickets_sold)                               AS sold_count
     FROM events e
     JOIN venues v ON v.venues_id = e.venues_id

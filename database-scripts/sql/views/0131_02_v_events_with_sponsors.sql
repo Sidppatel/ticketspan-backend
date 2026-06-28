@@ -13,7 +13,6 @@ SELECT
     e.is_featured AS is_featured,
     e.layout_mode::text AS layout_mode,
     e.event_type::text AS event_type,
-    e.max_capacity AS max_capacity,
     e.fees_included AS fees_included,
     ettp.min_price::int AS price_per_person_cents,
     e.published_at AS published_at,
@@ -37,7 +36,6 @@ SELECT
     COALESCE(au.first_name, '') AS organizer_first_name,
     COALESCE(au.last_name, '') AS organizer_last_name,
     COALESCE(
-        e.max_capacity,
         CASE
             WHEN e.event_type::text = 'Table' THEN table_cap.total_seats
             WHEN e.event_type::text = 'Both' THEN COALESCE(table_cap.total_seats, 0) + COALESCE(ett_cap.total_qty, 0)
@@ -74,7 +72,7 @@ LEFT JOIN LATERAL (
     WHERE ett.events_id = e.events_id AND ett.is_active = true
 ) ettp ON true
 LEFT JOIN LATERAL (
-    SELECT SUM(ett.max_quantity) AS total_qty
+    SELECT SUM(ett.capacity) AS total_qty
     FROM event_ticket_types ett
     WHERE ett.events_id = e.events_id AND ett.is_active = true
 ) ett_cap ON true

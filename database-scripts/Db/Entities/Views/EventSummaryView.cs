@@ -14,7 +14,6 @@ public class EventSummaryView
     public bool IsFeatured { get; set; }
     public string LayoutMode { get; set; } = null!;
     public int? PricePerPersonCents { get; set; }
-    public int? MaxCapacity { get; set; }
     public Guid VenueId { get; set; }
     public string VenueName { get; set; } = null!;
     public string VenueCity { get; set; } = null!;

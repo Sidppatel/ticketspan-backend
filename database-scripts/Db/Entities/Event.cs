@@ -24,7 +24,6 @@ public class Event : BaseEntity
     /// </summary>
     public EventType EventType { get; set; } = EventType.Open;
 
-    public int? MaxCapacity { get; set; }
     public DateTime? PublishedAt { get; set; }
     public DateTime? ScheduledPublishAt { get; set; }
 

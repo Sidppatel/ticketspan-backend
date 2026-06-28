@@ -10,6 +10,9 @@ public class EventTicketType : BaseEntity
     public Guid? FeeFormulasId { get; set; }
     public FeeFormula? FeeFormula { get; set; }
     public int? MaxQuantity { get; set; }
+
+    /// <summary>Seats this tier contributes to the event's calculated capacity. Null = uncapped.</summary>
+    public int? Capacity { get; set; }
     public int SortOrder { get; set; }
     public string? Description { get; set; }
     public bool IsActive { get; set; } = true;

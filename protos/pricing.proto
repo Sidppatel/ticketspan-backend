@@ -80,6 +80,7 @@ message PriceRule {
   bool is_active = 11;
   string scope = 12;                 // Price | Event
   string events_id = 13;             // set when scope = Event; empty otherwise
+  int32 capacity = 14;               // discount applies only to this many people/seats (0 = no cap)
 }
 
 message CreatePriceRuleRequest {
@@ -95,6 +96,7 @@ message CreatePriceRuleRequest {
   int32 min_remaining = 8;
   int32 max_remaining = 9;
   string scope = 10;                 // Price | Event; empty = Price
+  int32 capacity = 11;               // discount applies only to this many people/seats (0 = no cap)
 }
 
 message UpdatePriceRuleRequest {
@@ -108,6 +110,7 @@ message UpdatePriceRuleRequest {
   int32 min_remaining = 8;
   int32 max_remaining = 9;
   bool is_active = 10;
+  int32 capacity = 11;               // discount applies only to this many people/seats (0 = no cap)
 }
 
 message ListPriceRulesResponse {

@@ -13,7 +13,6 @@ public class EventView
     public string? ImagePath { get; set; }
     public bool IsFeatured { get; set; }
     public string LayoutMode { get; set; } = null!;
-    public int? MaxCapacity { get; set; }
     public int? PricePerPersonCents { get; set; }
     public DateTime? PublishedAt { get; set; }
     public DateTime? ScheduledPublishAt { get; set; }

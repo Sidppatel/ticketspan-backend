@@ -108,7 +108,7 @@ public sealed class PricingServiceImpl : PricingService.PricingServiceBase
         RequireTenant();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT sp_create_price_rule(@owner, @name, @type, @prio, @price, @from, @until, @min, @max, @scope)", connection);
+            "SELECT sp_create_price_rule(@owner, @name, @type, @prio, @price, @from, @until, @min, @max, @cap, @scope)", connection);
         cmd.Parameters.AddWithValue("owner", Guid.Parse(request.OwnerId));
         cmd.Parameters.AddWithValue("name", request.Name);
         cmd.Parameters.AddWithValue("type", string.IsNullOrEmpty(request.RuleType) ? "TimeWindow" : request.RuleType);
@@ -118,6 +118,7 @@ public sealed class PricingServiceImpl : PricingService.PricingServiceBase
         cmd.Parameters.AddWithValue("until", ToTimestamp(request.ActiveUntil));
         cmd.Parameters.AddWithValue("min", request.MinRemaining < 0 ? DBNull.Value : request.MinRemaining);
         cmd.Parameters.AddWithValue("max", request.MaxRemaining < 0 ? DBNull.Value : request.MaxRemaining);
+        cmd.Parameters.AddWithValue("cap", request.Capacity == 0 ? DBNull.Value : request.Capacity);
         cmd.Parameters.AddWithValue("scope", string.IsNullOrEmpty(request.Scope) ? "Price" : request.Scope);
         var id = (Guid)(await cmd.ExecuteScalarAsync(ct))!;
         return new UuidValue { Value = id.ToString() };
@@ -129,7 +130,7 @@ public sealed class PricingServiceImpl : PricingService.PricingServiceBase
         RequireTenant();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT sp_update_price_rule(@id, @name, @type, @prio, @price, @from, @until, @min, @max, @active)", connection);
+            "SELECT sp_update_price_rule(@id, @name, @type, @prio, @price, @from, @until, @min, @max, @active, @cap)", connection);
         cmd.Parameters.AddWithValue("id", Guid.Parse(request.PriceRulesId));
         cmd.Parameters.AddWithValue("name", request.Name);
         cmd.Parameters.AddWithValue("type", string.IsNullOrEmpty(request.RuleType) ? "TimeWindow" : request.RuleType);
@@ -140,6 +141,7 @@ public sealed class PricingServiceImpl : PricingService.PricingServiceBase
         cmd.Parameters.AddWithValue("min", request.MinRemaining < 0 ? DBNull.Value : request.MinRemaining);
         cmd.Parameters.AddWithValue("max", request.MaxRemaining < 0 ? DBNull.Value : request.MaxRemaining);
         cmd.Parameters.AddWithValue("active", request.IsActive);
+        cmd.Parameters.AddWithValue("cap", request.Capacity == 0 ? DBNull.Value : request.Capacity);
         await cmd.ExecuteNonQueryAsync(ct);
         return new AckResponse { Success = true, Message = "Price rule updated" };
     }
@@ -178,7 +180,8 @@ public sealed class PricingServiceImpl : PricingService.PricingServiceBase
                 MaxRemaining = reader.IsDBNull(9) ? -1 : reader.GetInt32(9),
                 IsActive = reader.GetBoolean(10),
                 Scope = reader.IsDBNull(11) ? "Price" : reader.GetString(11),
-                EventsId = reader.IsDBNull(12) ? string.Empty : reader.GetGuid(12).ToString()
+                EventsId = reader.IsDBNull(12) ? string.Empty : reader.GetGuid(12).ToString(),
+                Capacity = reader.IsDBNull(13) ? 0 : reader.GetInt32(13)
             });
         }
         return response;

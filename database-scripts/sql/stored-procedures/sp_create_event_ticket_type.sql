@@ -1,5 +1,6 @@
 DROP FUNCTION IF EXISTS sp_create_event_ticket_type(uuid, text, int, int, int, int, text);
 DROP FUNCTION IF EXISTS sp_create_event_ticket_type(uuid, text, int, uuid, int, int, text);
+DROP FUNCTION IF EXISTS sp_create_event_ticket_type(uuid, text, int, uuid, int, int, int, text);
 
 -- Creates an open-seating ticket tier and links it to a real Pricing Module price
 -- (pricing_type='TicketTier') so each tier (VIP / GA / Early Bird) carries its own
@@ -8,7 +9,7 @@ DROP FUNCTION IF EXISTS sp_create_event_ticket_type(uuid, text, int, uuid, int, 
 CREATE OR REPLACE FUNCTION sp_create_event_ticket_type(
     p_event_id uuid, p_label text, p_price_cents int,
     p_fee_formulas_id uuid, p_max_quantity int, p_sort_order int,
-    p_description text DEFAULT NULL
+    p_capacity int DEFAULT NULL, p_description text DEFAULT NULL
 ) RETURNS uuid LANGUAGE plpgsql
     SET search_path = public, extensions, pg_catalog
 AS $$
@@ -33,11 +34,11 @@ BEGIN
 
     INSERT INTO event_ticket_types (tenants_id, events_id, label, price_cents,
         fee_formulas_id, platform_fee_cents, prices_id,
-        max_quantity, sort_order, description, is_active, created_at, updated_at)
+        max_quantity, capacity, sort_order, description, is_active, created_at, updated_at)
     VALUES (v_tenant,
         p_event_id, p_label, p_price_cents,
         p_fee_formulas_id, app.compute_fee(p_price_cents, v_formula), v_prices_id,
-        p_max_quantity, p_sort_order, p_description, true, now(), now())
+        p_max_quantity, p_capacity, p_sort_order, p_description, true, now(), now())
     RETURNING event_ticket_types_id INTO v_id;
     RETURN v_id;
 END; $$;
