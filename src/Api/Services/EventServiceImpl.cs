@@ -239,6 +239,112 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         return response;
     }
 
+    public override async Task<ListScheduleItemsResponse> ListScheduleItems(UuidValue request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        var response = new ListScheduleItemsResponse();
+        await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await using var cmd = new NpgsqlCommand(
+            "SELECT schedule_items_id, events_id, title, type_category, start_time, end_time "
+            + "FROM vw_schedule_items WHERE events_id = @ev ORDER BY start_time", connection);
+        cmd.Parameters.AddWithValue("ev", Guid.Parse(request.Value));
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            response.Items.Add(MapScheduleItem(reader));
+        }
+        return response;
+    }
+
+    public override async Task<UuidValue> CreateScheduleItem(CreateScheduleItemRequest request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        RequireTenant();
+        if (tenantContext.TenantsId is null)
+        {
+            throw new RpcException(new Status(StatusCode.Unauthenticated, "Authenticated tenant user required"));
+        }
+        if (request.EndTime <= request.StartTime)
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "End time must be after start time"));
+        }
+        await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await using var cmd = new NpgsqlCommand(
+            "SELECT sp_create_schedule_item(@ev, @t, @title, @cat, @start, @end)", connection);
+        cmd.Parameters.AddWithValue("ev", Guid.Parse(request.EventsId));
+        cmd.Parameters.AddWithValue("t", tenantContext.TenantsId!.Value);
+        cmd.Parameters.AddWithValue("title", request.Title);
+        cmd.Parameters.AddWithValue("cat", request.TypeCategory);
+        cmd.Parameters.AddWithValue("start", DateTimeOffset.FromUnixTimeSeconds(request.StartTime).UtcDateTime);
+        cmd.Parameters.AddWithValue("end", DateTimeOffset.FromUnixTimeSeconds(request.EndTime).UtcDateTime);
+        try
+        {
+            var id = (Guid)(await cmd.ExecuteScalarAsync(ct))!;
+            return new UuidValue { Value = id.ToString() };
+        }
+        catch (PostgresException ex)
+        {
+            throw MapPostgres(ex);
+        }
+    }
+
+    public override async Task<AckResponse> UpdateScheduleItem(UpdateScheduleItemRequest request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        RequireTenant();
+        if (request.StartTime != 0 && request.EndTime != 0 && request.EndTime <= request.StartTime)
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "End time must be after start time"));
+        }
+        await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await using var cmd = new NpgsqlCommand(
+            "SELECT sp_update_schedule_item(@id, @title, @cat, @start, @end)", connection);
+        cmd.Parameters.AddWithValue("id", Guid.Parse(request.ScheduleItemsId));
+        cmd.Parameters.AddWithValue("title", (object?)NullIfEmpty(request.Title) ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("cat", (object?)NullIfEmpty(request.TypeCategory) ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("start", request.StartTime == 0 ? DBNull.Value : DateTimeOffset.FromUnixTimeSeconds(request.StartTime).UtcDateTime);
+        cmd.Parameters.AddWithValue("end", request.EndTime == 0 ? DBNull.Value : DateTimeOffset.FromUnixTimeSeconds(request.EndTime).UtcDateTime);
+        try
+        {
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+        catch (PostgresException ex)
+        {
+            throw MapPostgres(ex);
+        }
+        return new AckResponse { Success = true, Message = "Schedule item updated" };
+    }
+
+    public override async Task<AckResponse> DeleteScheduleItem(UuidValue request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        RequireTenant();
+        await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await using var cmd = new NpgsqlCommand("SELECT sp_delete_schedule_item(@id)", connection);
+        cmd.Parameters.AddWithValue("id", Guid.Parse(request.Value));
+        await cmd.ExecuteNonQueryAsync(ct);
+        return new AckResponse { Success = true, Message = "Schedule item deleted" };
+    }
+
+    private static ScheduleItem MapScheduleItem(NpgsqlDataReader r) => new()
+    {
+        ScheduleItemsId = r.GetGuid(0).ToString(),
+        EventsId = r.GetGuid(1).ToString(),
+        Title = r.GetString(2),
+        TypeCategory = r.GetString(3),
+        StartTime = new DateTimeOffset(r.GetDateTime(4), TimeSpan.Zero).ToUnixTimeSeconds(),
+        EndTime = new DateTimeOffset(r.GetDateTime(5), TimeSpan.Zero).ToUnixTimeSeconds()
+    };
+
+    private static RpcException MapPostgres(PostgresException ex) => ex.SqlState switch
+    {
+        "P0002" => new RpcException(new Status(StatusCode.NotFound, ex.MessageText)),
+        "22023" => new RpcException(new Status(StatusCode.FailedPrecondition, ex.MessageText)),
+        "23P01" => new RpcException(new Status(StatusCode.FailedPrecondition, ex.MessageText)),
+        "23514" => new RpcException(new Status(StatusCode.FailedPrecondition, ex.MessageText)),
+        _ => new RpcException(new Status(StatusCode.Internal, ex.MessageText))
+    };
+
     private const string EventSelect =
         "SELECT events_id, title, slug, description, status, category, start_date, end_date, image_path, "
         + "is_featured, layout_mode, total_capacity, venues_id, performers::text, sponsors::text, fees_included, event_type FROM vw_events";

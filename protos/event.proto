@@ -17,6 +17,39 @@ service EventService {
   rpc ChangeEventStatus (ChangeEventStatusRequest) returns (svyne.common.AckResponse);
   rpc GetEventStats (svyne.common.UuidValue) returns (EventStats);
   rpc SetEventFeesIncluded (SetEventFeesIncludedRequest) returns (svyne.common.AckResponse);
+  rpc ListScheduleItems (svyne.common.UuidValue) returns (ListScheduleItemsResponse);
+  rpc CreateScheduleItem (CreateScheduleItemRequest) returns (svyne.common.UuidValue);
+  rpc UpdateScheduleItem (UpdateScheduleItemRequest) returns (svyne.common.AckResponse);
+  rpc DeleteScheduleItem (svyne.common.UuidValue) returns (svyne.common.AckResponse);
+}
+
+message ScheduleItem {
+  string schedule_items_id = 1;
+  string events_id = 2;
+  string title = 3;
+  string type_category = 4;
+  int64 start_time = 5;
+  int64 end_time = 6;
+}
+
+message ListScheduleItemsResponse {
+  repeated ScheduleItem items = 1;
+}
+
+message CreateScheduleItemRequest {
+  string events_id = 1;
+  string title = 2;
+  string type_category = 3;
+  int64 start_time = 4;
+  int64 end_time = 5;
+}
+
+message UpdateScheduleItemRequest {
+  string schedule_items_id = 1;
+  string title = 2;
+  string type_category = 3;
+  int64 start_time = 4;
+  int64 end_time = 5;
 }
 
 message SetEventFeesIncludedRequest {

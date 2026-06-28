@@ -20,7 +20,8 @@ Client setup (React/Next.js/mobile, codegen, auth interceptor): see [FRONTEND_IN
 - `UpdateTenant`, `ArchiveTenant`, `GetTenant`, `ListTenants`, `ListTenantMembers`, `GetTenantStripeStatus`.
 
 ### EventService (event.proto)
-- `CreateEvent`, `UpdateEvent`, `DeleteEvent`, `GetEvent`, `GetEventBySlug`, `ListEvents`, `SearchEvents`, `ChangeEventStatus`, `GetEventStats`.
+- `CreateEvent`, `UpdateEvent`, `DeleteEvent`, `GetEvent`, `GetEventBySlug`, `ListEvents`, `SearchEvents`, `ChangeEventStatus`, `GetEventStats`, `SetEventFeesIncluded`.
+- Schedule timeline: `ListScheduleItems(UuidValue events_id)` → `ListScheduleItemsResponse`; `CreateScheduleItem(events_id, title, type_category, start_time, end_time)` → `UuidValue`; `UpdateScheduleItem(schedule_items_id, title, type_category, start_time, end_time)` → `AckResponse` (empty/0 fields = unchanged); `DeleteScheduleItem(UuidValue)` → `AckResponse`. Times are int64 unix seconds. Constraints (enforced in `sp_*`, returned as `FailedPrecondition`): `end_time > start_time`, item within the event's `[start_date, end_date]` window, no overlap with sibling items; `type_category` ∈ {Performance, Break, Intermission, DJ Set, Networking, Other}. Items are always returned ordered by `start_time`.
 
 ### VenueService / PerformerService / SponsorService (catalog.proto)
 - Venue: Create/Update/Get/List. Performer & Sponsor: Create/Update/Delete/List + SetEvent{Performers,Sponsors}.

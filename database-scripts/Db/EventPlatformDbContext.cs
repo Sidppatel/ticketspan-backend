@@ -25,6 +25,7 @@ public class EventPlatformDbContext(
     public DbSet<TableTemplatePriceRule> TableTemplatePriceRules => Set<TableTemplatePriceRule>();
 
     public DbSet<Event> Events => Set<Event>();
+    public DbSet<ScheduleItem> ScheduleItems => Set<ScheduleItem>();
     public DbSet<Performer> Performers => Set<Performer>();
     public DbSet<EventPerformer> EventPerformers => Set<EventPerformer>();
     public DbSet<Sponsor> Sponsors => Set<Sponsor>();
@@ -635,6 +636,25 @@ public class EventPlatformDbContext(
             entity.HasGeneratedTsVectorColumn(e => e.SearchVector, "english", e => new { e.Title, Description = e.Description! })
                   .HasIndex(e => e.SearchVector).HasMethod("GIN");
 #pragma warning restore CS8603
+        });
+
+        modelBuilder.Entity<ScheduleItem>(entity =>
+        {
+            entity.ToTable("schedule_items", t =>
+            {
+                t.HasCheckConstraint("CK_schedule_items_TypeCategory",
+                    "type_category IN ('Performance','Break','Intermission','DJ Set','Networking','Other')");
+                t.HasCheckConstraint("CK_schedule_items_TimeRange", "end_time > start_time");
+            });
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.TenantsId);
+            entity.HasIndex(e => new { e.EventsId, e.StartTime });
+            entity.Property(e => e.Title).HasMaxLength(256).IsRequired();
+            entity.Property(e => e.TypeCategory).HasMaxLength(32).IsRequired();
+            entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Event).WithMany().HasForeignKey(e => e.EventsId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<UserEvent>(entity =>
