@@ -14,6 +14,7 @@ service TenantService {
   rpc GetMyTenant (svyne.common.Empty) returns (Tenant);
   rpc UpdateMyTenantContact (UpdateMyTenantContactRequest) returns (svyne.common.AckResponse);
   rpc UpdateMyTenantBranding (UpdateMyTenantBrandingRequest) returns (svyne.common.AckResponse);
+  rpc GetPublicTenantBranding (PublicTenantBrandingRequest) returns (PublicTenantBranding);
   rpc ListTenants (svyne.common.PageRequest) returns (ListTenantsResponse);
   rpc ListPublicTenants (svyne.common.Empty) returns (ListPublicTenantsResponse);
   rpc ListTenantMembers (svyne.common.UuidValue) returns (ListTenantMembersResponse);
@@ -65,6 +66,10 @@ message Tenant {
   string brand_primary = 18;
   string brand_secondary = 19;
   string brand_accent = 20;
+  string brand_background = 21;
+  string brand_text = 22;
+  string brand_button = 23;
+  string brand_highlight = 24;
 }
 
 message UpdateMyTenantBrandingRequest {
@@ -72,6 +77,27 @@ message UpdateMyTenantBrandingRequest {
   string brand_primary = 2;
   string brand_secondary = 3;
   string brand_accent = 4;
+  string brand_background = 5;
+  string brand_text = 6;
+  string brand_button = 7;
+  string brand_highlight = 8;
+}
+
+message PublicTenantBrandingRequest {
+  string slug = 1;
+}
+
+message PublicTenantBranding {
+  string slug = 1;
+  string name = 2;
+  string logo_url = 3;
+  string brand_primary = 4;
+  string brand_secondary = 5;
+  string brand_accent = 6;
+  string brand_background = 7;
+  string brand_text = 8;
+  string brand_button = 9;
+  string brand_highlight = 10;
 }
 
 message UpdateMyTenantContactRequest {

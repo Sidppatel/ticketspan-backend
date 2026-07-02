@@ -277,7 +277,8 @@ public sealed class TenantServiceImpl : TenantService.TenantServiceBase
             "SELECT tenants_id, slug, name, legal_name, country_code, "
             + "COALESCE(phone, ''), COALESCE(address_line1, ''), COALESCE(address_line2, ''), "
             + "COALESCE(city, ''), COALESCE(state, ''), COALESCE(zip, ''), "
-            + "logo_images_id, COALESCE(brand_primary, ''), COALESCE(brand_secondary, ''), COALESCE(brand_accent, '') "
+            + "logo_images_id, COALESCE(brand_primary, ''), COALESCE(brand_secondary, ''), COALESCE(brand_accent, ''), "
+            + "COALESCE(brand_background, ''), COALESCE(brand_text, ''), COALESCE(brand_button, ''), COALESCE(brand_highlight, '') "
             + "FROM sp_get_my_tenant(@u)", connection);
         cmd.Parameters.AddWithValue("u", usersId);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -303,7 +304,47 @@ public sealed class TenantServiceImpl : TenantService.TenantServiceBase
             LogoUrl = logoImagesId is { } logo ? $"{baseUrl}/images/{logo}" : string.Empty,
             BrandPrimary = reader.GetString(12),
             BrandSecondary = reader.GetString(13),
-            BrandAccent = reader.GetString(14)
+            BrandAccent = reader.GetString(14),
+            BrandBackground = reader.GetString(15),
+            BrandText = reader.GetString(16),
+            BrandButton = reader.GetString(17),
+            BrandHighlight = reader.GetString(18)
+        };
+    }
+
+    public override async Task<PublicTenantBranding> GetPublicTenantBranding(PublicTenantBrandingRequest request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        if (string.IsNullOrWhiteSpace(request.Slug))
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "Tenant slug required"));
+        }
+        await using var connection = await db.OpenAsync(null, null, ct);
+        await using var cmd = new NpgsqlCommand(
+            "SELECT slug, name, logo_images_id, "
+            + "COALESCE(brand_primary, ''), COALESCE(brand_secondary, ''), COALESCE(brand_accent, ''), "
+            + "COALESCE(brand_background, ''), COALESCE(brand_text, ''), COALESCE(brand_button, ''), COALESCE(brand_highlight, '') "
+            + "FROM sp_get_public_tenant_branding(@slug)", connection);
+        cmd.Parameters.AddWithValue("slug", request.Slug);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct))
+        {
+            throw new RpcException(new Status(StatusCode.NotFound, "Tenant not found"));
+        }
+        var logoImagesId = reader.IsDBNull(2) ? (Guid?)null : reader.GetGuid(2);
+        var baseUrl = configuration["PUBLIC_BASE_URL"] ?? string.Empty;
+        return new PublicTenantBranding
+        {
+            Slug = reader.GetString(0),
+            Name = reader.GetString(1),
+            LogoUrl = logoImagesId is { } logo ? $"{baseUrl}/images/{logo}" : string.Empty,
+            BrandPrimary = reader.GetString(3),
+            BrandSecondary = reader.GetString(4),
+            BrandAccent = reader.GetString(5),
+            BrandBackground = reader.GetString(6),
+            BrandText = reader.GetString(7),
+            BrandButton = reader.GetString(8),
+            BrandHighlight = reader.GetString(9)
         };
     }
 
@@ -321,12 +362,16 @@ public sealed class TenantServiceImpl : TenantService.TenantServiceBase
         }
         await using var connection = await db.OpenAsync(usersId, tenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT sp_update_tenant_branding(@t, @logo, @primary, @secondary, @accent)", connection);
+            "SELECT sp_update_tenant_branding(@t, @logo, @primary, @secondary, @accent, @background, @text, @button, @highlight)", connection);
         cmd.Parameters.AddWithValue("t", tenantsId);
         cmd.Parameters.AddWithValue("logo", logo);
         cmd.Parameters.AddWithValue("primary", (object?)NullIfEmpty(request.BrandPrimary) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("secondary", (object?)NullIfEmpty(request.BrandSecondary) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("accent", (object?)NullIfEmpty(request.BrandAccent) ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("background", (object?)NullIfEmpty(request.BrandBackground) ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("text", (object?)NullIfEmpty(request.BrandText) ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("button", (object?)NullIfEmpty(request.BrandButton) ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("highlight", (object?)NullIfEmpty(request.BrandHighlight) ?? DBNull.Value);
         await cmd.ExecuteNonQueryAsync(ct);
         return new AckResponse { Success = true, Message = "Tenant branding updated" };
     }

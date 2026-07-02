@@ -19,6 +19,11 @@ Client setup (React/Next.js/mobile, codegen, auth interceptor): see [FRONTEND_IN
 - `CreateTenant` → tenant + first admin (role 1) + magic-link setup URL.
 - `UpdateTenant`, `ArchiveTenant`, `GetTenant`, `ListTenants`, `ListTenantMembers`, `GetTenantStripeStatus`.
 
+### TenantService — tenant admin + public branding
+- `GetMyTenant()` → Tenant (includes `logo_url` and the seven `brand_*` colors: primary, secondary, accent, background, text, button, highlight).
+- `UpdateMyTenantBranding(logo_images_id, brand_primary, brand_secondary, brand_accent, brand_background, brand_text, brand_button, brand_highlight)` → Ack. Calls `sp_update_tenant_branding`; empty color = cleared (falls back to platform defaults on the frontend).
+- `GetPublicTenantBranding(slug)` → PublicTenantBranding (name, logo_url, seven `brand_*` colors). Anonymous; used by the public portal to theme `events.{tenant}` pages via CSS variables. Reads `sp_get_public_tenant_branding`.
+
 ### EventService (event.proto)
 - `CreateEvent`, `UpdateEvent`, `DeleteEvent`, `GetEvent`, `GetEventBySlug`, `ListEvents`, `SearchEvents`, `ChangeEventStatus`, `GetEventStats`, `SetEventFeesIncluded`.
 - Schedule timeline: `ListScheduleItems(UuidValue events_id)` → `ListScheduleItemsResponse`; `CreateScheduleItem(events_id, title, type_category, start_time, end_time)` → `UuidValue`; `UpdateScheduleItem(schedule_items_id, title, type_category, start_time, end_time)` → `AckResponse` (empty/0 fields = unchanged); `DeleteScheduleItem(UuidValue)` → `AckResponse`. Times are int64 unix seconds. Constraints (enforced in `sp_*`, returned as `FailedPrecondition`): `end_time > start_time`, item within the event's `[start_date, end_date]` window, no overlap with sibling items; `type_category` ∈ {Performance, Break, Intermission, DJ Set, Networking, Other}. Items are always returned ordered by `start_time`.
