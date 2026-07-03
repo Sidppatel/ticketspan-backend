@@ -64,6 +64,7 @@ message Booking {
   int32 tickets_total = 15;
   // Tickets on this booking with status Claimed or CheckedIn.
   int32 tickets_claimed = 16;
+  string payment_transaction_id = 17;
 }
 
 // One line of a booking, for display on checkout / booking detail. Carries the

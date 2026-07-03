@@ -1,0 +1,143 @@
+syntax = "proto3";
+
+package svyne.reporting;
+
+option csharp_namespace = "Svyne.Protos.Reporting";
+
+import "common.proto";
+
+service ReportingService {
+  rpc GetReportingAccess (svyne.common.Empty) returns (ReportingAccess);
+  rpc GetReportSummary (ReportRangeRequest) returns (ReportSummary);
+  rpc GetRevenueTimeseries (TimeseriesRequest) returns (RevenueTimeseries);
+  rpc GetEventPerformance (ReportRangeRequest) returns (EventPerformanceList);
+  rpc GetTicketTypeBreakdown (ReportRangeRequest) returns (TicketTypeBreakdownList);
+  rpc GetSalesByChannel (ReportRangeRequest) returns (SalesByChannelList);
+}
+
+service TenantTierService {
+  rpc ListTenantReportingAccess (svyne.common.PageRequest) returns (TenantReportingAccessList);
+  rpc SetTenantTier (SetTenantTierRequest) returns (svyne.common.AckResponse);
+  rpc SetTenantAdvancedReporting (SetTenantAdvancedReportingRequest) returns (svyne.common.AckResponse);
+}
+
+message ReportingAccess {
+  string tier = 1;
+  bool has_advanced_reporting = 2;
+  bool advanced_reporting_override = 3;
+}
+
+message ReportRangeRequest {
+  int64 from_epoch_seconds = 1;
+  int64 to_epoch_seconds = 2;
+}
+
+message TimeseriesRequest {
+  int64 from_epoch_seconds = 1;
+  int64 to_epoch_seconds = 2;
+  // "day" | "week" | "month"; "year" requires advanced reporting.
+  string bucket = 3;
+}
+
+message ReportSummary {
+  int64 revenue_cents = 1;
+  int32 orders = 2;
+  int32 tickets_sold = 3;
+  int64 average_order_cents = 4;
+  int32 visits = 5;
+  int32 conversion_bps = 6;
+  int64 refunded_cents = 7;
+  int32 refunded_orders = 8;
+  int64 generated_at_epoch_seconds = 9;
+}
+
+message RevenueTimeseriesPoint {
+  int64 bucket_start_epoch_seconds = 1;
+  int64 revenue_cents = 2;
+  int32 orders = 3;
+  int32 tickets_sold = 4;
+}
+
+message RevenueTimeseries {
+  repeated RevenueTimeseriesPoint points = 1;
+  int64 generated_at_epoch_seconds = 2;
+}
+
+message EventPerformanceRow {
+  string events_id = 1;
+  string event_title = 2;
+  int64 event_start_epoch_seconds = 3;
+  string event_status = 4;
+  int64 revenue_cents = 5;
+  int32 orders = 6;
+  int32 tickets_sold = 7;
+  int32 checked_in = 8;
+  int32 attendance_rate_bps = 9;
+  // Advanced-only fields; zeroed for basic-tier tenants.
+  int32 capacity = 10;
+  int32 capacity_used_bps = 11;
+  int64 revenue_per_attendee_cents = 12;
+  int64 refunded_cents = 13;
+  int32 refunded_orders = 14;
+  int32 sales_per_day_milli = 15;
+}
+
+message EventPerformanceList {
+  repeated EventPerformanceRow rows = 1;
+  int64 generated_at_epoch_seconds = 2;
+}
+
+message TicketTypeBreakdownRow {
+  string event_ticket_types_id = 1;
+  string label = 2;
+  string events_id = 3;
+  string event_title = 4;
+  int64 price_cents = 5;
+  int32 quantity_sold = 6;
+  int64 revenue_cents = 7;
+  // Advanced-only fields; zeroed for basic-tier tenants.
+  int32 refunded_quantity = 8;
+  int64 refunded_cents = 9;
+}
+
+message TicketTypeBreakdownList {
+  repeated TicketTypeBreakdownRow rows = 1;
+  int64 generated_at_epoch_seconds = 2;
+}
+
+message SalesByChannelRow {
+  string channel = 1;
+  int32 orders = 2;
+  int32 tickets_sold = 3;
+  int64 revenue_cents = 4;
+}
+
+message SalesByChannelList {
+  repeated SalesByChannelRow rows = 1;
+  int64 generated_at_epoch_seconds = 2;
+}
+
+message TenantReportingAccessRow {
+  string tenants_id = 1;
+  string slug = 2;
+  string name = 3;
+  string tier = 4;
+  bool advanced_reporting_enabled = 5;
+  bool has_advanced_reporting = 6;
+  bool archived = 7;
+}
+
+message TenantReportingAccessList {
+  repeated TenantReportingAccessRow tenants = 1;
+  svyne.common.PageMeta meta = 2;
+}
+
+message SetTenantTierRequest {
+  string tenants_id = 1;
+  string tier = 2;
+}
+
+message SetTenantAdvancedReportingRequest {
+  string tenants_id = 1;
+  bool enabled = 2;
+}

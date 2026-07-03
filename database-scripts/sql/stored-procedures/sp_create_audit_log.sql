@@ -18,11 +18,13 @@ BEGIN
     END IF;
 
     INSERT INTO audit_logs (
-        audit_logs_id, created_at, event_type, actor_type, actor_id,
+        audit_logs_id, tenants_id, created_at, event_type, actor_type, actor_id,
         subject_type, subject_id, action, metadata_json, ip, correlation_id
     )
     VALUES (
-        gen_random_uuid(), now(), p_event_type, p_actor_type, p_actor_id,
+        gen_random_uuid(),
+        app.current_tenant(),
+        now(), p_event_type, p_actor_type, p_actor_id,
         p_subject_type, p_subject_id, p_action,
         CASE WHEN p_metadata_json IS NULL THEN NULL ELSE p_metadata_json::jsonb END,
         p_ip,

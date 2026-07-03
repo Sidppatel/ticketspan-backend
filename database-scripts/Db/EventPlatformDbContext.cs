@@ -123,6 +123,8 @@ public class EventPlatformDbContext(
             entity.Property(e => e.StripePayoutsEnabled).HasDefaultValue(false);
             entity.Property(e => e.StripeDetailsSubmitted).HasDefaultValue(false);
             entity.Property(e => e.StripeRequirementsDue).HasColumnType("jsonb");
+            entity.Property(e => e.Tier).HasMaxLength(32).HasDefaultValue("free");
+            entity.Property(e => e.AdvancedReportingEnabled).HasDefaultValue(false);
             entity.HasOne(e => e.DefaultFeeFormula).WithMany()
                 .HasForeignKey(e => e.DefaultFeeFormulasId)
                 .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
@@ -761,6 +763,7 @@ public class EventPlatformDbContext(
             entity.HasIndex(e => new { e.EventsId, e.UsersId, e.BookingNumber }).IsUnique();
             entity.HasIndex(e => e.QrToken).IsUnique().HasFilter("qr_token IS NOT NULL");
             entity.HasIndex(e => e.Status);
+            entity.Property(e => e.SalesChannel).HasMaxLength(32).HasDefaultValue("direct");
             entity.HasIndex(e => e.UsersId);
             entity.HasIndex(e => new { e.UsersId, e.CreatedAt });
             entity.HasIndex(e => new { e.EventsId, e.Status });

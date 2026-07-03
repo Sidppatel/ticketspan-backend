@@ -63,6 +63,8 @@ else
 {
     builder.Services.AddSingleton<Svyne.Api.Email.IEmailService, Svyne.Api.Email.LocalFileEmailService>();
 }
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<ReportingAccessProvider>();
 builder.Services.AddSingleton<PasswordHasher>();
 builder.Services.AddSingleton<JwtTokenService>();
 builder.Services.AddScoped<TenantContext>();
@@ -122,6 +124,8 @@ app.MapGrpcService<EnumServiceImpl>();
 app.MapGrpcService<FeeServiceImpl>();
 app.MapGrpcService<PricingServiceImpl>();
 app.MapGrpcService<FloorPlanServiceImpl>();
+app.MapGrpcService<ReportingServiceImpl>();
+app.MapGrpcService<TenantTierServiceImpl>();
 app.MapGet("/", () => "Svyne gRPC API");
 app.MapGet("/health/live", () => Results.Ok("live"));
 app.MapGet("/health/ready", async (Db db, CancellationToken ct) =>

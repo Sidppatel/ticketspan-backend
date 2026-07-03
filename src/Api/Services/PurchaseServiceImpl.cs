@@ -500,14 +500,13 @@ public sealed class BookingServiceImpl : BookingService.BookingServiceBase
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
             BookingSelect + " WHERE (@ev = '00000000-0000-0000-0000-000000000000' OR b.events_id = @ev) "
-            + "AND (@status = '' OR b.status = @status) "
+            + "AND b.status = 'Paid' "
             + "AND (@q = '' OR b.booking_number ILIKE @q OR b.event_title ILIKE @q OR EXISTS ("
             + "SELECT 1 FROM booking_lines bl LEFT JOIN users gu ON gu.users_id = bl.guest_users_id "
             + "WHERE bl.bookings_id = b.bookings_id AND (bl.ticket_code ILIKE @q OR gu.email ILIKE @q "
             + "OR gu.first_name ILIKE @q OR gu.last_name ILIKE @q))) "
             + "ORDER BY b.created_at DESC LIMIT @lim OFFSET @off", connection);
         cmd.Parameters.AddWithValue("ev", string.IsNullOrEmpty(request.EventsId) ? Guid.Empty : Guid.Parse(request.EventsId));
-        cmd.Parameters.AddWithValue("status", request.Status ?? string.Empty);
         var search = page.Search ?? string.Empty;
         cmd.Parameters.AddWithValue("q", search.Length == 0 ? string.Empty : "%" + search + "%");
         cmd.Parameters.AddWithValue("lim", page.Limit <= 0 ? 25 : page.Limit);
@@ -525,7 +524,8 @@ public sealed class BookingServiceImpl : BookingService.BookingServiceBase
         "SELECT b.bookings_id, b.booking_number, b.status, b.users_id, b.events_id, b.subtotal_cents, b.fee_cents, b.total_cents, "
         + "COALESCE(b.seats_reserved, 0), COALESCE(b.event_title, ''), COALESCE(b.event_slug, ''), b.event_start_date, "
         + "(SELECT COUNT(*) FROM booking_lines bl WHERE bl.bookings_id = b.bookings_id AND bl.kind = 'Ticket')::int, "
-        + "(SELECT COUNT(*) FROM booking_lines bl WHERE bl.bookings_id = b.bookings_id AND bl.kind = 'Ticket' AND bl.status IN ('Claimed', 'CheckedIn'))::int "
+        + "(SELECT COUNT(*) FROM booking_lines bl WHERE bl.bookings_id = b.bookings_id AND bl.kind = 'Ticket' AND bl.status IN ('Claimed', 'CheckedIn'))::int, "
+        + "(SELECT payment_intent_id FROM stripe_transactions st WHERE st.bookings_id = b.bookings_id LIMIT 1) "
         + "FROM vw_bookings b";
 
     private static Booking MapBooking(NpgsqlDataReader r) => new()
@@ -533,7 +533,6 @@ public sealed class BookingServiceImpl : BookingService.BookingServiceBase
         BookingsId = r.GetGuid(0).ToString(),
         BookingNumber = r.GetString(1),
         Status = r.GetString(2),
-        UsersId = r.IsDBNull(3) ? string.Empty : r.GetGuid(3).ToString(),
         EventsId = r.IsDBNull(4) ? string.Empty : r.GetGuid(4).ToString(),
         SubtotalCents = r.GetInt32(5),
         FeeCents = r.GetInt32(6),
@@ -543,7 +542,8 @@ public sealed class BookingServiceImpl : BookingService.BookingServiceBase
         EventSlug = r.GetString(10),
         EventStartDate = r.IsDBNull(11) ? 0 : new DateTimeOffset(r.GetDateTime(11), TimeSpan.Zero).ToUnixTimeSeconds(),
         TicketsTotal = r.GetInt32(12),
-        TicketsClaimed = r.GetInt32(13)
+        TicketsClaimed = r.GetInt32(13),
+        PaymentTransactionId = r.IsDBNull(14) ? string.Empty : r.GetString(14)
     };
 
     private void RequireUser()

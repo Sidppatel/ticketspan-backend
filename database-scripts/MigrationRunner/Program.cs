@@ -32,7 +32,7 @@ if (args.Contains("--reload-sql"))
     
     var conn = ctx.Database.GetDbConnection();
     if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync();
-    foreach (var folder in new[] { "functions", "views", "stored-procedures", "policies" })
+    foreach (var folder in new[] { "functions", "views", "stored-procedures", "policies", "security" })
     {
         var dir = Path.Combine(sqlRoot, folder);
         if (Directory.Exists(dir))

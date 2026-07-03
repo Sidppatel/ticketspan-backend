@@ -22,6 +22,12 @@ public class Booking : BaseEntity
     public string? QrToken { get; set; }
 
     /// <summary>
+    /// Acquisition channel captured at booking time: direct | social | email |
+    /// qr | partner. Feeds the sales-by-channel report; never buyer-visible.
+    /// </summary>
+    public string SalesChannel { get; set; } = "direct";
+
+    /// <summary>
     /// Hard expiry for an unpaid Pending hold. NULL once Paid/Cancelled/Expired.
     /// Seats/tables are reserved only while this is in the future.
     /// </summary>
