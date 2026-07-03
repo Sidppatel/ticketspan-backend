@@ -8,7 +8,7 @@ AS $$
 DECLARE v_tenant uuid; r record; v_et uuid; v_formula uuid;
 BEGIN
     SELECT tenants_id INTO v_tenant FROM events WHERE events_id = p_event_id;
-    v_formula := app.resolve_fee_formula(NULL, v_tenant);
+    v_formula := app.resolve_fee_formula(NULL, p_event_id, v_tenant);
 
     FOR r IN SELECT * FROM floor_plan_template_tables WHERE floor_plan_templates_id = p_template_id
     LOOP

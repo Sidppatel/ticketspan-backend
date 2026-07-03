@@ -17,6 +17,7 @@ DECLARE
     v_slug text;
     v_event_type text;
 BEGIN
+    PERFORM app.assert_tenant_sellable(p_tenants_id);
     -- Until the admin UI exposes a dedicated type selector it only sends
     -- layout_mode (Grid = "Table based", Open = "Open seating"). Derive event_type
     -- from it when the caller doesn't pass one explicitly.

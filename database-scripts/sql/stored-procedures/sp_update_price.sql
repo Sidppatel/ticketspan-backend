@@ -8,7 +8,7 @@ CREATE OR REPLACE FUNCTION sp_update_price(
 ) RETURNS void LANGUAGE plpgsql
     SET search_path = public, extensions, pg_catalog
 AS $$
-DECLARE v_tenant uuid; v_formula uuid; v_fee int;
+DECLARE v_tenant uuid; v_event uuid; v_formula uuid; v_fee int;
 BEGIN
     UPDATE prices SET
         name = p_name,
@@ -20,9 +20,9 @@ BEGIN
         fee_formulas_id = CASE WHEN p_allow_fee_override THEN p_fee_formulas_id ELSE fee_formulas_id END,
         updated_at = now()
     WHERE prices_id = p_prices_id
-    RETURNING tenants_id, fee_formulas_id INTO v_tenant, v_formula;
+    RETURNING tenants_id, events_id, fee_formulas_id INTO v_tenant, v_event, v_formula;
 
-    v_formula := app.resolve_fee_formula(v_formula, v_tenant);
+    v_formula := app.resolve_fee_formula(v_formula, v_event, v_tenant);
     v_fee := app.compute_fee(p_base_price_cents, v_formula);
 
     UPDATE event_ticket_types SET price_cents = p_base_price_cents,

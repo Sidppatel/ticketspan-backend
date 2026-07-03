@@ -3,9 +3,13 @@ CREATE OR REPLACE FUNCTION sp_change_event_status(
 ) RETURNS void LANGUAGE plpgsql
     SET search_path = public, extensions, pg_catalog
 AS $$
-DECLARE v_current text; v_sold int;
+DECLARE v_current text; v_sold int; v_tenant uuid;
 BEGIN
-    SELECT status INTO v_current FROM events WHERE events_id = p_id;
+    SELECT status, tenants_id INTO v_current, v_tenant FROM events WHERE events_id = p_id;
+
+    IF p_status = 'Published' THEN
+        PERFORM app.assert_tenant_sellable(v_tenant);
+    END IF;
 
     IF p_status = 'Draft' AND v_current IS DISTINCT FROM 'Draft' THEN
         SELECT COALESCE(SUM(bl.seats), 0)::int INTO v_sold

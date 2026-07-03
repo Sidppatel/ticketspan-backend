@@ -30,7 +30,7 @@ BEGIN
 
     -- Auto-apply the tenant's default fee when the admin sets no explicit override,
     -- so every new tier carries the tenant fee (the developer override wins when set).
-    v_formula := app.resolve_fee_formula(p_fee_formulas_id, v_tenant);
+    v_formula := app.resolve_fee_formula(p_fee_formulas_id, p_event_id, v_tenant);
 
     INSERT INTO event_ticket_types (tenants_id, events_id, label, price_cents,
         fee_formulas_id, platform_fee_cents, prices_id,

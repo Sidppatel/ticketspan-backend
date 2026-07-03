@@ -36,6 +36,17 @@ public class Event : BaseEntity
 
     public string Meta { get; set; } = "[]";
 
+    /// <summary>
+    /// Event-level fee-formula override (developer-only). Beats the tenant
+    /// default; a price-level formula still beats this. Set by Pay Per Event
+    /// activation or a manual event fee override. Silent to tenants.
+    /// </summary>
+    public Guid? FeeFormulasId { get; set; }
+    public FeeFormula? FeeFormula { get; set; }
+
+    /// <summary>Optional expiry for the event fee override; ignored after this instant.</summary>
+    public DateTime? FeeOverrideExpiresAt { get; set; }
+
     public NpgsqlTsVector? SearchVector { get; set; }
 
     public Guid TenantsId { get; set; }

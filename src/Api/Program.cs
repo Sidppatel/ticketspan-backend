@@ -74,6 +74,7 @@ builder.Services.AddSingleton<Svyne.Api.Storage.ObjectStorage>();
 builder.Services.AddSingleton<Svyne.Api.Payments.StripeService>();
 builder.Services.AddSingleton<Svyne.Api.Payments.StripeWebhookHandler>();
 builder.Services.AddHostedService<Svyne.Api.Payments.HoldExpiryWorker>();
+builder.Services.AddHostedService<Svyne.Api.Payments.BillingWorker>();
 
 var jwtService = new JwtTokenService(builder.Configuration);
 var validation = jwtService.ValidationParameters;
@@ -129,6 +130,7 @@ app.MapGrpcService<PricingServiceImpl>();
 app.MapGrpcService<FloorPlanServiceImpl>();
 app.MapGrpcService<ReportingServiceImpl>();
 app.MapGrpcService<TenantTierServiceImpl>();
+app.MapGrpcService<DeveloperBillingServiceImpl>();
 app.MapGet("/", () => "Svyne gRPC API");
 app.MapGet("/health/live", () => Results.Ok("live"));
 app.MapGet("/health/ready", async (Db db, CancellationToken ct) =>

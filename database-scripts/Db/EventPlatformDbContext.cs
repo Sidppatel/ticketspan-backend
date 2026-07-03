@@ -55,6 +55,11 @@ public class EventPlatformDbContext(
 
     public DbSet<Feedback> Feedbacks => Set<Feedback>();
 
+    public DbSet<TenantSubscription> TenantSubscriptions => Set<TenantSubscription>();
+    public DbSet<EventUpgrade> EventUpgrades => Set<EventUpgrade>();
+    public DbSet<TenantAddon> TenantAddons => Set<TenantAddon>();
+    public DbSet<BillingCharge> BillingCharges => Set<BillingCharge>();
+
     public DbSet<EmailLog> EmailLogs => Set<EmailLog>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
@@ -423,6 +428,92 @@ public class EventPlatformDbContext(
                 .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
         });
 
+        modelBuilder.Entity<TenantSubscription>(entity =>
+        {
+            entity.ToTable("tenant_subscriptions", t =>
+            {
+                t.HasCheckConstraint("CK_tenant_subscriptions_Tier",
+                    "tier IN ('starter','professional','business','enterprise')");
+                t.HasCheckConstraint("CK_tenant_subscriptions_Status",
+                    "status IN ('trial','active','past_due','canceled','expired')");
+            });
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.TenantsId);
+            // At most one live subscription/trial per tenant.
+            entity.HasIndex(e => e.TenantsId).IsUnique()
+                .HasDatabaseName("IX_tenant_subscriptions_live")
+                .HasFilter("status IN ('trial','active','past_due')");
+            entity.Property(e => e.Tier).HasMaxLength(32);
+            entity.Property(e => e.Status).HasMaxLength(16).HasDefaultValue("active");
+            entity.Property(e => e.PendingTier).HasMaxLength(32);
+            entity.Property(e => e.StripeSubscriptionId).HasMaxLength(128);
+            entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<EventUpgrade>(entity =>
+        {
+            entity.ToTable("event_upgrades", t =>
+            {
+                t.HasCheckConstraint("CK_event_upgrades_Tier",
+                    "tier IN ('starter_event','pro_event','business_event','enterprise_event')");
+                t.HasCheckConstraint("CK_event_upgrades_Status",
+                    "status IN ('active','canceled','refunded')");
+            });
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.TenantsId);
+            entity.HasIndex(e => e.EventsId).IsUnique()
+                .HasDatabaseName("IX_event_upgrades_live")
+                .HasFilter("status = 'active'");
+            entity.Property(e => e.Tier).HasMaxLength(32);
+            entity.Property(e => e.Status).HasMaxLength(16).HasDefaultValue("active");
+            entity.Property(e => e.StripePaymentIntentId).HasMaxLength(128);
+            entity.HasOne(e => e.Event).WithMany().HasForeignKey(e => e.EventsId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TenantAddon>(entity =>
+        {
+            entity.ToTable("tenant_addons", t =>
+            {
+                t.HasCheckConstraint("CK_tenant_addons_Type",
+                    "type IN ('custom_domain','advanced_analytics','sms','extra_manager')");
+                t.HasCheckConstraint("CK_tenant_addons_BillingPeriod",
+                    "billing_period IN ('monthly','annual')");
+                t.HasCheckConstraint("CK_tenant_addons_Status", "status IN ('active','canceled')");
+                t.HasCheckConstraint("CK_tenant_addons_Quantity", "quantity > 0");
+            });
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.TenantsId);
+            entity.Property(e => e.Type).HasMaxLength(32);
+            entity.Property(e => e.BillingPeriod).HasMaxLength(16).HasDefaultValue("monthly");
+            entity.Property(e => e.Status).HasMaxLength(16).HasDefaultValue("active");
+            entity.Property(e => e.Quantity).HasDefaultValue(1);
+            entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BillingCharge>(entity =>
+        {
+            entity.ToTable("billing_charges", t =>
+            {
+                t.HasCheckConstraint("CK_billing_charges_Kind",
+                    "kind IN ('subscription','proration','pay_per_event','addon','setup_fee','refund')");
+            });
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.TenantsId);
+            entity.HasIndex(e => e.CreatedAt);
+            entity.Property(e => e.Kind).HasMaxLength(32);
+            entity.Property(e => e.Reference).HasMaxLength(64);
+            entity.Property(e => e.Description).HasMaxLength(512);
+            entity.Property(e => e.StripePaymentIntentId).HasMaxLength(128);
+            // Financial ledger: rows survive tenant deletion for 7-year retention.
+            entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
         modelBuilder.Entity<FeeFormula>(entity =>
         {
             entity.ToTable("fee_formulas");
@@ -646,6 +737,8 @@ public class EventPlatformDbContext(
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.CreatedByUser).WithMany().HasForeignKey(e => e.CreatedByUsersId)
                 .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.FeeFormula).WithMany().HasForeignKey(e => e.FeeFormulasId)
+                .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
 #pragma warning disable CS8603
             entity.HasGeneratedTsVectorColumn(e => e.SearchVector, "english", e => new { e.Title, Description = e.Description! })
                   .HasIndex(e => e.SearchVector).HasMethod("GIN");

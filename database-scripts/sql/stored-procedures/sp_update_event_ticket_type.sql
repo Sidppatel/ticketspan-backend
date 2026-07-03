@@ -14,7 +14,7 @@ DECLARE
     v_old_label text; v_old_price int; v_old_formula uuid; v_sold int;
 BEGIN
     SELECT COALESCE(p_price_cents, price_cents),
-           app.resolve_fee_formula(p_fee_formulas_id, tenants_id),
+           app.resolve_fee_formula(p_fee_formulas_id, events_id, tenants_id),
            COALESCE(p_label, label), prices_id,
            label, price_cents, fee_formulas_id
       INTO v_price, v_formula, v_label, v_prices_id,

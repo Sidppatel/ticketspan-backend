@@ -15,7 +15,7 @@ DECLARE
     v_old_price int; v_old_formula uuid; v_old_capacity int; v_sold int;
 BEGIN
     SELECT COALESCE(p_price_cents, price_cents),
-           app.resolve_fee_formula(p_fee_formulas_id, tenants_id),
+           app.resolve_fee_formula(p_fee_formulas_id, events_id, tenants_id),
            price_cents, fee_formulas_id, capacity
       INTO v_price, v_formula, v_old_price, v_old_formula, v_old_capacity
       FROM event_tables WHERE event_tables_id = p_id;

@@ -17,6 +17,24 @@ AS $$
     );
 $$;
 
+-- Event-aware resolution: explicit price formula > active (non-expired)
+-- event-level override (Pay Per Event / manual event fee override) > tenant
+-- default. All checkout math routes through this overload.
+CREATE OR REPLACE FUNCTION app.resolve_fee_formula(p_explicit uuid, p_event uuid, p_tenant uuid)
+RETURNS uuid
+LANGUAGE sql STABLE
+SET search_path = public, extensions, pg_catalog
+AS $$
+    SELECT COALESCE(
+        p_explicit,
+        (SELECT e.fee_formulas_id FROM events e
+          WHERE e.events_id = p_event
+            AND e.fee_formulas_id IS NOT NULL
+            AND (e.fee_override_expires_at IS NULL OR e.fee_override_expires_at > now())),
+        (SELECT default_fee_formulas_id FROM tenants WHERE tenants_id = p_tenant)
+    );
+$$;
+
 -- Resolves the gateway (payment-processing) fee formula for a tenant. NULL when
 -- the tenant has none configured, which app.compute_fee treats as a zero fee.
 CREATE OR REPLACE FUNCTION app.resolve_gateway_formula(p_tenant uuid)
@@ -74,7 +92,7 @@ BEGIN
         RETURN;
     END IF;
 
-    v_formula := app.resolve_fee_formula(v_explicit, v_tenant);
+    v_formula := app.resolve_fee_formula(v_explicit, v_event, v_tenant);
     v_gw_formula := app.resolve_gateway_formula(v_tenant);
 
     -- Per-item wins: a matching rule scoped to THIS price beats an event-wide rule

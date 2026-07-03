@@ -1,0 +1,235 @@
+syntax = "proto3";
+
+package svyne.billing;
+
+option csharp_namespace = "Svyne.Protos.Billing";
+
+import "common.proto";
+
+// Developer-only pricing controls: subscriptions & trials, Pay Per Event,
+// add-ons, fee overrides, and platform revenue reports. Every mutation is
+// audit-logged (who/when/from/to/why) by the service.
+service DeveloperBillingService {
+  rpc ListTenantBilling (svyne.common.PageRequest) returns (TenantBillingList);
+
+  rpc StartTrial (TenantRequest) returns (svyne.common.AckResponse);
+  rpc CreateSubscription (SubscriptionRequest) returns (svyne.common.AckResponse);
+  rpc ChangeSubscriptionTier (SubscriptionRequest) returns (svyne.common.AckResponse);
+  rpc CancelSubscription (CancelSubscriptionRequest) returns (svyne.common.AckResponse);
+
+  rpc ListEventUpgrades (svyne.common.PageRequest) returns (EventUpgradeList);
+  rpc ActivateEventUpgrade (EventUpgradeRequest) returns (svyne.common.AckResponse);
+  rpc CancelEventUpgrade (CancelEventUpgradeRequest) returns (svyne.common.AckResponse);
+
+  rpc ListTenantAddons (TenantRequest) returns (TenantAddonList);
+  rpc ProvisionAddon (ProvisionAddonRequest) returns (svyne.common.AckResponse);
+  rpc CancelAddon (CancelAddonRequest) returns (svyne.common.AckResponse);
+
+  rpc ListFeeOverrides (svyne.common.Empty) returns (FeeOverrideList);
+  rpc SetEventFeeOverride (SetEventFeeOverrideRequest) returns (svyne.common.AckResponse);
+  rpc ClearEventFeeOverride (ClearEventFeeOverrideRequest) returns (svyne.common.AckResponse);
+
+  rpc GetRevenueReport (RevenueReportRequest) returns (RevenueReport);
+  rpc GetTenantActivity (TenantActivityRequest) returns (TenantActivityList);
+}
+
+message TenantRequest {
+  string tenants_id = 1;
+}
+
+message TenantBillingRow {
+  string tenants_id = 1;
+  string slug = 2;
+  string name = 3;
+  string tier = 4;
+  bool archived = 5;
+  string subscription_status = 6;      // empty = none
+  string subscription_tier = 7;
+  int32 monthly_price_cents = 8;
+  int64 current_period_end_epoch_seconds = 9;
+  bool cancel_at_period_end = 10;
+  string pending_tier = 11;
+  int64 trial_ends_at_epoch_seconds = 12;
+  int32 fee_percent_bps = 13;
+  int32 fee_flat_cents = 14;
+  bool has_custom_fee_override = 15;
+  int32 active_addons = 16;
+  int32 total_events = 17;
+}
+
+message TenantBillingList {
+  repeated TenantBillingRow tenants = 1;
+  svyne.common.PageMeta meta = 2;
+}
+
+message SubscriptionRequest {
+  string tenants_id = 1;
+  string tier = 2;                     // starter|professional|business|enterprise
+  string reason = 3;                   // audit note
+}
+
+message CancelSubscriptionRequest {
+  string tenants_id = 1;
+  bool at_period_end = 2;
+  string reason = 3;
+}
+
+message EventUpgradeRow {
+  string event_upgrades_id = 1;
+  string events_id = 2;
+  string event_title = 3;
+  string event_status = 4;
+  string tenants_id = 5;
+  string tenant_name = 6;
+  string tenant_slug = 7;
+  string tier = 8;
+  string status = 9;
+  int32 price_cents = 10;
+  int32 sms_credits = 11;
+  int32 custom_domain_limit = 12;
+  int32 refunded_cents = 13;
+  int64 created_at_epoch_seconds = 14;
+}
+
+message EventUpgradeList {
+  repeated EventUpgradeRow upgrades = 1;
+  svyne.common.PageMeta meta = 2;
+}
+
+message EventUpgradeRequest {
+  string events_id = 1;
+  string tier = 2;                     // starter_event|pro_event|business_event|enterprise_event
+  string reason = 3;
+}
+
+message CancelEventUpgradeRequest {
+  string events_id = 1;
+  int32 refund_cents = 2;              // 0 = no refund
+  string reason = 3;
+}
+
+message TenantAddonRow {
+  string tenant_addons_id = 1;
+  string tenants_id = 2;
+  string tenant_name = 3;
+  string type = 4;
+  string billing_period = 5;
+  int32 quantity = 6;
+  int32 price_cents = 7;
+  int32 setup_fee_cents = 8;
+  string status = 9;
+  int64 current_period_end_epoch_seconds = 10;
+  int32 usage_count = 11;
+}
+
+message TenantAddonList {
+  repeated TenantAddonRow addons = 1;
+}
+
+message ProvisionAddonRequest {
+  string tenants_id = 1;
+  string type = 2;                     // custom_domain|advanced_analytics|sms|extra_manager
+  string billing_period = 3;           // monthly|annual
+  int32 quantity = 4;
+  string reason = 5;
+}
+
+message CancelAddonRequest {
+  string tenant_addons_id = 1;
+  int32 refund_cents = 2;
+  string reason = 3;
+}
+
+message FeeOverrideRow {
+  string scope = 1;                    // tenant | event
+  string tenants_id = 2;
+  string tenant_name = 3;
+  string tenant_slug = 4;
+  string events_id = 5;                // empty for tenant scope
+  string event_title = 6;
+  int32 percent_bps = 7;
+  int32 flat_cents = 8;
+  int32 min_fee_cents = 9;
+  int32 max_fee_cents = 10;
+  int32 standard_percent_bps = 11;
+  int32 standard_flat_cents = 12;
+  int64 expires_at_epoch_seconds = 13; // 0 = never
+  int64 updated_at_epoch_seconds = 14;
+}
+
+message FeeOverrideList {
+  repeated FeeOverrideRow overrides = 1;
+}
+
+message SetEventFeeOverrideRequest {
+  string events_id = 1;
+  int32 percent_bps = 2;
+  int32 flat_cents = 3;
+  int32 min_fee_cents = 4;             // 0 = none
+  int32 max_fee_cents = 5;             // 0 = none
+  int64 expires_at_epoch_seconds = 6;  // 0 = never
+  string reason = 7;                   // required
+}
+
+message ClearEventFeeOverrideRequest {
+  string events_id = 1;
+  string reason = 2;                   // required
+}
+
+message RevenueReportRequest {
+  int64 from_epoch_seconds = 1;
+  int64 to_epoch_seconds = 2;
+}
+
+message RevenueSourceRow {
+  string source = 1;                   // service_fees|subscription|proration|pay_per_event|addon|setup_fee|refund
+  int64 revenue_cents = 2;
+  int32 item_count = 3;
+}
+
+message RevenueTierRow {
+  string tier = 1;
+  int64 service_fee_cents = 2;
+  int64 billing_cents = 3;
+  int32 tenant_count = 4;
+}
+
+message RevenueTrendPoint {
+  int64 bucket_start_epoch_seconds = 1;
+  int64 service_fee_cents = 2;
+  int64 billing_cents = 3;
+}
+
+message RevenueReport {
+  repeated RevenueSourceRow by_source = 1;
+  repeated RevenueTierRow by_tier = 2;
+  repeated RevenueTrendPoint trend = 3;
+  int64 generated_at_epoch_seconds = 4;
+}
+
+message TenantActivityRequest {
+  int64 from_epoch_seconds = 1;
+  int64 to_epoch_seconds = 2;
+  string search = 3;
+  string tier = 4;                     // empty = all
+  int32 offset = 5;
+  int32 limit = 6;
+}
+
+message TenantActivityRow {
+  string tenants_id = 1;
+  string name = 2;
+  string slug = 3;
+  string tier = 4;
+  int32 events_created = 5;
+  int32 tickets_sold = 6;
+  int64 service_fee_cents = 7;
+  int64 billing_cents = 8;
+  int64 avg_ticket_cents = 9;
+  string subscription_status = 10;
+}
+
+message TenantActivityList {
+  repeated TenantActivityRow rows = 1;
+  int32 total = 2;
+}

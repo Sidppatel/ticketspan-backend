@@ -36,6 +36,7 @@ BEGIN
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Event not found' USING ERRCODE = 'P0002';
     END IF;
+    PERFORM app.assert_tenant_sellable(v_tenant);
 
     IF p_lines IS NULL OR jsonb_typeof(p_lines) <> 'array' OR jsonb_array_length(p_lines) = 0 THEN
         RAISE EXCEPTION 'No items in cart' USING ERRCODE = '22023';

@@ -47,7 +47,7 @@ BEGIN
 
     -- Auto-apply the tenant's default fee when the admin sets no explicit override,
     -- so every new table carries the tenant fee (the developer override wins when set).
-    v_formula := app.resolve_fee_formula(p_fee_formulas_id, v_tenant);
+    v_formula := app.resolve_fee_formula(p_fee_formulas_id, p_event_id, v_tenant);
 
     INSERT INTO event_tables (tenants_id, events_id, label, capacity, shape, color,
         price_cents, fee_formulas_id, platform_fee_cents, is_active, table_templates_id,
