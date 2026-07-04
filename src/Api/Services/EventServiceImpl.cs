@@ -174,6 +174,25 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         return new AckResponse { Success = true, Message = "Fee display updated" };
     }
 
+    public override async Task<AckResponse> SetEventAch(SetEventAchRequest request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        RequireTenant();
+        await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await using var cmd = new NpgsqlCommand("SELECT sp_set_event_ach(@id, @en)", connection);
+        cmd.Parameters.AddWithValue("id", Guid.Parse(request.EventsId));
+        cmd.Parameters.AddWithValue("en", request.AchEnabled);
+        try
+        {
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+        catch (PostgresException ex)
+        {
+            throw MapPostgres(ex);
+        }
+        return new AckResponse { Success = true, Message = request.AchEnabled ? "ACH enabled" : "ACH disabled" };
+    }
+
     public override async Task<AckResponse> DeleteEvent(UuidValue request, ServerCallContext context)
     {
         var ct = context.CancellationToken;
@@ -497,7 +516,7 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
 
     private const string EventSelect =
         "SELECT events_id, title, slug, description, status, category, start_date, end_date, image_path, "
-        + "is_featured, layout_mode, total_capacity, venues_id, performers::text, sponsors::text, fees_included, event_type, primary_image_id, extra_info::text FROM vw_events";
+        + "is_featured, layout_mode, total_capacity, venues_id, performers::text, sponsors::text, fees_included, event_type, primary_image_id, extra_info::text, ach_enabled FROM vw_events";
 
     private static Event MapEvent(NpgsqlDataReader r) => new()
     {
@@ -519,7 +538,8 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         FeesIncluded = !r.IsDBNull(15) && r.GetBoolean(15),
         EventType = r.IsDBNull(16) ? string.Empty : r.GetString(16),
         PrimaryImageId = r.IsDBNull(17) ? string.Empty : r.GetGuid(17).ToString(),
-        ExtraInfoJson = r.IsDBNull(18) ? "[]" : r.GetString(18)
+        ExtraInfoJson = r.IsDBNull(18) ? "[]" : r.GetString(18),
+        AchEnabled = !r.IsDBNull(19) && r.GetBoolean(19)
     };
 
     private static string? NullIfEmpty(string value) => string.IsNullOrEmpty(value) ? null : value;

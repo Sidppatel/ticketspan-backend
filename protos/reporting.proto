@@ -19,6 +19,9 @@ service TenantTierService {
   rpc ListTenantReportingAccess (svyne.common.PageRequest) returns (TenantReportingAccessList);
   rpc SetTenantTier (SetTenantTierRequest) returns (svyne.common.AckResponse);
   rpc SetTenantAdvancedReporting (SetTenantAdvancedReportingRequest) returns (svyne.common.AckResponse);
+  // Developer gate for ACH: enable/disable ACH for a tenant and set the fee formula
+  // that replaces the service fee when a buyer pays by ACH.
+  rpc SetTenantAch (SetTenantAchRequest) returns (svyne.common.AckResponse);
 }
 
 message ReportingAccess {
@@ -125,6 +128,8 @@ message TenantReportingAccessRow {
   bool advanced_reporting_enabled = 5;
   bool has_advanced_reporting = 6;
   bool archived = 7;
+  bool ach_enabled = 8;
+  string ach_fee_formulas_id = 9;   // empty = none assigned
 }
 
 message TenantReportingAccessList {
@@ -140,4 +145,10 @@ message SetTenantTierRequest {
 message SetTenantAdvancedReportingRequest {
   string tenants_id = 1;
   bool enabled = 2;
+}
+
+message SetTenantAchRequest {
+  string tenants_id = 1;
+  bool enabled = 2;
+  string fee_formulas_id = 3;   // required when enabling
 }

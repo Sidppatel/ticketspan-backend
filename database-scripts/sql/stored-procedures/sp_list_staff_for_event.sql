@@ -1,3 +1,7 @@
+-- Return columns changed (added user_role) since the initial version, so the
+-- existing function must be dropped before recreate (CREATE OR REPLACE can't
+-- change an OUT-parameter row type — Postgres 42P13).
+DROP FUNCTION IF EXISTS sp_list_staff_for_event(uuid);
 CREATE OR REPLACE FUNCTION sp_list_staff_for_event(p_event_id uuid)
 RETURNS TABLE(
     business_user_event_id uuid,

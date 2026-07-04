@@ -203,9 +203,17 @@ public sealed class BookingServiceImpl : BookingService.BookingServiceBase
             quote.TotalCents += bd.FinalPriceCents;
             quote.OrganizerNetCents += bd.OrganizerNetCents;
             quote.Currency = bd.Currency;
+
+            quote.AchAvailable = !reader.IsDBNull(15) && reader.GetBoolean(15);
+            quote.AchTotalCents += reader.GetInt32(16);
         }
         quote.DiscountCents = quote.BaseTotalCents - quote.SubtotalCents;
         quote.FeeCents = quote.PlatformFeeCents + quote.GatewayFeeCents + quote.TaxCents;
+        quote.AchSavingsCents = quote.AchAvailable ? Math.Max(quote.TotalCents - quote.AchTotalCents, 0) : 0;
+        if (!quote.AchAvailable)
+        {
+            quote.AchTotalCents = 0;
+        }
         quote.HoldSeconds = await settings.GetIntAsync("booking_hold_seconds", 600, ct);
         return quote;
     }
@@ -229,11 +237,12 @@ public sealed class BookingServiceImpl : BookingService.BookingServiceBase
         string currency, status;
         string? connectedAccount, existingIntent;
         DateTime? holdExpiresAt;
+        bool achAllowed;
         try
         {
             await using var cmd = new NpgsqlCommand(
                 "SELECT status, subtotal_cents, fee_cents, total_cents, currency, connected_account_id, "
-                + "charges_enabled, existing_intent_id, hold_expires_at "
+                + "charges_enabled, existing_intent_id, hold_expires_at, ach_allowed "
                 + "FROM sp_get_booking_for_payment(@b, @u)", connection);
             cmd.Parameters.AddWithValue("b", bookingId);
             cmd.Parameters.AddWithValue("u", tenantContext.UsersId!);
@@ -251,6 +260,7 @@ public sealed class BookingServiceImpl : BookingService.BookingServiceBase
             var chargesEnabled = !reader.IsDBNull(6) && reader.GetBoolean(6);
             existingIntent = reader.IsDBNull(7) ? null : reader.GetString(7);
             holdExpiresAt = reader.IsDBNull(8) ? null : reader.GetDateTime(8);
+            achAllowed = !reader.IsDBNull(9) && reader.GetBoolean(9);
 
             if (string.IsNullOrEmpty(connectedAccount) || !chargesEnabled)
             {
@@ -263,11 +273,36 @@ public sealed class BookingServiceImpl : BookingService.BookingServiceBase
             throw MapPostgres(ex);
         }
 
+        // Separate ACH checkout: re-price the booking to the ACH fee up front so the
+        // bank-only intent is created at the discounted total.
+        var preferAch = request.PreferredMethod == "ach" && achAllowed;
+        if (preferAch)
+        {
+            try
+            {
+                await using var rp = new NpgsqlCommand(
+                    "SELECT total_cents, fee_cents FROM sp_reprice_booking_for_method(@b, @u, 'ach')", connection);
+                rp.Parameters.AddWithValue("b", bookingId);
+                rp.Parameters.AddWithValue("u", tenantContext.UsersId!);
+                await using var rr = await rp.ExecuteReaderAsync(ct);
+                if (await rr.ReadAsync(ct))
+                {
+                    total = rr.GetInt32(0);
+                    fee = rr.GetInt32(1);
+                }
+            }
+            catch (PostgresException ex)
+            {
+                throw MapPostgres(ex);
+            }
+        }
+
         Stripe.PaymentIntent intent;
         try
         {
-            // Resume: if a usable intent already exists, hand back its secret instead
-            // of creating a duplicate (idempotent for tab switches / re-entry).
+            // Resume: reuse an already-committed intent (succeeded/processing) so we never
+            // double-charge. A merely-payable existing intent isn't reused on the ACH path,
+            // because it may be a card intent — create a fresh bank-only one instead.
             if (!string.IsNullOrEmpty(existingIntent))
             {
                 var existing = await stripe.GetPaymentIntentAsync(existingIntent, ct);
@@ -275,16 +310,18 @@ public sealed class BookingServiceImpl : BookingService.BookingServiceBase
                 {
                     intent = existing;
                 }
+                else if (!preferAch && StripeService.IsPayable(existing.Status))
+                {
+                    intent = existing;
+                }
                 else
                 {
-                    intent = StripeService.IsPayable(existing.Status)
-                        ? existing
-                        : await stripe.CreateDestinationPaymentIntentAsync(total, fee, currency, connectedAccount!, bookingId, ct);
+                    intent = await stripe.CreateDestinationPaymentIntentAsync(total, fee, currency, connectedAccount!, bookingId, achAllowed, preferAch, ct);
                 }
             }
             else
             {
-                intent = await stripe.CreateDestinationPaymentIntentAsync(total, fee, currency, connectedAccount!, bookingId, ct);
+                intent = await stripe.CreateDestinationPaymentIntentAsync(total, fee, currency, connectedAccount!, bookingId, achAllowed, preferAch, ct);
             }
         }
         catch (StripeException ex)
@@ -311,7 +348,89 @@ public sealed class BookingServiceImpl : BookingService.BookingServiceBase
             PaymentIntentId = intent.Id,
             Status = intent.Status,
             AmountCents = total,
-            HoldExpiresAt = holdExpiresAt is { } h ? new DateTimeOffset(h, TimeSpan.Zero).ToUnixTimeSeconds() : 0
+            HoldExpiresAt = holdExpiresAt is { } h ? new DateTimeOffset(h, TimeSpan.Zero).ToUnixTimeSeconds() : 0,
+            AchAllowed = achAllowed
+        };
+    }
+
+    public override async Task<UpdatePaymentMethodResponse> UpdatePaymentIntentForMethod(
+        UpdatePaymentMethodRequest request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        RequireUser();
+        if (!stripe.Configured)
+        {
+            throw new RpcException(new Status(StatusCode.FailedPrecondition, "Payments are not configured"));
+        }
+        if (!Guid.TryParse(request.BookingsId, out var bookingId))
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "Invalid booking id"));
+        }
+        var method = request.Method == "ach" ? "ach" : "card";
+
+        await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+
+        int total, fee, baseline;
+        string? intentId;
+        try
+        {
+            await using var cmd = new NpgsqlCommand(
+                "SELECT total_cents, fee_cents, baseline_total_cents "
+                + "FROM sp_reprice_booking_for_method(@b, @u, @m)", connection);
+            cmd.Parameters.AddWithValue("b", bookingId);
+            cmd.Parameters.AddWithValue("u", tenantContext.UsersId!);
+            cmd.Parameters.AddWithValue("m", method);
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            if (!await reader.ReadAsync(ct))
+            {
+                throw new RpcException(new Status(StatusCode.NotFound, "Booking not found"));
+            }
+            total = reader.GetInt32(0);
+            fee = reader.GetInt32(1);
+            baseline = reader.GetInt32(2);
+        }
+        catch (PostgresException ex)
+        {
+            throw MapPostgres(ex);
+        }
+
+        await using (var look = new NpgsqlCommand(
+            "SELECT payment_intent_id FROM stripe_transactions WHERE bookings_id = @b "
+            + "AND status NOT IN ('Succeeded','Refunded')", connection))
+        {
+            look.Parameters.AddWithValue("b", bookingId);
+            intentId = await look.ExecuteScalarAsync(ct) as string;
+        }
+        if (string.IsNullOrEmpty(intentId))
+        {
+            throw new RpcException(new Status(StatusCode.FailedPrecondition, "No active payment to update"));
+        }
+
+        try
+        {
+            await stripe.UpdatePaymentIntentAmountAsync(intentId, total, fee, ct);
+        }
+        catch (StripeException ex)
+        {
+            throw new RpcException(new Status(StatusCode.FailedPrecondition,
+                $"Stripe update failed: {ex.StripeError?.Message ?? ex.Message}"));
+        }
+
+        await using (var save = new NpgsqlCommand(
+            "SELECT sp_upsert_stripe_intent(@b, @intent, @amount, @transfer, @cur)", connection))
+        {
+            save.Parameters.AddWithValue("b", bookingId);
+            save.Parameters.AddWithValue("intent", intentId);
+            save.Parameters.AddWithValue("amount", total);
+            save.Parameters.AddWithValue("transfer", total - fee);
+            save.Parameters.AddWithValue("cur", "usd");
+            await save.ExecuteScalarAsync(ct);
+        }
+
+        return new UpdatePaymentMethodResponse
+        {
+            TotalCents = total,
+            SavingsCents = baseline - total
         };
     }
 
@@ -527,7 +646,8 @@ public sealed class BookingServiceImpl : BookingService.BookingServiceBase
         + "COALESCE(b.seats_reserved, 0), COALESCE(b.event_title, ''), COALESCE(b.event_slug, ''), b.event_start_date, "
         + "(SELECT COUNT(*) FROM booking_lines bl WHERE bl.bookings_id = b.bookings_id AND bl.kind = 'Ticket')::int, "
         + "(SELECT COUNT(*) FROM booking_lines bl WHERE bl.bookings_id = b.bookings_id AND bl.kind = 'Ticket' AND bl.status IN ('Claimed', 'CheckedIn'))::int, "
-        + "(SELECT payment_intent_id FROM stripe_transactions st WHERE st.bookings_id = b.bookings_id LIMIT 1) "
+        + "(SELECT payment_intent_id FROM stripe_transactions st WHERE st.bookings_id = b.bookings_id LIMIT 1), "
+        + "b.fees_included, COALESCE(b.venue_name, ''), b.venue_address, b.venue_city, b.venue_state, b.venue_zip_code, b.paid_at "
         + "FROM vw_bookings b";
 
     private static Booking MapBooking(NpgsqlDataReader r) => new()
@@ -545,8 +665,22 @@ public sealed class BookingServiceImpl : BookingService.BookingServiceBase
         EventStartDate = r.IsDBNull(11) ? 0 : new DateTimeOffset(r.GetDateTime(11), TimeSpan.Zero).ToUnixTimeSeconds(),
         TicketsTotal = r.GetInt32(12),
         TicketsClaimed = r.GetInt32(13),
-        PaymentTransactionId = r.IsDBNull(14) ? string.Empty : r.GetString(14)
+        PaymentTransactionId = r.IsDBNull(14) ? string.Empty : r.GetString(14),
+        FeesIncluded = !r.IsDBNull(15) && r.GetBoolean(15),
+        VenueName = r.GetString(16),
+        VenueAddress = ComposeAddress(r.GetString(17), r.GetString(18), r.GetString(19), r.GetString(20)),
+        PaidAt = r.IsDBNull(21) ? 0 : new DateTimeOffset(r.GetDateTime(21), TimeSpan.Zero).ToUnixTimeSeconds()
     };
+
+    private static string ComposeAddress(string line1, string city, string state, string zip)
+    {
+        var region = string.Join(' ', new[] { state, zip }).Trim();
+        var parts = new List<string>();
+        if (line1.Length > 0) parts.Add(line1);
+        if (city.Length > 0) parts.Add(city);
+        if (region.Length > 0) parts.Add(region);
+        return string.Join(", ", parts);
+    }
 
     private void RequireUser()
     {

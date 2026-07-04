@@ -58,4 +58,19 @@ public class Tenant : BaseEntity
     /// </summary>
     public Guid? GatewayFeeFormulasId { get; set; }
     public FeeFormula? GatewayFeeFormula { get; set; }
+
+    /// <summary>
+    /// Developer gate: when true, events under this tenant may opt in to offering
+    /// ACH (US bank debit) at checkout, which swaps the service fee for the flat
+    /// AchFeeFormula. Settable only by developers (role 99).
+    /// </summary>
+    public bool AchEnabled { get; set; }
+
+    /// <summary>
+    /// Fee formula applied instead of the service fee when the buyer pays by ACH.
+    /// Reuses the FeeFormula shape (e.g. 2% = percent_bps 200). Settable only by
+    /// developers (role 99).
+    /// </summary>
+    public Guid? AchFeeFormulasId { get; set; }
+    public FeeFormula? AchFeeFormula { get; set; }
 }

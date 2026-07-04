@@ -47,6 +47,13 @@ public class Event : BaseEntity
     /// <summary>Optional expiry for the event fee override; ignored after this instant.</summary>
     public DateTime? FeeOverrideExpiresAt { get; set; }
 
+    /// <summary>
+    /// Per-event opt-in to offering ACH at checkout. Only effective when the owning
+    /// tenant is ACH-enabled. When both are true, buyers may pay by US bank debit and
+    /// the service fee is replaced by the tenant's ACH fee formula.
+    /// </summary>
+    public bool AchEnabled { get; set; }
+
     public NpgsqlTsVector? SearchVector { get; set; }
 
     public Guid TenantsId { get; set; }

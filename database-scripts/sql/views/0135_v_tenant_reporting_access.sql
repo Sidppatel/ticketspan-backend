@@ -8,5 +8,7 @@ SELECT
     t.tier::text AS tier,
     t.advanced_reporting_enabled,
     (t.tier IN ('professional','business','enterprise') OR t.advanced_reporting_enabled) AS has_advanced_reporting,
-    t.archived_at IS NOT NULL AS archived
+    t.archived_at IS NOT NULL AS archived,
+    t.ach_enabled,
+    t.ach_fee_formulas_id
 FROM tenants t;

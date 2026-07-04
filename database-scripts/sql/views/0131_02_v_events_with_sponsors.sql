@@ -14,6 +14,7 @@ SELECT
     e.layout_mode::text AS layout_mode,
     e.event_type::text AS event_type,
     e.fees_included AS fees_included,
+    e.ach_enabled AS ach_enabled,
     ettp.min_price::int AS price_per_person_cents,
     e.published_at AS published_at,
     e.scheduled_publish_at AS scheduled_publish_at,

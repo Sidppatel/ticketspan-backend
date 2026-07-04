@@ -18,6 +18,9 @@ service BookingService {
   // multi-item preview render identical numbers.
   rpc QuoteCart (CreateMultiBookingRequest) returns (CartQuote);
   rpc CreatePaymentIntent (PaymentIntentRequest) returns (PaymentIntentResponse);
+  // Re-price the booking for the chosen method (card/ach) and update the Stripe
+  // intent amount server-side. Returns the new total + ACH savings.
+  rpc UpdatePaymentIntentForMethod (UpdatePaymentMethodRequest) returns (UpdatePaymentMethodResponse);
   rpc GetPaymentStatus (svyne.common.UuidValue) returns (PaymentStatusResponse);
   rpc ConfirmBooking (ConfirmBookingRequest) returns (svyne.common.AckResponse);
   rpc CancelBooking (svyne.common.UuidValue) returns (svyne.common.AckResponse);
@@ -66,6 +69,10 @@ message Booking {
   // Tickets on this booking with status Claimed or CheckedIn.
   int32 tickets_claimed = 16;
   string payment_transaction_id = 17;
+  bool fees_included = 18;
+  string venue_name = 19;
+  string venue_address = 20;
+  int64 paid_at = 21;
 }
 
 // One line of a booking, for display on checkout / booking detail. Carries the
@@ -121,6 +128,11 @@ message CartQuote {
   string currency = 11;
   // Cart hold window in seconds, from app_settings.booking_hold_seconds.
   int32 hold_seconds = 12;
+  // ACH (bank) checkout: offered for this event, the discounted bank total, and
+  // what the buyer saves vs the card total. ach_available=false → the other two are 0.
+  bool ach_available = 13;
+  int32 ach_total_cents = 14;
+  int32 ach_savings_cents = 15;
 }
 
 message BookingLineInput {
@@ -174,6 +186,9 @@ message ListEventTicketTypesResponse {
 
 message PaymentIntentRequest {
   string bookings_id = 1;
+  // "ach" opens a bank-only intent priced at the ACH fee; anything else (default)
+  // = the normal card/wallets intent. Ignored when the event isn't ACH-enabled.
+  string preferred_method = 2;
 }
 
 message PaymentIntentResponse {
@@ -184,6 +199,19 @@ message PaymentIntentResponse {
   int64 amount_cents = 5;
   // Unix seconds when the seat hold expires (0 = no hold).
   int64 hold_expires_at = 6;
+  // True when this booking's event offers ACH — the UI may show the bank option
+  // and re-price via UpdatePaymentIntentForMethod when the buyer picks it.
+  bool ach_allowed = 7;
+}
+
+message UpdatePaymentMethodRequest {
+  string bookings_id = 1;
+  string method = 2;          // "card" | "ach"
+}
+
+message UpdatePaymentMethodResponse {
+  int32 total_cents = 1;      // new amount the buyer will be charged
+  int32 savings_cents = 2;    // card total - this total (0 for card)
 }
 
 message PaymentStatusResponse {

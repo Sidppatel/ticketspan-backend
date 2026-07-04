@@ -17,6 +17,8 @@ service EventService {
   rpc ChangeEventStatus (ChangeEventStatusRequest) returns (svyne.common.AckResponse);
   rpc GetEventStats (svyne.common.UuidValue) returns (EventStats);
   rpc SetEventFeesIncluded (SetEventFeesIncludedRequest) returns (svyne.common.AckResponse);
+  // Admin opt-in to offering ACH at checkout (only sticks if the tenant is ACH-enabled).
+  rpc SetEventAch (SetEventAchRequest) returns (svyne.common.AckResponse);
   rpc ListScheduleItems (svyne.common.UuidValue) returns (ListScheduleItemsResponse);
   rpc CreateScheduleItem (CreateScheduleItemRequest) returns (svyne.common.UuidValue);
   rpc UpdateScheduleItem (UpdateScheduleItemRequest) returns (svyne.common.AckResponse);
@@ -102,6 +104,11 @@ message SetEventFeesIncludedRequest {
   bool fees_included = 2;
 }
 
+message SetEventAchRequest {
+  string events_id = 1;
+  bool ach_enabled = 2;
+}
+
 message Event {
   string events_id = 1;
   string tenants_id = 2;
@@ -123,6 +130,7 @@ message Event {
   string event_type = 18;            // Open | Table | Both
   string primary_image_id = 19;      // images_id of primary thumbnail (fallback event image)
   string extra_info_json = 20;       // JSON array [{key,value,isPublic,sortOrder}]
+  bool ach_enabled = 21;             // admin opted this event in to ACH (tenant-gated)
 }
 
 message GetEventBySlugRequest { string slug = 1; }

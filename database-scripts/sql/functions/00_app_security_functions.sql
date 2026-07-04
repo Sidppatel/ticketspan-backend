@@ -27,12 +27,13 @@ AS $$
     );
 $$;
 
--- Per-event authorization used by event-scoped RLS policies. Full admins (role 1)
--- and sub-tenants (role 3) see every event in their tenant, so this returns true
--- for them and the surrounding policy's tenant check does the isolation. Event
--- managers (role 4) and check-in staff (role 2) only reach events explicitly
--- granted to them via staff_event_access. SECURITY DEFINER so the users/access
--- lookups bypass RLS (the calling role only has scoped visibility).
+-- Per-event authorization used by event-scoped RLS policies. Only the event-scoped
+-- roles are restricted: check-in staff (2) and event managers (4) reach an event
+-- only when it is granted via staff_event_access. EVERYONE ELSE — anonymous public
+-- viewers, attendees (0), admins (1), sub-tenants (3), developers — is unrestricted
+-- here, so the surrounding policy's tenant check (and public status filters) do the
+-- isolation. Must stay permissive for the no-user case or the public site sees no
+-- events. SECURITY DEFINER so the users/access lookups bypass RLS.
 CREATE OR REPLACE FUNCTION app.can_access_event(p_event uuid)
 RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER
@@ -41,8 +42,12 @@ AS $$
     SELECT
         app.is_developer()
         OR EXISTS (
+            SELECT 1 FROM events
+            WHERE events_id = p_event AND status = 'Published'
+        )
+        OR NOT EXISTS (
             SELECT 1 FROM users
-            WHERE users_id = app.current_user_id() AND role IN (1, 3)
+            WHERE users_id = app.current_user_id() AND role IN (2, 4)
         )
         OR EXISTS (
             SELECT 1 FROM staff_event_access

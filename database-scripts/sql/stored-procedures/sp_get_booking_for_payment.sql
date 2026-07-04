@@ -2,6 +2,7 @@
 -- for a booking, after validating ownership and that the hold is still live.
 -- Raises if the booking is missing, not owned by the caller, in a non-payable
 -- state, or its hold has lapsed.
+DROP FUNCTION IF EXISTS sp_get_booking_for_payment(uuid, uuid);
 CREATE OR REPLACE FUNCTION sp_get_booking_for_payment(
     p_booking_id uuid, p_user_id uuid
 ) RETURNS TABLE(
@@ -16,7 +17,8 @@ CREATE OR REPLACE FUNCTION sp_get_booking_for_payment(
     charges_enabled boolean,
     existing_intent_id text,
     existing_status text,
-    hold_expires_at timestamptz
+    hold_expires_at timestamptz,
+    ach_allowed boolean
 ) LANGUAGE plpgsql
     SET search_path = public, extensions, pg_catalog
 AS $$
@@ -53,9 +55,11 @@ BEGIN
            t.stripe_charges_enabled,
            st.payment_intent_id::text,
            st.status::text,
-           b.hold_expires_at
+           b.hold_expires_at,
+           (t.ach_enabled AND e.ach_enabled)
       FROM bookings b
       JOIN tenants t ON t.tenants_id = b.tenants_id
+      JOIN events e ON e.events_id = b.events_id
       LEFT JOIN stripe_transactions st ON st.bookings_id = b.bookings_id
      WHERE b.bookings_id = p_booking_id;
 END; $$;

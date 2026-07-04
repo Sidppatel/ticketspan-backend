@@ -45,6 +45,16 @@ AS $$
     SELECT gateway_fee_formulas_id FROM tenants WHERE tenants_id = p_tenant;
 $$;
 
+-- Resolves the ACH fee formula for a tenant: the flat fee that replaces the
+-- service fee when the buyer pays by ACH. NULL = no ACH fee (compute_fee → 0).
+CREATE OR REPLACE FUNCTION app.resolve_ach_formula(p_tenant uuid)
+RETURNS uuid
+LANGUAGE sql STABLE
+SET search_path = public, extensions, pg_catalog
+AS $$
+    SELECT ach_fee_formulas_id FROM tenants WHERE tenants_id = p_tenant;
+$$;
+
 -- Resolve the active price for a sellable item, applying prioritized price rules,
 -- and computing server-authoritative fees.
 --
@@ -54,8 +64,11 @@ $$;
 --
 -- Returns a complete breakdown snapshot.
 
-CREATE OR REPLACE FUNCTION app.price_breakdown(
-    p_prices_id uuid, p_at timestamptz, p_seats int, p_remaining int
+-- Method-aware overload. p_method 'card' (default) = today's behavior: service fee
+-- + gateway fee. p_method 'ach' = the service fee is REPLACED by the tenant's flat
+-- ACH fee (and gateway is suppressed), so the buyer's total drops to selling + ACH.
+CREATE OR REPLACE FUNCTION app.price_breakdown_for_method(
+    p_prices_id uuid, p_at timestamptz, p_seats int, p_remaining int, p_method text
 )
 RETURNS TABLE(
     base_price_cents int,
@@ -92,8 +105,15 @@ BEGIN
         RETURN;
     END IF;
 
-    v_formula := app.resolve_fee_formula(v_explicit, v_event, v_tenant);
-    v_gw_formula := app.resolve_gateway_formula(v_tenant);
+    -- ACH replaces the service fee with the tenant's flat ACH fee and drops the
+    -- gateway leg; card keeps the resolved service fee + gateway fee.
+    IF p_method = 'ach' THEN
+        v_formula := app.resolve_ach_formula(v_tenant);
+        v_gw_formula := NULL;
+    ELSE
+        v_formula := app.resolve_fee_formula(v_explicit, v_event, v_tenant);
+        v_gw_formula := app.resolve_gateway_formula(v_tenant);
+    END IF;
 
     -- Per-item wins: a matching rule scoped to THIS price beats an event-wide rule
     SELECT pr.price_rules_id, pr.name, pr.price_cents
@@ -157,6 +177,29 @@ BEGIN
     currency := 'usd';
     RETURN NEXT;
 END; $$;
+
+-- Default (card) breakdown: unchanged 4-arg signature every existing caller uses.
+CREATE OR REPLACE FUNCTION app.price_breakdown(
+    p_prices_id uuid, p_at timestamptz, p_seats int, p_remaining int
+)
+RETURNS TABLE(
+    base_price_cents int,
+    selling_price_cents int,
+    discount_cents int,
+    applied_price_rules_id uuid,
+    applied_rule_name text,
+    platform_fee_cents int,
+    gateway_fee_cents int,
+    tax_cents int,
+    final_price_cents int,
+    organizer_net_cents int,
+    currency text
+)
+LANGUAGE sql STABLE
+SET search_path = public, extensions, pg_catalog
+AS $$
+    SELECT * FROM app.price_breakdown_for_method(p_prices_id, p_at, p_seats, p_remaining, 'card');
+$$;
 
 -- Back-compat thin wrapper: legacy callers that only need subtotal/fee/total.
 -- subtotal = selling price, fee = platform + gateway, total = final.

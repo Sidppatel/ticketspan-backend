@@ -11,7 +11,8 @@ RETURNS TABLE(
     base_price_cents int, selling_price_cents int, discount_cents int,
     applied_price_rules_id uuid, applied_rule_name text,
     platform_fee_cents int, gateway_fee_cents int, tax_cents int,
-    final_price_cents int, organizer_net_cents int, currency text
+    final_price_cents int, organizer_net_cents int, currency text,
+    ach_available boolean, ach_final_cents int
 )
 LANGUAGE plpgsql STABLE
     SET search_path = public, extensions, pg_catalog
@@ -19,11 +20,16 @@ AS $$
 DECLARE
     v_line jsonb; v_kind text; v_ref uuid; v_seats int;
     v_prices_id uuid; v_label text; v_cap int;
-    v_bd record;
+    v_bd record; v_ach_bd record; v_ach_ok boolean;
 BEGIN
     IF p_lines IS NULL OR jsonb_typeof(p_lines) <> 'array' THEN
         RETURN;
     END IF;
+
+    -- ACH offered only when the tenant enabled it AND this event opted in.
+    SELECT COALESCE(t.ach_enabled AND e.ach_enabled, false) INTO v_ach_ok
+      FROM events e JOIN tenants t ON t.tenants_id = e.tenants_id
+     WHERE e.events_id = p_event_id;
 
     FOR v_line IN SELECT * FROM jsonb_array_elements(p_lines) LOOP
         v_kind := v_line->>'kind';
@@ -62,6 +68,15 @@ BEGIN
         final_price_cents := v_bd.final_price_cents;
         organizer_net_cents := v_bd.organizer_net_cents;
         currency := v_bd.currency;
+
+        ach_available := v_ach_ok;
+        IF v_ach_ok THEN
+            SELECT * INTO v_ach_bd FROM app.price_breakdown_for_method(v_prices_id, now(), v_seats,
+                                         app.remaining_for_price(v_prices_id), 'ach');
+            ach_final_cents := v_ach_bd.final_price_cents;
+        ELSE
+            ach_final_cents := v_bd.final_price_cents;
+        END IF;
         RETURN NEXT;
     END LOOP;
 END; $$;

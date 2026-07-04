@@ -46,7 +46,8 @@ public sealed class TenantTierServiceImpl : TenantTierService.TenantTierServiceB
         }
 
         await using var cmd = new NpgsqlCommand(
-            "SELECT tenants_id, slug, name, tier, advanced_reporting_enabled, has_advanced_reporting, archived "
+            "SELECT tenants_id, slug, name, tier, advanced_reporting_enabled, has_advanced_reporting, archived, "
+            + "ach_enabled, ach_fee_formulas_id "
             + "FROM vw_tenant_reporting_access WHERE (@q IS NULL OR name ILIKE @q OR slug ILIKE @q) "
             + "ORDER BY name OFFSET @o LIMIT @l", connection);
         cmd.Parameters.Add(new NpgsqlParameter("q", NpgsqlTypes.NpgsqlDbType.Text)
@@ -66,7 +67,9 @@ public sealed class TenantTierServiceImpl : TenantTierService.TenantTierServiceB
                 Tier = reader.GetString(3),
                 AdvancedReportingEnabled = reader.GetBoolean(4),
                 HasAdvancedReporting = reader.GetBoolean(5),
-                Archived = reader.GetBoolean(6)
+                Archived = reader.GetBoolean(6),
+                AchEnabled = reader.GetBoolean(7),
+                AchFeeFormulasId = reader.IsDBNull(8) ? string.Empty : reader.GetGuid(8).ToString()
             });
         }
         return response;
@@ -117,6 +120,31 @@ public sealed class TenantTierServiceImpl : TenantTierService.TenantTierServiceB
         await LogTierAuditAsync(connection, tenantsId, "advanced_reporting_toggled",
             $"{{\"from\":{(oldValue ? "true" : "false")},\"to\":{(request.Enabled ? "true" : "false")}}}", ct);
         return new AckResponse { Success = true, Message = $"Advanced reporting {(request.Enabled ? "enabled" : "disabled")}" };
+    }
+
+    public override async Task<AckResponse> SetTenantAch(SetTenantAchRequest request, ServerCallContext context)
+    {
+        RequireDeveloper();
+        var ct = context.CancellationToken;
+        var tenantsId = Guid.Parse(request.TenantsId);
+        await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        bool oldValue;
+        try
+        {
+            await using var cmd = new NpgsqlCommand("SELECT sp_set_tenant_ach(@t, @e, @f)", connection);
+            cmd.Parameters.AddWithValue("t", tenantsId);
+            cmd.Parameters.AddWithValue("e", request.Enabled);
+            cmd.Parameters.AddWithValue("f", string.IsNullOrEmpty(request.FeeFormulasId)
+                ? DBNull.Value : Guid.Parse(request.FeeFormulasId));
+            oldValue = (bool)(await cmd.ExecuteScalarAsync(ct))!;
+        }
+        catch (PostgresException exception) when (exception.SqlState is "P0001" or "22023")
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument, exception.MessageText));
+        }
+        await LogTierAuditAsync(connection, tenantsId, "ach_toggled",
+            $"{{\"from\":{(oldValue ? "true" : "false")},\"to\":{(request.Enabled ? "true" : "false")}}}", ct);
+        return new AckResponse { Success = true, Message = $"ACH {(request.Enabled ? "enabled" : "disabled")}" };
     }
 
     private void RequireDeveloper()

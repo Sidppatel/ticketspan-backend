@@ -147,27 +147,49 @@ public sealed class StripeService
 
     public async Task<PaymentIntent> CreateDestinationPaymentIntentAsync(
         long amountCents, long applicationFeeCents, string currency,
-        string destinationAccountId, Guid bookingId, CancellationToken ct)
+        string destinationAccountId, Guid bookingId, bool achAllowed, bool bankOnly, CancellationToken ct)
     {
         var service = new PaymentIntentService(client);
+        // Two distinct checkouts: card drawer offers card only; the separate ACH checkout
+        // (bankOnly) offers us_bank_account only. ACH gate is enforced upstream (only an
+        // ach_allowed booking reaches bankOnly). Automatic methods would surface every
+        // dashboard-enabled method to everyone, so we list explicitly.
+        var methods = bankOnly
+            ? new List<string> { "us_bank_account" }
+            : new List<string> { "card", "cashapp" };
         var options = new PaymentIntentCreateOptions
         {
             Amount = amountCents,
             Currency = currency,
-            // Buyer never re-selects a method on retry; let Stripe manage methods.
-            AutomaticPaymentMethods = new PaymentIntentAutomaticPaymentMethodsOptions { Enabled = true },
+            PaymentMethodTypes = methods,
             ApplicationFeeAmount = applicationFeeCents,
             TransferData = new PaymentIntentTransferDataOptions { Destination = destinationAccountId },
             Metadata = new Dictionary<string, string> { ["bookings_id"] = bookingId.ToString() }
         };
-        // Idempotency: keyed on the booking so duplicate "Pay" clicks / tab
-        // switches return the same PaymentIntent rather than creating duplicates.
-        var requestOptions = new RequestOptions { IdempotencyKey = $"pi_create_{bookingId}" };
+        // Idempotency: keyed on booking + track so duplicate "Pay" clicks return the same
+        // PaymentIntent, while the card and bank-only checkouts stay distinct intents.
+        var requestOptions = new RequestOptions
+        {
+            IdempotencyKey = $"pi_create_{bookingId}_{(bankOnly ? "ach" : "card")}"
+        };
         return await service.CreateAsync(options, requestOptions, ct);
     }
 
     public async Task<PaymentIntent> GetPaymentIntentAsync(string intentId, CancellationToken ct)
         => await new PaymentIntentService(client).GetAsync(intentId, cancellationToken: ct);
+
+    /// <summary>
+    /// Re-prices an in-flight intent when the buyer switches payment method (e.g. to
+    /// ACH). Permitted while the intent is pre-confirmation; the buyer confirms the
+    /// server-set amount, never a client-supplied one.
+    /// </summary>
+    public async Task<PaymentIntent> UpdatePaymentIntentAmountAsync(
+        string intentId, long amountCents, long applicationFeeCents, CancellationToken ct)
+        => await new PaymentIntentService(client).UpdateAsync(intentId, new PaymentIntentUpdateOptions
+        {
+            Amount = amountCents,
+            ApplicationFeeAmount = applicationFeeCents
+        }, cancellationToken: ct);
 
     public async Task CancelPaymentIntentAsync(string intentId, CancellationToken ct)
     {

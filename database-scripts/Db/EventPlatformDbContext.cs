@@ -136,6 +136,10 @@ public class EventPlatformDbContext(
             entity.HasOne(e => e.GatewayFeeFormula).WithMany()
                 .HasForeignKey(e => e.GatewayFeeFormulasId)
                 .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+            entity.Property(e => e.AchEnabled).HasDefaultValue(false);
+            entity.HasOne(e => e.AchFeeFormula).WithMany()
+                .HasForeignKey(e => e.AchFeeFormulasId)
+                .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<TenantStripeProfile>(entity =>
@@ -730,6 +734,7 @@ public class EventPlatformDbContext(
             entity.Property(e => e.EventType).HasConversion<string>().HasMaxLength(20)
                 .HasDefaultValue(Db.Enums.EventType.Open);
             entity.Property(e => e.FeesIncluded).HasDefaultValue(false);
+            entity.Property(e => e.AchEnabled).HasDefaultValue(false);
             entity.Property(e => e.Meta).HasColumnType("jsonb").HasDefaultValueSql("'[]'::jsonb");
             entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
                 .OnDelete(DeleteBehavior.Restrict);

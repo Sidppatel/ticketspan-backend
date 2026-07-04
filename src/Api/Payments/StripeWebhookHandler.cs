@@ -46,15 +46,23 @@ public sealed class StripeWebhookHandler
                 break;
 
             case "payment_intent.payment_failed":
-                await SetTxStatus(connection, ((PaymentIntent)stripeEvent.Data.Object).Id, "Failed", ct);
+                // ACH may fail days after submission; frees seats if already committed.
+                await RunByIntent(connection, "sp_fail_booking_payment",
+                    ((PaymentIntent)stripeEvent.Data.Object).Id, ct);
                 break;
 
             case "payment_intent.canceled":
                 await OnPaymentCanceled(connection, (PaymentIntent)stripeEvent.Data.Object, ct);
                 break;
 
-            case "payment_intent.created":
             case "payment_intent.processing":
+                // ACH submitted (settles T+4). Exempt the booking from hold-expiry so
+                // its seats aren't reclaimed before the funds clear.
+                await RunByIntent(connection, "sp_mark_booking_processing",
+                    ((PaymentIntent)stripeEvent.Data.Object).Id, ct);
+                break;
+
+            case "payment_intent.created":
             case "payment_intent.requires_action":
                 // Informational — nothing to persist beyond the initial row.
                 break;
@@ -261,6 +269,13 @@ public sealed class StripeWebhookHandler
         {
             logger.LogInformation("payout for untracked account {Acct}", accountId);
         }
+    }
+
+    private static async Task RunByIntent(NpgsqlConnection conn, string sp, string intentId, CancellationToken ct)
+    {
+        await using var cmd = new NpgsqlCommand($"SELECT {sp}(@id)", conn);
+        cmd.Parameters.AddWithValue("id", intentId);
+        await cmd.ExecuteNonQueryAsync(ct);
     }
 
     private static async Task SetTxStatus(NpgsqlConnection conn, string intentId, string status, CancellationToken ct)
