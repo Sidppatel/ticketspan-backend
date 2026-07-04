@@ -516,7 +516,10 @@ public sealed class BookingServiceImpl : BookingService.BookingServiceBase
     }
 
     public override Task<AckResponse> RefundBooking(UuidValue request, ServerCallContext context)
-        => RunVoid("SELECT sp_refund_booking(@id)", request.Value, context, null, "Booking refunded");
+        // Policy: all ticket sales are final. Refunds are never initiated in-app.
+        // sp_refund_booking stays for the Stripe webhook path (dashboard refunds,
+        // dispute reversals) so the DB mirrors whatever Stripe actually did.
+        => throw new RpcException(new Status(StatusCode.FailedPrecondition, "All ticket sales are final; refunds are not available."));
 
     public override async Task<BookingStats> GetBookingStats(UuidValue request, ServerCallContext context)
     {
