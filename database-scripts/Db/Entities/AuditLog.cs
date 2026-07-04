@@ -12,6 +12,7 @@ public class AuditLog
     public Guid? ActorId { get; set; }
     public string? SubjectType { get; set; }
     public Guid? SubjectId { get; set; }
+    public Guid? EventsId { get; set; }
     public required string Action { get; set; }
     public string? MetadataJson { get; set; }
     public string? Ip { get; set; }

@@ -1070,6 +1070,7 @@ public class EventPlatformDbContext(
             entity.HasIndex(e => e.TenantsId);
             entity.HasIndex(e => new { e.ActorType, e.ActorId, e.CreatedAt });
             entity.HasIndex(e => new { e.SubjectType, e.SubjectId, e.CreatedAt });
+            entity.HasIndex(e => new { e.TenantsId, e.EventsId, e.CreatedAt });
         });
 
         modelBuilder.Entity<Feedback>(entity =>

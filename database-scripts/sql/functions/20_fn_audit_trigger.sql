@@ -11,6 +11,7 @@ AS $$
 DECLARE
     v_action text;
     v_subject_id uuid;
+    v_events_id uuid;
     v_before jsonb;
     v_after  jsonb;
     v_actor uuid := nullif(current_setting('app.current_user_id', true), '')::uuid;
@@ -38,6 +39,7 @@ BEGIN
     END IF;
 
     v_subject_id := (coalesce(v_after, v_before) ->> (TG_TABLE_NAME || '_id'))::uuid;
+    v_events_id := nullif(coalesce(v_after, v_before) ->> 'events_id', '')::uuid;
 
     v_actor_type := CASE
         WHEN v_actor IS NULL THEN 'System'
@@ -47,11 +49,11 @@ BEGIN
 
     INSERT INTO audit_logs (
         audit_logs_id, tenants_id, created_at, event_type, actor_type, actor_id,
-        subject_type, subject_id, action, metadata_json, ip, correlation_id
+        subject_type, subject_id, events_id, action, metadata_json, ip, correlation_id
     )
     VALUES (
         gen_random_uuid(), v_tenant, now(), 'EntityChange', v_actor_type, v_actor,
-        TG_TABLE_NAME, v_subject_id, v_action,
+        TG_TABLE_NAME, v_subject_id, v_events_id, v_action,
         jsonb_build_object('before', v_before, 'after', v_after, 'source', TG_TABLE_NAME),
         NULL, NULL
     );

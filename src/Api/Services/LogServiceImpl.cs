@@ -31,8 +31,81 @@ public sealed class LogServiceImpl : LogService.LogServiceBase
         this.memoryCache = memoryCache;
     }
 
-    public override Task<LogPage> GetAdminLogs(LogQuery request, ServerCallContext context)
-        => QueryAsync("SELECT id, timestamp, action, entity_type, business_user_email, description FROM vw_business_logs ORDER BY timestamp DESC LIMIT @lim OFFSET @off", request, context);
+    public override async Task<LogPage> GetAdminLogs(LogQuery request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        if (!tenantContext.IsDeveloper && tenantContext.TenantsId is null)
+        {
+            throw new RpcException(new Status(StatusCode.PermissionDenied, "Access denied"));
+        }
+        var page = request.Page ?? new PageRequest();
+        var take = page.Limit <= 0 || page.Limit > 200 ? 50 : page.Limit;
+        var response = new LogPage { Meta = new PageMeta { Offset = page.Offset, Limit = take } };
+
+        var filters = new List<string>();
+        if (!string.IsNullOrEmpty(request.Action)) filters.Add("action = @action");
+        if (!string.IsNullOrEmpty(request.EntityType)) filters.Add("entity_type = @entity_type");
+        if (Guid.TryParse(request.EventsId, out _)) filters.Add("events_id = @events_id");
+        if (request.From > 0) filters.Add("timestamp >= @from");
+        if (request.To > 0) filters.Add("timestamp <= @to");
+        if (!string.IsNullOrEmpty(page.Search))
+        {
+            filters.Add("(action ILIKE @q OR entity_type ILIKE @q OR coalesce(business_user_email, '') ILIKE @q OR coalesce(description, '') ILIKE @q)");
+        }
+        var where = filters.Count > 0 ? " WHERE " + string.Join(" AND ", filters) : string.Empty;
+
+        await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+
+        await using (var countCmd = new NpgsqlCommand($"SELECT COUNT(*) FROM vw_business_logs{where}", connection))
+        {
+            AddAdminLogFilters(countCmd, request, page);
+            response.Meta.Total = Convert.ToInt32(await countCmd.ExecuteScalarAsync(ct) ?? 0);
+        }
+
+        await using var cmd = new NpgsqlCommand(
+            $"SELECT id, timestamp, action, entity_type, business_user_email, description, events_id FROM vw_business_logs{where} ORDER BY timestamp DESC LIMIT @lim OFFSET @off",
+            connection);
+        AddAdminLogFilters(cmd, request, page);
+        cmd.Parameters.AddWithValue("lim", take);
+        cmd.Parameters.AddWithValue("off", page.Offset);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            response.Entries.Add(new LogEntry
+            {
+                Id = reader.GetGuid(0).ToString(),
+                Timestamp = new DateTimeOffset(reader.GetDateTime(1), TimeSpan.Zero).ToUnixTimeSeconds(),
+                Action = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+                EntityType = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+                ActorEmail = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
+                Detail = reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
+                EventsId = reader.IsDBNull(6) ? string.Empty : reader.GetGuid(6).ToString()
+            });
+        }
+        return response;
+    }
+
+    private static void AddAdminLogFilters(NpgsqlCommand cmd, LogQuery request, PageRequest page)
+    {
+        if (!string.IsNullOrEmpty(request.Action)) cmd.Parameters.AddWithValue("action", request.Action);
+        if (!string.IsNullOrEmpty(request.EntityType)) cmd.Parameters.AddWithValue("entity_type", request.EntityType);
+        if (Guid.TryParse(request.EventsId, out var eventsId)) cmd.Parameters.AddWithValue("events_id", eventsId);
+        if (request.From > 0)
+        {
+            cmd.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz)
+            {
+                Value = DateTimeOffset.FromUnixTimeSeconds(request.From)
+            });
+        }
+        if (request.To > 0)
+        {
+            cmd.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz)
+            {
+                Value = DateTimeOffset.FromUnixTimeSeconds(request.To)
+            });
+        }
+        if (!string.IsNullOrEmpty(page.Search)) cmd.Parameters.AddWithValue("q", $"%{page.Search}%");
+    }
 
     public override Task<LogPage> GetSystemLogs(LogQuery request, ServerCallContext context)
         => QueryAsync("SELECT id, timestamp, action, entity_type, user_email, category FROM vw_system_logs ORDER BY timestamp DESC LIMIT @lim OFFSET @off", request, context);

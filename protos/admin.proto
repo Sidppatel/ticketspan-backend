@@ -155,6 +155,7 @@ message LogQuery {
   string entity_type = 3;
   int64 from = 4;
   int64 to = 5;
+  string events_id = 6;
 }
 
 message LogEntry {
@@ -164,6 +165,7 @@ message LogEntry {
   string entity_type = 4;
   string actor_email = 5;
   string detail = 6;
+  string events_id = 7;
 }
 
 message LogPage {
