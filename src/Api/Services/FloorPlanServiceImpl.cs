@@ -28,6 +28,7 @@ public sealed class FloorPlanServiceImpl : FloorPlanService.FloorPlanServiceBase
     {
         var ct = context.CancellationToken;
         RequireTenant();
+        RequireNotEventScoped();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand("SELECT sp_create_floor_plan_template(@ev, @name)", connection);
         cmd.Parameters.AddWithValue("ev", Guid.Parse(request.EventsId));
@@ -63,6 +64,7 @@ public sealed class FloorPlanServiceImpl : FloorPlanService.FloorPlanServiceBase
         var ct = context.CancellationToken;
         RequireTenant();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await EventAccess.RequireAsync(connection, tenantContext, Guid.Parse(request.EventsId), ct);
         await using var cmd = new NpgsqlCommand("SELECT sp_apply_floor_plan_template(@tpl, @ev)", connection);
         cmd.Parameters.AddWithValue("tpl", Guid.Parse(request.FloorPlanTemplatesId));
         cmd.Parameters.AddWithValue("ev", Guid.Parse(request.EventsId));
@@ -74,6 +76,7 @@ public sealed class FloorPlanServiceImpl : FloorPlanService.FloorPlanServiceBase
     {
         var ct = context.CancellationToken;
         RequireTenant();
+        RequireNotEventScoped();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand("SELECT sp_delete_floor_plan_template(@id)", connection);
         cmd.Parameters.AddWithValue("id", Guid.Parse(request.Value));
@@ -86,6 +89,14 @@ public sealed class FloorPlanServiceImpl : FloorPlanService.FloorPlanServiceBase
         if (tenantContext.TenantsId is null && !tenantContext.IsDeveloper)
         {
             throw new RpcException(new Status(StatusCode.PermissionDenied, "Tenant context required"));
+        }
+    }
+
+    private void RequireNotEventScoped()
+    {
+        if (tenantContext.IsEventScoped)
+        {
+            throw new RpcException(new Status(StatusCode.PermissionDenied, "Event managers cannot manage shared templates"));
         }
     }
 }

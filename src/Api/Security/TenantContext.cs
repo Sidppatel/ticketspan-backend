@@ -9,4 +9,6 @@ public sealed class TenantContext
     public string TenantSlug { get; set; } = string.Empty;
 
     public bool IsDeveloper => Role == 99;
+
+    public bool IsEventScoped => Role == 2 || Role == 4;
 }

@@ -87,6 +87,7 @@ public sealed class PricingServiceImpl : PricingService.PricingServiceBase
         var ct = context.CancellationToken;
         var response = new ListPricesResponse();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await EventAccess.RequireAsync(connection, tenantContext, Guid.Parse(request.Value), ct);
         await using var cmd = new NpgsqlCommand("SELECT * FROM sp_list_prices_for_event(@ev)", connection);
         cmd.Parameters.AddWithValue("ev", Guid.Parse(request.Value));
         await using var reader = await cmd.ExecuteReaderAsync(ct);

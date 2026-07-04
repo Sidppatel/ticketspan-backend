@@ -14,7 +14,8 @@ RETURNS TABLE(
     event_status text,
     assigned_by_users_id uuid,
     created_at timestamptz,
-    updated_at timestamptz
+    updated_at timestamptz,
+    user_role integer
 ) LANGUAGE sql STABLE
     SET search_path = public, extensions, pg_catalog
 AS $$
@@ -25,7 +26,8 @@ AS $$
         aue.event_id, e.title::text, e.slug::text,
         e.start_date, e.end_date, e.status::text,
         aue.assigned_by_admin_id,
-        aue.created_at, aue.updated_at
+        aue.created_at, aue.updated_at,
+        au.role
     FROM staff_event_access aue
     JOIN users au ON au.users_id = aue.staff_user_id
     JOIN events e ON e.events_id = aue.event_id

@@ -23,6 +23,7 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
     {
         var ct = context.CancellationToken;
         RequireTenant();
+        RequireNotEventScoped();
         if (tenantContext.UsersId is null || tenantContext.TenantsId is null)
         {
             throw new RpcException(new Status(StatusCode.Unauthenticated, "Authenticated tenant user required"));
@@ -109,10 +110,12 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
     public override async Task<EventStats> GetEventStats(UuidValue request, ServerCallContext context)
     {
         var ct = context.CancellationToken;
+        var eventId = Guid.Parse(request.Value);
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await RequireEventAccessAsync(connection, eventId, ct);
         await using var cmd = new NpgsqlCommand(
             "SELECT total, paid, checked_in, revenue FROM sp_get_booking_stats(NULL, @ev)", connection);
-        cmd.Parameters.AddWithValue("ev", Guid.Parse(request.Value));
+        cmd.Parameters.AddWithValue("ev", eventId);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct))
         {
@@ -124,7 +127,7 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
             TotalBookings = reader.GetInt32(0),
             TicketsSold = reader.GetInt32(1),
             CheckedIn = reader.GetInt32(2),
-            RevenueCents = reader.GetInt64(3)
+            RevenueCents = tenantContext.IsEventScoped ? 0 : reader.GetInt64(3)
         };
     }
 
@@ -175,6 +178,7 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
     {
         var ct = context.CancellationToken;
         RequireTenant();
+        RequireNotEventScoped();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand("SELECT sp_delete_event(@id)", connection);
         cmd.Parameters.AddWithValue("id", Guid.Parse(request.Value));
@@ -193,7 +197,7 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
     {
         var ct = context.CancellationToken;
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
-        await using var cmd = new NpgsqlCommand(EventSelect + " WHERE events_id = @id", connection);
+        await using var cmd = new NpgsqlCommand(EventSelect + " WHERE events_id = @id" + EventScopeFilter, connection);
         cmd.Parameters.AddWithValue("id", Guid.Parse(request.Value));
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct))
@@ -214,7 +218,7 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         await using var cmd = new NpgsqlCommand(
             EventSelect + " WHERE slug = @slug"
             + (isPublicViewer ? " AND status = 'Published'" : string.Empty)
-            + tenantFilter, connection);
+            + tenantFilter + EventScopeFilter, connection);
         cmd.Parameters.AddWithValue("slug", request.Slug);
         if (tenantContext.TenantsId is { } tenantsId)
         {
@@ -244,6 +248,7 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
             EventSelect
             + " WHERE events_id IN (SELECT events_id FROM events WHERE tenants_id = @tenant)"
             + " AND (@status = '' OR status = @status)"
+            + EventScopeFilter
             + " ORDER BY start_date DESC LIMIT @lim OFFSET @off", connection);
         cmd.Parameters.AddWithValue("tenant", tenantsId);
         cmd.Parameters.AddWithValue("status", effectiveStatus);
@@ -263,6 +268,7 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         var ct = context.CancellationToken;
         var response = new ListScheduleItemsResponse();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await RequireEventAccessAsync(connection, Guid.Parse(request.Value), ct);
         await using var cmd = new NpgsqlCommand(
             "SELECT schedule_items_id, events_id, title, type_category, start_time, end_time "
             + "FROM vw_schedule_items WHERE events_id = @ev ORDER BY start_time", connection);
@@ -350,6 +356,7 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         var ct = context.CancellationToken;
         var response = new ListEventImagesResponse();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await RequireEventAccessAsync(connection, Guid.Parse(request.EventsId), ct);
         await using var cmd = new NpgsqlCommand(
             "SELECT images_id, storage_key, type, is_primary, sort_order "
             + "FROM sp_list_event_images(@ev, @type)", connection);
@@ -517,6 +524,9 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
 
     private static string? NullIfEmpty(string value) => string.IsNullOrEmpty(value) ? null : value;
 
+    private string EventScopeFilter =>
+        tenantContext.IsEventScoped ? " AND app.can_access_event(events_id)" : string.Empty;
+
     private void RequireTenant()
     {
         if (tenantContext.TenantsId is null && !tenantContext.IsDeveloper)
@@ -524,4 +534,15 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
             throw new RpcException(new Status(StatusCode.PermissionDenied, "Tenant context required"));
         }
     }
+
+    private void RequireNotEventScoped()
+    {
+        if (tenantContext.IsEventScoped)
+        {
+            throw new RpcException(new Status(StatusCode.PermissionDenied, "Event managers cannot create or delete events"));
+        }
+    }
+
+    private Task RequireEventAccessAsync(NpgsqlConnection connection, Guid eventId, CancellationToken ct) =>
+        EventAccess.RequireAsync(connection, tenantContext, eventId, ct);
 }

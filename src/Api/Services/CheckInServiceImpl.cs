@@ -422,6 +422,7 @@ public sealed class CheckInServiceImpl : CheckInService.CheckInServiceBase
         }
         if (tenantContext.Role == 2)
         {
+            // Check-in staff: gated to the 24h-before/after scanning window.
             await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
             await using var cmd = new NpgsqlCommand(
                 "SELECT sp_staff_can_access_event(@u, @ev)", connection);
@@ -429,6 +430,14 @@ public sealed class CheckInServiceImpl : CheckInService.CheckInServiceBase
             cmd.Parameters.AddWithValue("ev", eventId);
             var allowed = (bool)(await cmd.ExecuteScalarAsync(ct))!;
             if (allowed) return;
+        }
+        if (tenantContext.Role == 4)
+        {
+            // Event managers manage their assigned events at any time, no scan window.
+            await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+            await using var cmd = new NpgsqlCommand("SELECT app.can_access_event(@ev)", connection);
+            cmd.Parameters.AddWithValue("ev", eventId);
+            if (await cmd.ExecuteScalarAsync(ct) is true) return;
         }
         throw new RpcException(new Status(StatusCode.PermissionDenied, "Not Authorized"));
     }

@@ -94,6 +94,7 @@ message StaffMember {
   string first_name = 2;
   string last_name = 3;
   string email = 4;
+  int32 role = 5;
 }
 
 message ListStaffResponse { repeated StaffMember staff = 1; }
@@ -112,6 +113,7 @@ message CreateInvitationRequest {
 message AssignStaffByEmailRequest {
   string email = 1;
   string events_id = 2;
+  int32 role = 3;
 }
 
 message AssignStaffByEmailResponse {

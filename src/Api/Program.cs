@@ -49,7 +49,11 @@ builder.Services.AddCors(options =>
             .WithExposedHeaders("grpc-status", "grpc-message", "grpc-status-details-bin");
     }));
 
-builder.Services.AddGrpc(options => options.Interceptors.Add<Svyne.Api.ErrorHandling.ErrorLoggingInterceptor>());
+builder.Services.AddGrpc(options =>
+{
+    options.Interceptors.Add<Svyne.Api.ErrorHandling.ErrorLoggingInterceptor>();
+    options.Interceptors.Add<Svyne.Api.Security.EventManagerAuthorizationInterceptor>();
+});
 builder.Services.AddSingleton<Svyne.Api.ErrorHandling.ErrorLogger>();
 builder.Services.AddSingleton<Svyne.Api.ErrorHandling.ErrorLoggingInterceptor>();
 builder.Services.AddSingleton<Db>();

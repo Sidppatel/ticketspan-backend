@@ -38,6 +38,8 @@ public sealed class TicketServiceImpl : TicketService.TicketServiceBase
     {
         var ct = context.CancellationToken;
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await EventAccess.RequireResolvedAsync(
+            connection, tenantContext, "SELECT events_id FROM vw_tickets WHERE ticket_id = @key", Guid.Parse(request.Value), ct);
         await using var cmd = new NpgsqlCommand(
             "SELECT t.ticket_id, t.ticket_code, t.qr_token, t.seat_number, t.status, t.guest_users_id, "
             + "t.event_title, t.event_start_date, t.venue_name, e.slug AS event_slug, t.booking_number, t.ticket_type_label "
@@ -58,6 +60,8 @@ public sealed class TicketServiceImpl : TicketService.TicketServiceBase
         var ct = context.CancellationToken;
         var response = new ListTicketsResponse();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await EventAccess.RequireResolvedAsync(
+            connection, tenantContext, "SELECT events_id FROM bookings WHERE bookings_id = @key", Guid.Parse(request.Value), ct);
         await using var cmd = new NpgsqlCommand(
             "SELECT t.ticket_id, t.ticket_code, t.qr_token, t.seat_number, t.status, t.guest_users_id, "
             + "t.event_title, t.event_start_date, t.venue_name, e.slug AS event_slug, t.booking_number, t.ticket_type_label "

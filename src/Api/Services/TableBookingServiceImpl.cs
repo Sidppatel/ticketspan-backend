@@ -53,6 +53,7 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
         var eventsId = Guid.Parse(request.Value);
         var layout = new EventLayout { EventsId = request.Value };
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await EventAccess.RequireAsync(connection, tenantContext, eventsId, ct);
         await using var cmd = new NpgsqlCommand(TableSelect, connection);
         cmd.Parameters.AddWithValue("ev", eventsId);
         await using (var reader = await cmd.ExecuteReaderAsync(ct))
@@ -90,6 +91,7 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
         var ct = context.CancellationToken;
         var response = new ListTablesResponse();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await EventAccess.RequireAsync(connection, tenantContext, Guid.Parse(request.Value), ct);
         await using var cmd = new NpgsqlCommand(TableSelect, connection);
         cmd.Parameters.AddWithValue("ev", Guid.Parse(request.Value));
         await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -105,6 +107,7 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
         var ct = context.CancellationToken;
         var response = new ListEventTableTypesResponse();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await EventAccess.RequireAsync(connection, tenantContext, Guid.Parse(request.Value), ct);
         await using var cmd = new NpgsqlCommand(
             "SELECT event_tables_id, label, capacity, shape, COALESCE(color, ''), price_cents, prices_id, "
             + "COALESCE(default_width, 80), COALESCE(default_height, 80), COALESCE(platform_fee_cents, 0) "

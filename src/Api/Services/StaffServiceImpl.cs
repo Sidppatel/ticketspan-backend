@@ -36,7 +36,7 @@ public sealed class StaffServiceImpl : StaffService.StaffServiceBase
         var response = new ListStaffResponse();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT users_id, first_name, last_name, email FROM sp_list_staff_for_event(@ev)", connection);
+            "SELECT users_id, first_name, last_name, email, user_role FROM sp_list_staff_for_event(@ev)", connection);
         cmd.Parameters.AddWithValue("ev", Guid.Parse(request.Value));
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
@@ -46,7 +46,8 @@ public sealed class StaffServiceImpl : StaffService.StaffServiceBase
                 UsersId = reader.GetGuid(0).ToString(),
                 FirstName = reader.GetString(1),
                 LastName = reader.GetString(2),
-                Email = reader.GetString(3)
+                Email = reader.GetString(3),
+                Role = reader.GetInt32(4)
             });
         }
         return response;
@@ -107,10 +108,13 @@ public sealed class StaffServiceImpl : StaffService.StaffServiceBase
     {
         var ct = context.CancellationToken;
         RequireTenant();
+        // Event managers (role 4) get scoped admin access to assigned events; anything
+        // else is a check-in staff (role 2). Never let an arbitrary role value through.
+        var targetRole = request.Role == 4 ? 4 : 2;
         var emailHash = EmailHasher.Hash(request.Email);
         var eventId = Guid.Parse(request.EventsId);
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
-        
+
         // Check if user exists
         await using var lookup = new NpgsqlCommand(
             "SELECT users_id FROM users WHERE email_hash = @h AND tenants_id = @t", connection);
@@ -120,10 +124,12 @@ public sealed class StaffServiceImpl : StaffService.StaffServiceBase
 
         if (userExistsId is Guid userId)
         {
-            // Update role to 2 (Staff) if it is 0 (Attendee)
+            // Promote attendees and check-in staff up to the requested scoped role; never
+            // touch an existing admin (1) / developer (99).
             await using var promoteCmd = new NpgsqlCommand(
-                "UPDATE users SET role = 2 WHERE users_id = @id AND role = 0", connection);
+                "UPDATE users SET role = @role WHERE users_id = @id AND role IN (0, 2)", connection);
             promoteCmd.Parameters.AddWithValue("id", userId);
+            promoteCmd.Parameters.AddWithValue("role", targetRole);
             await promoteCmd.ExecuteNonQueryAsync(ct);
 
             // Assign event access
@@ -134,7 +140,7 @@ public sealed class StaffServiceImpl : StaffService.StaffServiceBase
             assignCmd.Parameters.AddWithValue("by", (object?)tenantContext.UsersId ?? DBNull.Value);
             await assignCmd.ExecuteNonQueryAsync(ct);
 
-            return new AssignStaffByEmailResponse { UserExisted = true, Message = "Staff member assigned successfully." };
+            return new AssignStaffByEmailResponse { UserExisted = true, Message = "Team member assigned successfully." };
         }
         else
         {
@@ -142,7 +148,8 @@ public sealed class StaffServiceImpl : StaffService.StaffServiceBase
             var token = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
             var hash = EmailHasher.Hash(token);
             await using var cmd = new NpgsqlCommand(
-                "SELECT sp_create_invitation(@email, @hash, 2, @by, @exp, @t, @event)", connection);
+                "SELECT sp_create_invitation(@email, @hash, @role, @by, @exp, @t, @event)", connection);
+            cmd.Parameters.AddWithValue("role", targetRole);
             cmd.Parameters.AddWithValue("email", request.Email);
             cmd.Parameters.AddWithValue("hash", hash);
             cmd.Parameters.AddWithValue("by", tenantContext.UsersId!);
