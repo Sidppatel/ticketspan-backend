@@ -88,6 +88,12 @@ BEGIN
                platform_fee_cents = app.compute_fee(price_cents, p_formula),
                updated_at = now()
          WHERE event_ticket_types_id = p_target;
+        -- Keep the authoritative prices row in sync: app.price_breakdown (the
+        -- checkout/cart engine) resolves the fee from prices.fee_formulas_id, not
+        -- the cached copy above. Without this the cart quotes the old formula.
+        UPDATE prices
+           SET fee_formulas_id = p_formula, updated_at = now()
+         WHERE prices_id = (SELECT prices_id FROM event_ticket_types WHERE event_ticket_types_id = p_target);
     ELSIF p_kind = 'table' THEN
         SELECT fee_formulas_id INTO v_old FROM event_tables WHERE event_tables_id = p_target;
         IF NOT app.is_developer() AND v_old IS DISTINCT FROM p_formula THEN
@@ -104,8 +110,26 @@ BEGIN
                platform_fee_cents = app.compute_fee(price_cents, p_formula),
                updated_at = now()
          WHERE event_tables_id = p_target;
+        UPDATE prices
+           SET fee_formulas_id = p_formula, updated_at = now()
+         WHERE prices_id = (SELECT prices_id FROM event_tables WHERE event_tables_id = p_target);
     ELSE
         RAISE EXCEPTION 'Unknown target kind %', p_kind USING ERRCODE = '22023';
     END IF;
     RETURN v_old;
 END; $$;
+
+-- Self-heal: prior to the prices-sync above, sp_set_fee_formula only updated the
+-- cached copy, so existing rows can have a stale prices.fee_formulas_id. Realign
+-- prices to the assignment held on its owning ticket type / table. No-op once synced.
+UPDATE prices p
+   SET fee_formulas_id = ett.fee_formulas_id, updated_at = now()
+  FROM event_ticket_types ett
+ WHERE ett.prices_id = p.prices_id
+   AND p.fee_formulas_id IS DISTINCT FROM ett.fee_formulas_id;
+
+UPDATE prices p
+   SET fee_formulas_id = et.fee_formulas_id, updated_at = now()
+  FROM event_tables et
+ WHERE et.prices_id = p.prices_id
+   AND p.fee_formulas_id IS DISTINCT FROM et.fee_formulas_id;
