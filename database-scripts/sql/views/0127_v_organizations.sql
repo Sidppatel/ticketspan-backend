@@ -14,22 +14,21 @@ SELECT
     o.archived_at,
     COALESCE(mc.cnt, 0)::int AS member_count,
     COALESCE(ec.cnt, 0)::int AS event_count,
-    COALESCE(rev.total, 0)::bigint AS total_revenue_cents
+    COALESCE(rev.total, 0)::bigint AS total_revenue_cents,
+    o.ach_enabled
 FROM tenants o
 LEFT JOIN LATERAL (
-    SELECT COUNT(*)::int AS cnt FROM users bu WHERE bu.tenants_id = o.tenants_id
+    SELECT COUNT(*)::int AS cnt FROM users bu WHERE bu.tenants_id = o.tenants_id AND bu.role IN (1, 2, 3, 4)
 ) mc ON true
 LEFT JOIN LATERAL (
-    SELECT COUNT(*)::int AS cnt 
-    FROM events e 
-    JOIN users bu ON bu.users_id = e.created_by_users_id
-    WHERE bu.tenants_id = o.tenants_id
+    SELECT COUNT(*)::int AS cnt
+    FROM events e
+    WHERE e.tenants_id = o.tenants_id
 ) ec ON true
 LEFT JOIN LATERAL (
     SELECT SUM(p.subtotal_cents)::bigint AS total
     FROM bookings p
     JOIN events e ON e.events_id = p.events_id
-    JOIN users bu ON bu.users_id = e.created_by_users_id
-    WHERE bu.tenants_id = o.tenants_id
+    WHERE e.tenants_id = o.tenants_id
       AND p.status IN ('Paid', 'CheckedIn')
 ) rev ON true;

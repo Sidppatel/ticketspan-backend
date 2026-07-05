@@ -70,6 +70,8 @@ message Tenant {
   string brand_text = 22;
   string brand_button = 23;
   string brand_highlight = 24;
+  // Whether this tenant may offer ACH bank-transfer payments (developer-managed).
+  bool ach_enabled = 25;
 }
 
 message UpdateMyTenantBrandingRequest {

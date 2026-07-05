@@ -60,6 +60,11 @@ public sealed class DashboardServiceImpl : DashboardService.DashboardServiceBase
         {
             result.TotalTenants = (int)(await cmd.ExecuteScalarAsync(ct))!;
         }
+        await using (var cmd = new NpgsqlCommand(
+            "SELECT COALESCE(SUM(revenue_cents), 0)::bigint FROM sp_developer_revenue_by_source(now() - interval '12 months', now())", connection))
+        {
+            result.PlatformRevenueCents = (long)(await cmd.ExecuteScalarAsync(ct))!;
+        }
         return result;
     }
 }

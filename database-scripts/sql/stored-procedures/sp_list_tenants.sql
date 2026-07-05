@@ -1,3 +1,5 @@
+DROP FUNCTION IF EXISTS sp_list_tenants(text, boolean, integer, integer);
+
 CREATE OR REPLACE FUNCTION sp_list_tenants(
     p_search text DEFAULT NULL,
     p_include_archived boolean DEFAULT false,

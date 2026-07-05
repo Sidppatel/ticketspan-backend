@@ -169,8 +169,12 @@ public sealed class TenantServiceImpl : TenantService.TenantServiceBase
 
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT tenants_id, slug, name, legal_name, country_code, member_count, archived_at IS NOT NULL "
-            + "FROM sp_list_tenants(@search, false, @offset, @limit)", connection);
+            "SELECT v.tenants_id, v.slug, v.name, v.legal_name, v.country_code, v.member_count, v.event_count, v.total_revenue_cents, v.archived_at IS NOT NULL, "
+            + "t.ach_enabled, t.default_fee_formulas_id "
+            + "FROM vw_tenants v JOIN tenants t ON t.tenants_id = v.tenants_id "
+            + "WHERE v.archived_at IS NULL "
+            + "AND (@search::text IS NULL OR v.name ILIKE '%' || @search || '%' OR v.legal_name ILIKE '%' || @search || '%' OR v.slug ILIKE '%' || @search || '%') "
+            + "ORDER BY v.created_at DESC OFFSET @offset LIMIT @limit", connection);
         cmd.Parameters.AddWithValue("search", (object?)NullIfEmpty(request.Search) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("offset", request.Offset);
         cmd.Parameters.AddWithValue("limit", request.Limit <= 0 ? 25 : request.Limit);
@@ -186,7 +190,11 @@ public sealed class TenantServiceImpl : TenantService.TenantServiceBase
                 LegalName = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
                 CountryCode = reader.GetString(4),
                 MemberCount = reader.GetInt32(5),
-                Archived = reader.GetBoolean(6)
+                EventCount = reader.GetInt32(6),
+                TotalRevenueCents = reader.GetInt64(7),
+                Archived = reader.GetBoolean(8),
+                AchEnabled = reader.GetBoolean(9),
+                DefaultFeeFormulasId = reader.IsDBNull(10) ? string.Empty : reader.GetGuid(10).ToString()
             });
         }
         response.Meta.Total = response.Tenants.Count;
