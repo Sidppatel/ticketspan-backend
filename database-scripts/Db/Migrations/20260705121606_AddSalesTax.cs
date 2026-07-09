@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
+using db.Migrations;
 
 #nullable disable
 
@@ -149,6 +150,12 @@ namespace Db.Migrations
                 name: "ix_tax_rate_cache_state",
                 table: "tax_rate_cache",
                 column: "state");
+
+            MigrationSqlLoader.LoadAll(migrationBuilder, "Sql.functions");
+            MigrationSqlLoader.LoadAll(migrationBuilder, "Sql.views");
+            MigrationSqlLoader.LoadAll(migrationBuilder, "Sql.stored_procedures");
+            MigrationSqlLoader.LoadAll(migrationBuilder, "Sql.policies");
+            MigrationSqlLoader.LoadAll(migrationBuilder, "Sql.security");
         }
 
         /// <inheritdoc />

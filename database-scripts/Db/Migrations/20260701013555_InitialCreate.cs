@@ -2377,11 +2377,7 @@ namespace Db.Migrations
                 table: "venues",
                 column: "tenants_id");
 
-            db.Migrations.MigrationSqlLoader.LoadAll(migrationBuilder, "Sql.functions");
-            db.Migrations.MigrationSqlLoader.LoadAll(migrationBuilder, "Sql.views");
-            db.Migrations.MigrationSqlLoader.LoadAll(migrationBuilder, "Sql.stored_procedures");
-            db.Migrations.MigrationSqlLoader.LoadAll(migrationBuilder, "Sql.policies");
-            db.Migrations.MigrationSqlLoader.LoadAll(migrationBuilder, "Sql.security");
+            // SQL objects loading deferred to the final migration (AddSalesTax)
         }
 
         
