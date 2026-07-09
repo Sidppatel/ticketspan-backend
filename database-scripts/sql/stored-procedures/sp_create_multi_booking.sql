@@ -34,6 +34,17 @@ BEGIN
         RAISE EXCEPTION 'No items in cart' USING ERRCODE = '22023';
     END IF;
 
+    SELECT jsonb_agg(merged) INTO p_lines FROM (
+        SELECT jsonb_build_object('kind', 'Ticket', 'ref_id', l->>'ref_id',
+                   'seats', SUM(GREATEST(COALESCE((l->>'seats')::int, 1), 1))) AS merged
+          FROM jsonb_array_elements(p_lines) l
+         WHERE l->>'kind' = 'Ticket'
+         GROUP BY l->>'ref_id'
+        UNION ALL
+        SELECT DISTINCT l FROM jsonb_array_elements(p_lines) l
+         WHERE l->>'kind' <> 'Ticket'
+    ) x;
+
     SELECT COALESCE((SELECT value::int FROM app_settings WHERE key = 'booking_hold_seconds'), 600)
       INTO v_hold;
 

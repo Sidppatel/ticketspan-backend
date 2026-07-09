@@ -5,6 +5,8 @@ AS $$
 BEGIN
     UPDATE booking_lines SET
         status = 'Unassigned',
+        ticket_code = 'TK-' || UPPER(SUBSTRING(gen_random_uuid()::text FROM 1 FOR 8)),
+        qr_token = encode(gen_random_bytes(32), 'hex'),
         invite_token_hash = NULL,
         invite_expires_at = NULL,
         invited_email = NULL,

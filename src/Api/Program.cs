@@ -10,6 +10,19 @@ System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler.DefaultInboundClaimTypeM
 
 var builder = WebApplication.CreateBuilder(args);
 
+if (!builder.Environment.IsDevelopment())
+{
+    if (string.IsNullOrEmpty(builder.Configuration["JWT_SIGNING_KEY"]))
+    {
+        throw new InvalidOperationException("JWT_SIGNING_KEY must be set outside Development");
+    }
+    if (!string.IsNullOrEmpty(builder.Configuration["STRIPE_SECRET_KEY"])
+        && string.IsNullOrEmpty(builder.Configuration["STRIPE_WEBHOOK_SECRET"]))
+    {
+        throw new InvalidOperationException("STRIPE_WEBHOOK_SECRET must be set when Stripe is configured outside Development");
+    }
+}
+
 var http2Only = builder.Configuration["GRPC_HTTP2_ONLY"] == "true";
 if (http2Only)
 {
@@ -100,12 +113,33 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 builder.Services.AddAuthorization();
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.GlobalLimiter = System.Threading.RateLimiting.PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+    {
+        if (!HttpMethods.IsPost(httpContext.Request.Method)
+            || !httpContext.Request.Path.StartsWithSegments("/svyne.auth.AuthService"))
+        {
+            return System.Threading.RateLimiting.RateLimitPartition.GetNoLimiter("none");
+        }
+        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter("auth:" + ip,
+            _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
+                Window = TimeSpan.FromMinutes(1)
+            });
+    });
+});
+
 var app = builder.Build();
 
 await app.Services.GetRequiredService<StartupSeeder>().SeedAsync(CancellationToken.None);
 
 app.UseMiddleware<Svyne.Api.ErrorHandling.ErrorLoggingMiddleware>();
 app.UseRouting();
+app.UseRateLimiter();
 app.UseCors(CorsPolicy);
 app.UseGrpcWeb(new GrpcWebOptions { DefaultEnabled = true });
 app.UseAuthentication();

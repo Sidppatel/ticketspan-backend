@@ -265,6 +265,8 @@ message Ticket {
   string event_slug = 10;
   string booking_number = 11;
   string ticket_type_label = 12;
+  string invited_email = 13;
+  int64 invite_sent_at = 14;
 }
 
 message ClaimTicketRequest {

@@ -84,7 +84,7 @@ public sealed class InvitationServiceImpl : InvitationService.InvitationServiceB
         var hash = EmailHasher.Hash(request.Token);
         await using var connection = await db.OpenAsync(null, null, ct);
         await using var lookup = new NpgsqlCommand(
-            "SELECT invitation_id, email, role, tenants_id, event_id FROM vw_invitations WHERE token_hash = @h AND status = 'Pending'", connection);
+            "SELECT invitations_id, email, role, tenants_id, event_id FROM sp_get_invitation_by_token(@h)", connection);
         lookup.Parameters.AddWithValue("h", hash);
         
         Guid id;

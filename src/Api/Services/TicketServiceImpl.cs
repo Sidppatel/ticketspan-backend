@@ -17,6 +17,7 @@ public sealed class TicketServiceImpl : TicketService.TicketServiceBase
     private readonly IEmailService email;
     private readonly EmailTemplateRenderer templates;
     private readonly ILogger<TicketServiceImpl> logger;
+    private readonly IConfiguration configuration;
 
     public TicketServiceImpl(
         Db db,
@@ -24,7 +25,8 @@ public sealed class TicketServiceImpl : TicketService.TicketServiceBase
         AppSettingsProvider settings,
         IEmailService email,
         EmailTemplateRenderer templates,
-        ILogger<TicketServiceImpl> logger)
+        ILogger<TicketServiceImpl> logger,
+        IConfiguration configuration)
     {
         this.db = db;
         this.tenantContext = tenantContext;
@@ -32,6 +34,18 @@ public sealed class TicketServiceImpl : TicketService.TicketServiceBase
         this.email = email;
         this.templates = templates;
         this.logger = logger;
+        this.configuration = configuration;
+    }
+
+    private string TenantClaimLinkBase()
+    {
+        var adminUrl = configuration["FRONTEND_ADMIN_URL"]?.TrimEnd('/') ?? "http://admin.localhost:5173";
+        var uri = new Uri(adminUrl);
+        var host = uri.Host.StartsWith("admin.") && !string.IsNullOrEmpty(tenantContext.TenantSlug)
+            ? tenantContext.TenantSlug + uri.Host["admin".Length..]
+            : uri.Host;
+        var port = uri.IsDefaultPort ? "" : ":" + uri.Port;
+        return $"{uri.Scheme}://{host}{port}/claim";
     }
 
     public override async Task<Ticket> GetTicket(UuidValue request, ServerCallContext context)
@@ -42,7 +56,8 @@ public sealed class TicketServiceImpl : TicketService.TicketServiceBase
             connection, tenantContext, "SELECT events_id FROM vw_tickets WHERE ticket_id = @key", Guid.Parse(request.Value), ct);
         await using var cmd = new NpgsqlCommand(
             "SELECT t.ticket_id, t.ticket_code, t.qr_token, t.seat_number, t.status, t.guest_users_id, "
-            + "t.event_title, t.event_start_date, t.venue_name, e.slug AS event_slug, t.booking_number, t.ticket_type_label "
+            + "t.event_title, t.event_start_date, t.venue_name, e.slug AS event_slug, t.booking_number, t.ticket_type_label, "
+            + "t.invited_email, t.invite_sent_at "
             + "FROM vw_tickets t "
             + "JOIN events e ON t.events_id = e.events_id "
             + "WHERE t.ticket_id = @id", connection);
@@ -64,7 +79,8 @@ public sealed class TicketServiceImpl : TicketService.TicketServiceBase
             connection, tenantContext, "SELECT events_id FROM bookings WHERE bookings_id = @key", Guid.Parse(request.Value), ct);
         await using var cmd = new NpgsqlCommand(
             "SELECT t.ticket_id, t.ticket_code, t.qr_token, t.seat_number, t.status, t.guest_users_id, "
-            + "t.event_title, t.event_start_date, t.venue_name, e.slug AS event_slug, t.booking_number, t.ticket_type_label "
+            + "t.event_title, t.event_start_date, t.venue_name, e.slug AS event_slug, t.booking_number, t.ticket_type_label, "
+            + "t.invited_email, t.invite_sent_at "
             + "FROM vw_tickets t "
             + "JOIN events e ON t.events_id = e.events_id "
             + "WHERE t.bookings_id = @p ORDER BY t.seat_number", connection);
@@ -145,7 +161,11 @@ public sealed class TicketServiceImpl : TicketService.TicketServiceBase
                 {
                     var fromAddress = await settings.GetStringAsync("admin_invitation_email", "noreply@svyne.com", ct);
                     var subject = $"You have been invited to {eventTitle}!";
-                    var linkBase = await settings.GetStringAsync("ticket_claim_link_base", "http://localhost:5173/claim", ct);
+                    var linkBase = await settings.GetStringAsync("ticket_claim_link_base", "", ct);
+                    if (string.IsNullOrEmpty(linkBase))
+                    {
+                        linkBase = TenantClaimLinkBase();
+                    }
                     var separator = linkBase.Contains('?') ? "&" : "?";
                     var claimLink = $"{linkBase}{separator}token={token}";
 
@@ -260,6 +280,11 @@ public sealed class TicketServiceImpl : TicketService.TicketServiceBase
             if (reader.FieldCount > 11)
             {
                 ticket.TicketTypeLabel = reader.IsDBNull(11) ? string.Empty : reader.GetString(11);
+            }
+            if (reader.FieldCount > 13)
+            {
+                ticket.InvitedEmail = reader.IsDBNull(12) ? string.Empty : reader.GetString(12);
+                ticket.InviteSentAt = reader.IsDBNull(13) ? 0 : new DateTimeOffset(DateTime.SpecifyKind(reader.GetDateTime(13), DateTimeKind.Utc)).ToUnixTimeSeconds();
             }
         }
         return ticket;
