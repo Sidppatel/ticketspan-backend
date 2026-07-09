@@ -108,6 +108,15 @@ public sealed class StartupSeeder
             formula.Parameters.AddWithValue("name", "Standard 6% + $1.50");
             await formula.ExecuteNonQueryAsync(ct);
         }
+
+        await using (var taxSeed = new NpgsqlCommand(
+            "INSERT INTO tax_rate_cache (zip_code, state, county, city, state_rate, county_rate, city_rate, local_rate, combined_rate, api_response_id, fetched_at, updated_at) "
+            + "VALUES ('36611', 'AL', 'Mobile', 'Mobile', 0.04, 0.06, 0.00, 0.00, 0.10, 'manual_injection', '2099-01-01 00:00:00+00', now()) "
+            + "ON CONFLICT (zip_code) DO NOTHING",
+            connection))
+        {
+            await taxSeed.ExecuteNonQueryAsync(ct);
+        }
     }
 
     private sealed record EnumGroup(string EnumType, string UsedIn, string Description, (string Value, int Int)[] Values);

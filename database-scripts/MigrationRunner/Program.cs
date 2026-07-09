@@ -10,6 +10,22 @@ if (!string.IsNullOrEmpty(migrationUrl))
 
 var factory = new DesignTimeDbContextFactory();
 
+if (args.Contains("--seed-tax"))
+{
+    Console.WriteLine("[migrate] seeding tax rates...");
+    await using var ctx = factory.CreateDbContext(args);
+    var conn = ctx.Database.GetDbConnection();
+    if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync();
+    await using var cmd = conn.CreateCommand();
+    cmd.CommandText = @"
+        INSERT INTO tax_rate_cache (zip_code, state, county, city, state_rate, county_rate, city_rate, local_rate, combined_rate, api_response_id, fetched_at, updated_at) 
+        VALUES ('36611', 'AL', 'Mobile', 'Mobile', 0.04, 0.06, 0.00, 0.00, 0.10, 'manual_injection', '2099-01-01 00:00:00+00', now()) 
+        ON CONFLICT (zip_code) DO UPDATE SET state_rate = EXCLUDED.state_rate, county_rate = EXCLUDED.county_rate, combined_rate = EXCLUDED.combined_rate, fetched_at = EXCLUDED.fetched_at, updated_at = now();";
+    await cmd.ExecuteNonQueryAsync();
+    Console.WriteLine("[migrate] tax rates seeded.");
+    return 0;
+}
+
 if (args.Contains("--reload-sql"))
 {
     Console.WriteLine("[migrate] reloading SQL objects...");
