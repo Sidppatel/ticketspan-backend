@@ -10,6 +10,7 @@
 # BACKEND BUILD STAGE
 # =========================
 FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine@sha256:732cd42c6f659814c9804ad7b05c7f761e83ef8379c5b2fdc3af673353caff73 AS build
+RUN apk add --no-cache libc6-compat
 WORKDIR /src
 
 # 1. Copy solution + every project file before restoring so the restore
