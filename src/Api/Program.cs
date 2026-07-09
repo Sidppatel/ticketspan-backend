@@ -357,7 +357,7 @@ app.MapPost("/developer/tax/refresh", async (Db db, Svyne.Api.Payments.SalesTaxS
     var zips = new List<string>();
     await using (var connection = await db.OpenBootstrapAsync(ct))
     {
-        await using (var cmd = new Npgsql.NpgsqlCommand("SELECT DISTINCT zip FROM venues WHERE zip IS NOT NULL AND zip != ''", connection))
+        await using (var cmd = new Npgsql.NpgsqlCommand("SELECT DISTINCT a.zip_code FROM venues v JOIN addresses a ON v.addresses_id = a.addresses_id WHERE a.zip_code IS NOT NULL AND a.zip_code != ''", connection))
         await using (var reader = await cmd.ExecuteReaderAsync(ct))
         {
             while (await reader.ReadAsync(ct))
