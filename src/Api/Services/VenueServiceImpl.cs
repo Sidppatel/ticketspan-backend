@@ -11,11 +11,13 @@ public sealed class VenueServiceImpl : VenueService.VenueServiceBase
 {
     private readonly Db db;
     private readonly TenantContext tenantContext;
+    private readonly Svyne.Api.Payments.SalesTaxService salesTaxService;
 
-    public VenueServiceImpl(Db db, TenantContext tenantContext)
+    public VenueServiceImpl(Db db, TenantContext tenantContext, Svyne.Api.Payments.SalesTaxService salesTaxService)
     {
         this.db = db;
         this.tenantContext = tenantContext;
+        this.salesTaxService = salesTaxService;
     }
 
     public override async Task<UuidValue> CreateVenue(CreateVenueRequest request, ServerCallContext context)
@@ -39,6 +41,19 @@ public sealed class VenueServiceImpl : VenueService.VenueServiceBase
         cmd.Parameters.AddWithValue("state", (object?)NullIfEmpty(request.State) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("zip", (object?)NullIfEmpty(request.Zip) ?? DBNull.Value);
         var id = (Guid)(await cmd.ExecuteScalarAsync(ct))!;
+
+        if (!string.IsNullOrEmpty(request.Zip))
+        {
+            try
+            {
+                await salesTaxService.EnsureRateForZipAsync(connection, request.Zip, ct);
+            }
+            catch
+            {
+                // Silently ignore so venue creation doesn't fail if tax API is down
+            }
+        }
+
         return new UuidValue { Value = id.ToString() };
     }
 
@@ -63,6 +78,19 @@ public sealed class VenueServiceImpl : VenueService.VenueServiceBase
         cmd.Parameters.AddWithValue("state", (object?)NullIfEmpty(request.State) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("zip", (object?)NullIfEmpty(request.Zip) ?? DBNull.Value);
         await cmd.ExecuteNonQueryAsync(ct);
+
+        if (!string.IsNullOrEmpty(request.Zip))
+        {
+            try
+            {
+                await salesTaxService.EnsureRateForZipAsync(connection, request.Zip, ct);
+            }
+            catch
+            {
+                // Ignore
+            }
+        }
+
         return new AckResponse { Success = true, Message = "Venue updated" };
     }
 

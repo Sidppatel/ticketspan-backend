@@ -352,6 +352,34 @@ app.MapGet("/stripe/onboard/return", (string? tenant, IConfiguration config) =>
 app.MapGet("/stripe/onboard/refresh", (string? tenant, IConfiguration config) =>
     Results.Redirect($"{AdminFrontend(config)}/financial?stripe=refresh")).AllowAnonymous();
 
+app.MapPost("/developer/tax/refresh", async (Db db, Svyne.Api.Payments.SalesTaxService taxService, CancellationToken ct) =>
+{
+    var zips = new List<string>();
+    await using (var connection = await db.OpenBootstrapAsync(ct))
+    {
+        await using (var cmd = new Npgsql.NpgsqlCommand("SELECT DISTINCT zip FROM venues WHERE zip IS NOT NULL AND zip != ''", connection))
+        await using (var reader = await cmd.ExecuteReaderAsync(ct))
+        {
+            while (await reader.ReadAsync(ct))
+            {
+                zips.Add(reader.GetString(0));
+            }
+        }
+
+        foreach (var zip in zips)
+        {
+            await using (var deleteCmd = new Npgsql.NpgsqlCommand("DELETE FROM tax_rate_cache WHERE zip_code = @zip", connection))
+            {
+                deleteCmd.Parameters.AddWithValue("zip", zip);
+                await deleteCmd.ExecuteNonQueryAsync(ct);
+            }
+            await taxService.EnsureRateForZipAsync(connection, zip, ct);
+        }
+    }
+
+    return Results.Ok(new { message = $"Refreshed tax rates for {zips.Count} zip codes: {string.Join(", ", zips)}" });
+}).AllowAnonymous();
+
 var lifecycleLogger = app.Services.GetRequiredService<Svyne.Api.ErrorHandling.ErrorLogger>();
 app.Lifetime.ApplicationStarted.Register(() =>
     _ = lifecycleLogger.LogInfoAsync("SystemLifecycle", "Application started"));
