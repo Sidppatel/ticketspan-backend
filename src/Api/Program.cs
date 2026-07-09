@@ -368,10 +368,13 @@ app.MapPost("/developer/tax/refresh", async (Db db, Svyne.Api.Payments.SalesTaxS
 
         foreach (var zip in zips)
         {
-            await using (var deleteCmd = new Npgsql.NpgsqlCommand("DELETE FROM tax_rate_cache WHERE zip_code = @zip", connection))
+            if (taxService.Configured)
             {
-                deleteCmd.Parameters.AddWithValue("zip", zip);
-                await deleteCmd.ExecuteNonQueryAsync(ct);
+                await using (var deleteCmd = new Npgsql.NpgsqlCommand("DELETE FROM tax_rate_cache WHERE zip_code = @zip", connection))
+                {
+                    deleteCmd.Parameters.AddWithValue("zip", zip);
+                    await deleteCmd.ExecuteNonQueryAsync(ct);
+                }
             }
             await taxService.EnsureRateForZipAsync(connection, zip, ct);
         }
