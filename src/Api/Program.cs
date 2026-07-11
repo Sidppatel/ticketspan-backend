@@ -8,7 +8,16 @@ using Svyne.Api.Services;
 
 System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
+var renderPort = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrEmpty(renderPort))
+{
+    Environment.SetEnvironmentVariable("ASPNETCORE_HTTP_PORTS", renderPort);
+}
+
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddSingleton<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>(
+    new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider());
 
 if (!builder.Environment.IsDevelopment())
 {
@@ -29,12 +38,6 @@ if (http2Only)
     builder.WebHost.ConfigureKestrel(options =>
         options.ConfigureEndpointDefaults(listen =>
             listen.Protocols = HttpProtocols.Http2));
-}
-
-var port = Environment.GetEnvironmentVariable("PORT");
-if (!string.IsNullOrEmpty(port))
-{
-    builder.WebHost.UseUrls($"http://*:{port}");
 }
 
 const string CorsPolicy = "frontend";
