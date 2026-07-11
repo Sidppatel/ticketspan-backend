@@ -1,5 +1,4 @@
 using Db.Entities;
-using Db.Entities.Views;
 using Microsoft.EntityFrameworkCore;
 
 namespace Db;
@@ -17,7 +16,6 @@ public class EventPlatformDbContext(
     public DbSet<EnumDefinition> EnumDefinitions => Set<EnumDefinition>();
     public DbSet<MagicLinkToken> MagicLinkTokens => Set<MagicLinkToken>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
-    public DbSet<UserEmailVerificationToken> UserEmailVerificationTokens => Set<UserEmailVerificationToken>();
     public DbSet<DeviceSession> DeviceSessions => Set<DeviceSession>();
 
     public DbSet<Venue> Venues => Set<Venue>();
@@ -53,7 +51,6 @@ public class EventPlatformDbContext(
     public DbSet<Image> Images => Set<Image>();
     public DbSet<EventImage> EventImages => Set<EventImage>();
     public DbSet<VenueImage> VenueImages => Set<VenueImage>();
-    public DbSet<PlatformImage> PlatformImages => Set<PlatformImage>();
 
     public DbSet<Feedback> Feedbacks => Set<Feedback>();
 
@@ -64,38 +61,6 @@ public class EventPlatformDbContext(
 
     public DbSet<EmailLog> EmailLogs => Set<EmailLog>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
-
-    public DbSet<EventView> EventViews => Set<EventView>();
-    public DbSet<PerformerView> PerformerViews => Set<PerformerView>();
-    public DbSet<SponsorView> SponsorViews => Set<SponsorView>();
-    public DbSet<EventSummaryView> EventSummaryViews => Set<EventSummaryView>();
-    public DbSet<TableView> TableViews => Set<TableView>();
-    public DbSet<BookingView> BookingViews => Set<BookingView>();
-    public DbSet<TicketView> TicketViews => Set<TicketView>();
-    public DbSet<VenueView> VenueViews => Set<VenueView>();
-    public DbSet<TenantView> TenantViews => Set<TenantView>();
-    public DbSet<StripeTransactionView> StripeTransactionViews => Set<StripeTransactionView>();
-    public DbSet<UserProfileView> UserProfileViews => Set<UserProfileView>();
-    public DbSet<EventTablesSummaryView> EventTablesSummaryViews => Set<EventTablesSummaryView>();
-    public DbSet<EventTicketTypeSummaryView> EventTicketTypeSummaryViews => Set<EventTicketTypeSummaryView>();
-    public DbSet<UserView> UserViews => Set<UserView>();
-    public DbSet<UserEventView> UserEventViews => Set<UserEventView>();
-    public DbSet<DeviceSessionView> DeviceSessionViews => Set<DeviceSessionView>();
-    public DbSet<InvitationView> InvitationViews => Set<InvitationView>();
-    public DbSet<FeedbackView> FeedbackViews => Set<FeedbackView>();
-    public DbSet<EventImageView> EventImageViews => Set<EventImageView>();
-    public DbSet<VenueImageView> VenueImageViews => Set<VenueImageView>();
-    public DbSet<PlatformImageView> PlatformImageViews => Set<PlatformImageView>();
-    public DbSet<BusinessLogView> BusinessLogViews => Set<BusinessLogView>();
-    public DbSet<SystemLogView> SystemLogViews => Set<SystemLogView>();
-    public DbSet<DeveloperLogView> DeveloperLogViews => Set<DeveloperLogView>();
-    public DbSet<SiteVisitView> SiteVisitViews => Set<SiteVisitView>();
-    public DbSet<AdminDashboardStatsView> AdminDashboardStatsViews => Set<AdminDashboardStatsView>();
-    public DbSet<TopEventRevenueView> TopEventRevenueViews => Set<TopEventRevenueView>();
-    public DbSet<BookingsByStatusView> BookingsByStatusViews => Set<BookingsByStatusView>();
-    public DbSet<EventsByCategoryView> EventsByCategoryViews => Set<EventsByCategoryView>();
-    public DbSet<EventTableStatsView> EventTableStatsViews => Set<EventTableStatsView>();
-    public DbSet<EventFacetsView> EventFacetsViews => Set<EventFacetsView>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -302,19 +267,6 @@ public class EventPlatformDbContext(
             entity.HasIndex(e => e.ExpiresAt);
             entity.Property(e => e.TokenHash).HasMaxLength(128);
             entity.Property(e => e.Email).HasMaxLength(256);
-            entity.Property(e => e.IpAddress).HasMaxLength(45);
-            entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UsersId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        modelBuilder.Entity<UserEmailVerificationToken>(entity =>
-        {
-            entity.ToTable("user_email_verification_tokens");
-            entity.HasKey(e => e.Id);
-            entity.HasIndex(e => e.TokenHash).IsUnique();
-            entity.HasIndex(e => e.UsersId);
-            entity.HasIndex(e => e.ExpiresAt);
-            entity.Property(e => e.TokenHash).HasMaxLength(128);
             entity.Property(e => e.IpAddress).HasMaxLength(45);
             entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UsersId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -595,8 +547,7 @@ public class EventPlatformDbContext(
                     "capacity IS NULL OR capacity > 0");
                 t.HasCheckConstraint("CK_price_rules_Window",
                     "active_from IS NULL OR active_until IS NULL OR active_until > active_from");
-                
-                
+
                 t.HasCheckConstraint("CK_price_rules_Scope",
                     "(scope = 'Price' AND prices_id IS NOT NULL AND events_id IS NULL) "
                     + "OR (scope = 'Event' AND events_id IS NOT NULL AND prices_id IS NULL)");
@@ -1065,18 +1016,6 @@ public class EventPlatformDbContext(
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        modelBuilder.Entity<PlatformImage>(entity =>
-        {
-            entity.ToTable("platform_images");
-            entity.HasKey(e => e.Id);
-            entity.HasIndex(e => e.ImagesId).IsUnique();
-            entity.HasIndex(e => e.SortOrder);
-            entity.HasIndex(e => e.Tag);
-            entity.Property(e => e.Tag).HasMaxLength(64);
-            entity.HasOne(e => e.Image).WithMany().HasForeignKey(e => e.ImagesId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
         modelBuilder.Entity<EventImage>(entity =>
         {
             entity.ToTable("event_images", t =>
@@ -1221,171 +1160,6 @@ public class EventPlatformDbContext(
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(e => e.Sponsor).WithMany().HasForeignKey(e => e.SponsorsId)
                 .OnDelete(DeleteBehavior.Restrict);
-        });
-
-        modelBuilder.Entity<EventView>(entity =>
-        {
-            entity.ToView("vw_events");
-            entity.HasKey(e => e.EventId);
-            entity.Property(e => e.Performers).HasColumnType("jsonb");
-            entity.Property(e => e.Sponsors).HasColumnType("jsonb");
-        });
-        modelBuilder.Entity<PerformerView>(entity =>
-        {
-            entity.ToView("vw_performers");
-            entity.HasKey(e => e.PerformerId);
-            entity.Property(e => e.Meta).HasColumnType("jsonb");
-        });
-        modelBuilder.Entity<SponsorView>(entity =>
-        {
-            entity.ToView("vw_sponsors");
-            entity.HasKey(e => e.SponsorId);
-            entity.Property(e => e.Meta).HasColumnType("jsonb");
-        });
-        modelBuilder.Entity<EventSummaryView>(entity =>
-        {
-            entity.ToView("vw_event_summary");
-            entity.HasKey(e => e.EventId);
-        });
-        modelBuilder.Entity<TableView>(entity =>
-        {
-            entity.ToView("vw_tables");
-            entity.HasKey(e => e.TableId);
-        });
-        modelBuilder.Entity<BookingView>(entity =>
-        {
-            entity.ToView("vw_bookings");
-            entity.HasKey(e => e.BookingId);
-        });
-        modelBuilder.Entity<TicketView>(entity =>
-        {
-            entity.ToView("vw_tickets");
-            entity.HasKey(e => e.TicketId);
-        });
-        modelBuilder.Entity<VenueView>(entity =>
-        {
-            entity.ToView("vw_venues");
-            entity.HasKey(e => e.VenueId);
-        });
-        modelBuilder.Entity<TenantView>(entity =>
-        {
-            entity.ToView("vw_tenants");
-            entity.HasKey(e => e.TenantId);
-        });
-        modelBuilder.Entity<StripeTransactionView>(entity =>
-        {
-            entity.ToView("vw_stripe_transactions");
-            entity.HasKey(e => e.TransactionId);
-            entity.Property(e => e.Status).HasConversion<string>();
-            entity.Property(e => e.BookingStatus).HasConversion<string>();
-        });
-        modelBuilder.Entity<UserProfileView>(entity =>
-        {
-            entity.ToView("vw_user_profile");
-            entity.HasKey(e => e.UserId);
-        });
-        modelBuilder.Entity<EventTablesSummaryView>(entity =>
-        {
-            entity.ToView("vw_event_tables_summary");
-            entity.HasKey(e => e.EventTableId);
-        });
-        modelBuilder.Entity<EventTicketTypeSummaryView>(entity =>
-        {
-            entity.ToView("vw_event_ticket_types_summary");
-            entity.HasKey(e => e.EventTicketTypeId);
-        });
-        modelBuilder.Entity<UserView>(entity =>
-        {
-            entity.ToView("vw_users");
-            entity.HasKey(e => e.UserId);
-        });
-        modelBuilder.Entity<UserEventView>(entity =>
-        {
-            entity.ToView("vw_user_events");
-            entity.HasKey(e => e.UserEventId);
-        });
-        modelBuilder.Entity<DeviceSessionView>(entity =>
-        {
-            entity.ToView("vw_device_sessions");
-            entity.HasKey(e => e.DeviceSessionId);
-        });
-        modelBuilder.Entity<InvitationView>(entity =>
-        {
-            entity.ToView("vw_invitations");
-            entity.HasKey(e => e.InvitationId);
-            entity.Property(e => e.Status).HasConversion<string>();
-        });
-        modelBuilder.Entity<FeedbackView>(entity =>
-        {
-            entity.ToView("vw_feedbacks");
-            entity.HasKey(e => e.FeedbackId);
-        });
-        modelBuilder.Entity<EventImageView>(entity =>
-        {
-            entity.ToView("vw_event_images");
-            entity.HasKey(e => e.EventImageId);
-        });
-        modelBuilder.Entity<VenueImageView>(entity =>
-        {
-            entity.ToView("vw_venue_images");
-            entity.HasKey(e => e.VenueImageId);
-        });
-        modelBuilder.Entity<PlatformImageView>(entity =>
-        {
-            entity.ToView("vw_platform_images");
-            entity.HasKey(e => e.PlatformImageId);
-        });
-        modelBuilder.Entity<BusinessLogView>(entity =>
-        {
-            entity.ToView("vw_business_logs");
-            entity.HasKey(e => e.Id);
-        });
-        modelBuilder.Entity<SystemLogView>(entity =>
-        {
-            entity.ToView("vw_system_logs");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Category).HasMaxLength(30);
-        });
-        modelBuilder.Entity<DeveloperLogView>(entity =>
-        {
-            entity.ToView("vw_developer_logs");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Severity).HasMaxLength(20);
-        });
-        modelBuilder.Entity<SiteVisitView>(entity =>
-        {
-            entity.ToView("vw_site_visits");
-            entity.HasKey(e => e.Id);
-        });
-        modelBuilder.Entity<AdminDashboardStatsView>(entity =>
-        {
-            entity.ToView("vw_admin_dashboard_stats");
-            entity.HasNoKey();
-        });
-        modelBuilder.Entity<TopEventRevenueView>(entity =>
-        {
-            entity.ToView("vw_top_events_revenue");
-            entity.HasKey(e => e.EventId);
-        });
-        modelBuilder.Entity<BookingsByStatusView>(entity =>
-        {
-            entity.ToView("vw_bookings_by_status");
-            entity.HasKey(e => e.Status);
-        });
-        modelBuilder.Entity<EventsByCategoryView>(entity =>
-        {
-            entity.ToView("vw_events_by_category");
-            entity.HasKey(e => e.Category);
-        });
-        modelBuilder.Entity<EventTableStatsView>(entity =>
-        {
-            entity.ToView("vw_event_table_stats");
-            entity.HasKey(e => e.EventId);
-        });
-        modelBuilder.Entity<EventFacetsView>(entity =>
-        {
-            entity.ToView("vw_event_facets");
-            entity.HasNoKey();
         });
 
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
