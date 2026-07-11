@@ -8,8 +8,13 @@ CREATE OR REPLACE FUNCTION sp_update_venue(
     SET search_path = public, extensions, pg_catalog
 AS $$
 DECLARE v_addr_id uuid;
+        v_found bool;
 BEGIN
-    SELECT addresses_id INTO v_addr_id FROM venues WHERE venues_id = p_id;
+    SELECT true, addresses_id INTO v_found, v_addr_id FROM venues WHERE venues_id = p_id;
+    IF v_found IS NULL THEN
+        RAISE EXCEPTION 'Venue % not found or not accessible', p_id
+            USING ERRCODE = 'P0002';
+    END IF;
     IF v_addr_id IS NULL THEN
         INSERT INTO addresses (line1, line2, city, state, zip_code, created_at, updated_at)
         VALUES (COALESCE(p_line1,''), p_line2, COALESCE(p_city,''),
