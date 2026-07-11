@@ -70,6 +70,53 @@ Console.WriteLine($"CreateEvent -> events_id={ev.EventsId}");
 var gotEvent = await eventClient.GetEventAsync(new UuidValue { Value = ev.EventsId }, adminHeaders);
 Console.WriteLine($"GetEvent -> title={gotEvent.Title} status={gotEvent.Status}");
 
+var taxVenue = await venueClient.CreateVenueAsync(new Svyne.Protos.Catalog.CreateVenueRequest
+{
+    Name = "Taxless Venue"
+}, adminHeaders);
+Console.WriteLine($"CreateVenue(no zip) -> venues_id={taxVenue.Value}");
+var taxEvent = await eventClient.CreateEventAsync(new Svyne.Protos.Event.CreateEventRequest
+{
+    Title = "Tax Recalc Event", Slug = "tax-" + slug, Status = "Draft", LayoutMode = "Open",
+    VenuesId = taxVenue.Value,
+    StartDate = DateTimeOffset.UtcNow.AddDays(20).ToUnixTimeSeconds(),
+    EndDate = DateTimeOffset.UtcNow.AddDays(21).ToUnixTimeSeconds()
+}, adminHeaders);
+var venueBefore = await venueClient.GetVenueAsync(new UuidValue { Value = taxVenue.Value }, adminHeaders);
+Console.WriteLine($"GetVenue(before zip) -> zip='{venueBefore.Zip}' combined_rate={venueBefore.CombinedTaxRate}");
+await venueClient.UpdateVenueAsync(new Svyne.Protos.Catalog.UpdateVenueRequest
+{
+    VenuesId = taxVenue.Value, Name = "Taxless Venue", IsActive = true,
+    Line1 = "1 Test St", City = "Mobile", State = "AL", Zip = "36611"
+}, adminHeaders);
+var venueAfter = await venueClient.GetVenueAsync(new UuidValue { Value = taxVenue.Value }, adminHeaders);
+Console.WriteLine($"GetVenue(after zip) -> zip='{venueAfter.Zip}' combined_rate={venueAfter.CombinedTaxRate}");
+decimal eventTaxRate;
+await using (var dbConn = new Npgsql.NpgsqlConnection("Host=127.0.0.1;Port=5432;Database=event_platform;Username=ep_dev;Password=ep_dev_password"))
+{
+    await dbConn.OpenAsync();
+    await using var taxCmd = new Npgsql.NpgsqlCommand("SELECT app.event_tax_rate(@e)", dbConn);
+    taxCmd.Parameters.AddWithValue("e", Guid.Parse(taxEvent.EventsId));
+    eventTaxRate = (decimal)(await taxCmd.ExecuteScalarAsync())!;
+}
+Console.WriteLine($"event_tax_rate(after zip) -> {eventTaxRate}");
+var taxRecalcOk = venueBefore.CombinedTaxRate == 0 && venueAfter.Zip == "36611"
+    && venueAfter.CombinedTaxRate > 0 && eventTaxRate > 0;
+Console.WriteLine($"TaxRecalc -> {(taxRecalcOk ? "PASS" : "FAIL")}");
+var ghostRejected = false;
+try
+{
+    await venueClient.UpdateVenueAsync(new Svyne.Protos.Catalog.UpdateVenueRequest
+    {
+        VenuesId = Guid.NewGuid().ToString(), Name = "Ghost", IsActive = true, Zip = "36611"
+    }, adminHeaders);
+}
+catch (RpcException ex) when (ex.StatusCode == Grpc.Core.StatusCode.NotFound)
+{
+    ghostRejected = true;
+}
+Console.WriteLine($"UpdateVenue(missing id) -> {(ghostRejected ? "NotFound as expected" : "FAIL: silent success")}");
+
 var dashClient = new Svyne.Protos.Admin.DashboardService.DashboardServiceClient(channel);
 var devDash = await dashClient.GetDeveloperDashboardAsync(new Empty(), headers);
 Console.WriteLine($"DeveloperDashboard -> tenants={devDash.TotalTenants} users={devDash.TotalUsers}");
@@ -80,5 +127,5 @@ Console.WriteLine($"Health -> status={health.Status} db={health.Database}");
 
 var ok = found != null && members.Members.Count == 1 && !string.IsNullOrEmpty(perf.Value)
     && !string.IsNullOrEmpty(ev.EventsId) && gotEvent.Title == "Gala Night"
-    && devDash.TotalTenants > 0 && health.Database;
+    && devDash.TotalTenants > 0 && health.Database && taxRecalcOk && ghostRejected;
 Console.WriteLine(ok ? "SMOKE PASS" : "SMOKE FAIL");

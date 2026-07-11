@@ -77,7 +77,14 @@ public sealed class VenueServiceImpl : VenueService.VenueServiceBase
         cmd.Parameters.AddWithValue("city", (object?)NullIfEmpty(request.City) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("state", (object?)NullIfEmpty(request.State) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("zip", (object?)NullIfEmpty(request.Zip) ?? DBNull.Value);
-        await cmd.ExecuteNonQueryAsync(ct);
+        try
+        {
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+        catch (PostgresException ex) when (ex.SqlState == "P0002")
+        {
+            throw new RpcException(new Status(StatusCode.NotFound, "Venue not found"));
+        }
 
         if (!string.IsNullOrEmpty(request.Zip))
         {

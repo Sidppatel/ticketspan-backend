@@ -73,6 +73,8 @@ public sealed class SalesTaxService
         {
             if (!MockMode)
             {
+                await errors.LogWarningAsync("tax_api_not_configured",
+                    $"SALESTAXZIP_BASE_URL not configured; cannot fetch tax rate for zip {zip}, defaulting to 0%", ct: ct);
                 return;
             }
             decimal mockRate = 0.05m;
