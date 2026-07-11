@@ -767,10 +767,6 @@ public sealed class DeveloperBillingServiceImpl : DeveloperBillingService.Develo
         {
             throw new RpcException(new Status(StatusCode.InvalidArgument, "Enter a valid 5-digit US zip code"));
         }
-        if (!salesTax.Configured && !salesTax.MockMode)
-        {
-            throw new RpcException(new Status(StatusCode.FailedPrecondition, "SalesTaxZip API is not configured"));
-        }
         var ct = context.CancellationToken;
         await using var connection = await OpenAsync(ct);
         await salesTax.EnsureRateForZipAsync(connection, zip, ct, force: true);
@@ -802,10 +798,6 @@ public sealed class DeveloperBillingServiceImpl : DeveloperBillingService.Develo
     public override async Task<AckResponse> RefreshAllTaxRates(Empty request, ServerCallContext context)
     {
         RequireDeveloper();
-        if (!salesTax.Configured && !salesTax.MockMode)
-        {
-            throw new RpcException(new Status(StatusCode.FailedPrecondition, "SalesTaxZip API is not configured"));
-        }
         var ct = context.CancellationToken;
         await using var connection = await OpenAsync(ct);
         var zips = new List<string>();

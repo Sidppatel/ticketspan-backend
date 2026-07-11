@@ -10,11 +10,9 @@ public sealed class SalesTaxService
     private readonly ErrorLogger errors;
     private readonly ILogger<SalesTaxService> logger;
     private readonly HttpClient http;
-    private readonly string? baseUrl;
-    private readonly string? apiKey;
+    private readonly string baseUrl;
     private readonly TimeSpan ttl;
 
-    public bool Configured => !string.IsNullOrWhiteSpace(baseUrl);
     public bool MockMode { get; }
 
     public SalesTaxService(IConfiguration configuration, IHttpClientFactory httpClientFactory,
@@ -22,9 +20,9 @@ public sealed class SalesTaxService
     {
         this.errors = errors;
         this.logger = logger;
-        MockMode = string.IsNullOrWhiteSpace(configuration["SALESTAXZIP_BASE_URL"]) && environment.IsDevelopment();
-        baseUrl = configuration["SALESTAXZIP_BASE_URL"]?.TrimEnd('/');
-        apiKey = configuration["SALESTAXZIP_API_KEY"];
+        var configUrl = configuration["SALESTAXZIP_BASE_URL"];
+        MockMode = string.IsNullOrWhiteSpace(configUrl) && environment.IsDevelopment();
+        baseUrl = (string.IsNullOrWhiteSpace(configUrl) ? "https://salestaxzip.com" : configUrl).TrimEnd('/');
         var hours = int.TryParse(configuration["SALESTAXZIP_CACHE_TTL_HOURS"], out var h) ? h : 24;
         ttl = TimeSpan.FromHours(hours);
         http = httpClientFactory.CreateClient("salestaxzip");
@@ -69,14 +67,8 @@ public sealed class SalesTaxService
             }
         }
 
-        if (!Configured)
+        if (MockMode)
         {
-            if (!MockMode)
-            {
-                await errors.LogWarningAsync("tax_api_not_configured",
-                    $"SALESTAXZIP_BASE_URL not configured; cannot fetch tax rate for zip {zip}, defaulting to 0%", ct: ct);
-                return;
-            }
             decimal mockRate = 0.05m;
             if (zip == "36611") mockRate = 0.10m;
             else if (zip == "90210") mockRate = 0.0825m;
@@ -105,12 +97,7 @@ public sealed class SalesTaxService
         SalesTaxZipEnvelope? envelope;
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, $"{baseUrl}/api/v1/rate/{zip}");
-            if (!string.IsNullOrWhiteSpace(apiKey))
-            {
-                request.Headers.Add("X-API-Key", apiKey);
-            }
-            using var response = await http.SendAsync(request, ct);
+            using var response = await http.GetAsync($"{baseUrl}/api/v1/rate/{zip}", ct);
 
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
