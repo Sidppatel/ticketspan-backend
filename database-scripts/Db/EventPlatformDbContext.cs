@@ -54,6 +54,8 @@ public class EventPlatformDbContext(
 
     public DbSet<Feedback> Feedbacks => Set<Feedback>();
 
+    public DbSet<PlatformLead> PlatformLeads => Set<PlatformLead>();
+
     public DbSet<TenantSubscription> TenantSubscriptions => Set<TenantSubscription>();
     public DbSet<EventUpgrade> EventUpgrades => Set<EventUpgrade>();
     public DbSet<TenantAddon> TenantAddons => Set<TenantAddon>();
@@ -1099,6 +1101,18 @@ public class EventPlatformDbContext(
             entity.HasIndex(e => e.TenantsId);
             entity.HasIndex(e => e.CreatedAt);
             entity.HasIndex(e => e.Type);
+        });
+
+        modelBuilder.Entity<PlatformLead>(entity =>
+        {
+            entity.ToTable("platform_leads");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.CompanyName).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Phone).HasMaxLength(32).IsRequired();
+            entity.Property(e => e.Website).HasMaxLength(512);
+            entity.Property(e => e.Description).HasMaxLength(2000).IsRequired();
+            entity.HasIndex(e => e.CreatedAt);
         });
 
         modelBuilder.Entity<Performer>(entity =>

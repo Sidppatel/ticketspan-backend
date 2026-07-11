@@ -50,6 +50,11 @@ service FeedbackService {
   rpc DeleteFeedback (svyne.common.UuidValue) returns (svyne.common.AckResponse);
 }
 
+service PlatformLeadService {
+  rpc CreatePlatformLead (CreatePlatformLeadRequest) returns (svyne.common.UuidValue);
+  rpc ListPlatformLeads (svyne.common.PageRequest) returns (ListPlatformLeadsResponse);
+}
+
 service HealthService {
   rpc Check (svyne.common.Empty) returns (HealthStatus);
 }
@@ -271,6 +276,29 @@ message Feedback {
 
 message ListFeedbackResponse {
   repeated Feedback feedback = 1;
+  svyne.common.PageMeta meta = 2;
+}
+
+message CreatePlatformLeadRequest {
+  string name = 1;
+  string company_name = 2;
+  string phone = 3;
+  string website = 4;
+  string description = 5;
+}
+
+message PlatformLead {
+  string platform_leads_id = 1;
+  string name = 2;
+  string company_name = 3;
+  string phone = 4;
+  string website = 5;
+  string description = 6;
+  int64 created_at = 7;
+}
+
+message ListPlatformLeadsResponse {
+  repeated PlatformLead leads = 1;
   svyne.common.PageMeta meta = 2;
 }
 

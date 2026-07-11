@@ -182,6 +182,7 @@ app.MapGrpcService<DashboardServiceImpl>();
 app.MapGrpcService<StaffServiceImpl>();
 app.MapGrpcService<InvitationServiceImpl>();
 app.MapGrpcService<FeedbackServiceImpl>();
+app.MapGrpcService<PlatformLeadServiceImpl>();
 app.MapGrpcService<LogServiceImpl>();
 app.MapGrpcService<FinancialServiceImpl>();
 app.MapGrpcService<HealthServiceImpl>();
