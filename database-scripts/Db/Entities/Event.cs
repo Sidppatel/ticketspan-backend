@@ -9,7 +9,7 @@ public class Event : BaseEntity
     public required string Slug { get; set; }
     public string? Description { get; set; }
     public EventStatus Status { get; set; } = EventStatus.Draft;
-    public EventCategory? Category { get; set; }
+    public string? Category { get; set; }
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
     public string? ImagePath { get; set; }

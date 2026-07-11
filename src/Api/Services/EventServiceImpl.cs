@@ -574,11 +574,7 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         }
         var allowed = new[] { "Music", "Business", "Social", "Dining", "Tech", "Arts", "Family", "Sports" };
         var matched = allowed.FirstOrDefault(c => string.Equals(c, trimmed, StringComparison.OrdinalIgnoreCase));
-        if (matched != null)
-        {
-            return matched;
-        }
-        throw new RpcException(new Status(StatusCode.InvalidArgument, $"Invalid category '{category}'. Allowed categories: {string.Join(", ", allowed)}"));
+        return matched ?? trimmed;
     }
 
     private string EventScopeFilter =>

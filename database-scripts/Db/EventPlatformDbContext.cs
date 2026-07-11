@@ -664,8 +664,7 @@ public class EventPlatformDbContext(
             {
                 t.HasCheckConstraint("CK_events_Status",
                     "status IN ('Draft','Published','Completed','Cancelled')");
-                t.HasCheckConstraint("CK_events_Category",
-                    "category IS NULL OR category IN ('Music','Business','Social','Dining','Tech','Arts','Family','Sports')");
+
                 t.HasCheckConstraint("CK_events_LayoutMode", "layout_mode IN ('Grid','Open')");
                 t.HasCheckConstraint("CK_events_EventType", "event_type IN ('Open','Table','Both')");
                 t.HasCheckConstraint("CK_events_DateRange", "end_date > start_date");

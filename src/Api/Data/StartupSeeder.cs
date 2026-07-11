@@ -15,8 +15,7 @@ public sealed class StartupSeeder
     {
         new("EventStatus", "events.status", "Lifecycle state of an event.",
             new[] { ("Draft", 0), ("Published", 1), ("Completed", 2), ("Cancelled", 3) }),
-        new("EventCategory", "events.category", "Category an event belongs to.",
-            new[] { ("Music", 0), ("Business", 1), ("Social", 2), ("Dining", 3), ("Tech", 4), ("Arts", 5), ("Family", 6), ("Sports", 7) }),
+
         new("LayoutMode", "events.layout_mode", "Seating layout strategy for an event.",
             new[] { ("Grid", 1), ("Open", 2) }),
         new("EventType", "events.event_type", "How an event sells: open ticket tiers, tables, or both.",
