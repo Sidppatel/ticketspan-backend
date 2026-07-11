@@ -43,7 +43,7 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         cmd.Parameters.AddWithValue("slug", request.Slug);
         cmd.Parameters.AddWithValue("desc", (object?)NullIfEmpty(request.Description) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("status", string.IsNullOrEmpty(request.Status) ? "Draft" : request.Status);
-        cmd.Parameters.AddWithValue("cat", request.Category ?? string.Empty);
+        cmd.Parameters.AddWithValue("cat", (object?)GetNormalizedCategory(request.Category) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("start", DateTimeOffset.FromUnixTimeSeconds(request.StartDate).UtcDateTime);
         cmd.Parameters.AddWithValue("end", DateTimeOffset.FromUnixTimeSeconds(request.EndDate).UtcDateTime);
         cmd.Parameters.AddWithValue("img", (object?)NullIfEmpty(request.ImagePath) ?? DBNull.Value);
@@ -56,8 +56,15 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
             ? DBNull.Value
             : DateTimeOffset.FromUnixTimeSeconds(request.ScheduledPublishAt).UtcDateTime);
 
-        var id = (Guid)(await cmd.ExecuteScalarAsync(ct))!;
-        return new CreateEventResponse { EventsId = id.ToString() };
+        try
+        {
+            var id = (Guid)(await cmd.ExecuteScalarAsync(ct))!;
+            return new CreateEventResponse { EventsId = id.ToString() };
+        }
+        catch (PostgresException ex)
+        {
+            throw MapPostgres(ex);
+        }
     }
 
     public override async Task<AckResponse> ChangeEventStatus(ChangeEventStatusRequest request, ServerCallContext context)
@@ -147,7 +154,7 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         cmd.Parameters.AddWithValue("id", Guid.Parse(request.EventsId));
         cmd.Parameters.AddWithValue("title", (object?)NullIfEmpty(request.Title) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("desc", (object?)NullIfEmpty(request.Description) ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("cat", (object?)NullIfEmpty(request.Category) ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("cat", (object?)GetNormalizedCategory(request.Category) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("start", request.StartDate == 0 ? DBNull.Value : DateTimeOffset.FromUnixTimeSeconds(request.StartDate).UtcDateTime);
         cmd.Parameters.AddWithValue("end", request.EndDate == 0 ? DBNull.Value : DateTimeOffset.FromUnixTimeSeconds(request.EndDate).UtcDateTime);
         cmd.Parameters.AddWithValue("img", (object?)NullIfEmpty(request.ImagePath) ?? DBNull.Value);
@@ -158,7 +165,14 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         {
             Value = string.IsNullOrEmpty(request.ExtraInfoJson) ? DBNull.Value : request.ExtraInfoJson
         });
-        await cmd.ExecuteNonQueryAsync(ct);
+        try
+        {
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+        catch (PostgresException ex)
+        {
+            throw MapPostgres(ex);
+        }
         return new AckResponse { Success = true, Message = "Event updated" };
     }
 
@@ -550,6 +564,22 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
     };
 
     private static string? NullIfEmpty(string value) => string.IsNullOrEmpty(value) ? null : value;
+
+    private static string? GetNormalizedCategory(string? category)
+    {
+        var trimmed = category?.Trim();
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            return null;
+        }
+        var allowed = new[] { "Music", "Business", "Social", "Dining", "Tech", "Arts", "Family", "Sports" };
+        var matched = allowed.FirstOrDefault(c => string.Equals(c, trimmed, StringComparison.OrdinalIgnoreCase));
+        if (matched != null)
+        {
+            return matched;
+        }
+        throw new RpcException(new Status(StatusCode.InvalidArgument, $"Invalid category '{category}'. Allowed categories: {string.Join(", ", allowed)}"));
+    }
 
     private string EventScopeFilter =>
         tenantContext.IsEventScoped ? " AND app.can_access_event(events_id)" : string.Empty;
