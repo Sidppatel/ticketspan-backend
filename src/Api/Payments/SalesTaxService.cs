@@ -22,18 +22,8 @@ public sealed class SalesTaxService
         this.logger = logger;
         var configUrl = configuration["SALESTAXZIP_BASE_URL"];
         MockMode = string.IsNullOrWhiteSpace(configUrl) && environment.IsDevelopment();
-        var rawUrl = string.IsNullOrWhiteSpace(configUrl) ? "https://salestaxzip.com" : configUrl;
-        if (rawUrl.EndsWith("/api/v1", StringComparison.OrdinalIgnoreCase))
-        {
-            rawUrl = rawUrl.Substring(0, rawUrl.Length - 7);
-        }
-        else if (rawUrl.EndsWith("/api/v1/", StringComparison.OrdinalIgnoreCase))
-        {
-            rawUrl = rawUrl.Substring(0, rawUrl.Length - 8);
-        }
-        baseUrl = rawUrl.TrimEnd('/');
-        var hours = int.TryParse(configuration["SALESTAXZIP_CACHE_TTL_HOURS"], out var h) ? h : 24;
-        ttl = TimeSpan.FromHours(hours);
+        baseUrl = (string.IsNullOrWhiteSpace(configUrl) ? "https://salestaxzip.com/api/v1" : configUrl).TrimEnd('/');
+        ttl = TimeSpan.FromHours(24);
         http = httpClientFactory.CreateClient("salestaxzip");
         http.Timeout = TimeSpan.FromSeconds(10);
     }
@@ -106,7 +96,7 @@ public sealed class SalesTaxService
         SalesTaxZipEnvelope? envelope;
         try
         {
-            using var response = await http.GetAsync($"{baseUrl}/api/v1/rate/{zip}", ct);
+            using var response = await http.GetAsync($"{baseUrl}/rate/{zip}", ct);
 
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
