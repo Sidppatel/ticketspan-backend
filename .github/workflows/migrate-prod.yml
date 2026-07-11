@@ -4,20 +4,70 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'database-scripts/**'
+      - 'Dockerfile.migrate'
+      - '.github/workflows/migrate-prod.yml'
   workflow_dispatch:
 
+# Migration locking: never two migration runs at once. A second push queues
+# behind the running job instead of racing it.
+concurrency:
+  group: prod-db-migration
+  cancel-in-progress: false
+
 jobs:
-  migrate-and-deploy:
+  migrate:
     runs-on: ubuntu-latest
     environment: production
-    
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Build Migration Image
+      # ── Pre-migration validation ────────────────────────────────────────
+      # Compiling Db + MigrationRunner catches malformed migrations and
+      # missing embedded SQL before anything touches the database.
+      - name: Validate migrations compile
         run: docker build -f Dockerfile.migrate -t migrate-runner .
 
+      - name: Validate no unguarded destructive SQL
+        run: |
+          # DROP TABLE / TRUNCATE in sql/ business-logic files is never expected;
+          # DDL drops belong in reviewed EF migrations only.
+          if grep -rniE 'DROP TABLE|TRUNCATE ' database-scripts/sql/; then
+            echo "::error::Destructive statement found in database-scripts/sql/ — move it to a reviewed EF migration."
+            exit 1
+          fi
+          echo "No destructive statements in sql/."
+
+      - name: Install postgres client
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+
+      # ── Pre-migration backup ────────────────────────────────────────────
+      # Custom-format dump; restore with:
+      #   pg_restore --clean --if-exists -d "$CONN" backup.dump
+      # Kept 7 days as a private repo artifact. Supabase PITR remains the
+      # primary recovery path; this is the belt to that suspender.
+      - name: Backup database
+        env:
+          PGPASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          pg_dump "host=${{ secrets.DB_HOST }} port=${{ secrets.DB_PORT_SESSION }} dbname=${{ secrets.DB_NAME }} user=${{ secrets.DB_USER }} sslmode=require" \
+            --format=custom --no-owner \
+            --file="pre-migration-${GITHUB_SHA::8}.dump"
+          ls -lh pre-migration-*.dump
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pre-migration-backup-${{ github.sha }}
+          path: pre-migration-*.dump
+          retention-days: 7
+
+      # ── Migration ───────────────────────────────────────────────────────
+      # EF applies each migration inside a transaction: failure mid-migration
+      # rolls back automatically, so no per-migration rollback scripts needed.
       - name: Run Schema Migrations
         env:
           DB_HOST: ${{ secrets.DB_HOST }}
@@ -26,8 +76,40 @@ jobs:
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
-          # Build the connection string for the runner
           CONN_STRING="Host=${DB_HOST};Port=${DB_PORT_SESSION};Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD};SslMode=Require;Trust Server Certificate=true;"
-          
-          # Run the migration container
           docker run --rm -e MIGRATION_DATABASE_URL="$CONN_STRING" migrate-runner
+
+      # ── Post-migration verification ─────────────────────────────────────
+      - name: Verify database health
+        env:
+          PGPASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          CONN="host=${{ secrets.DB_HOST }} port=${{ secrets.DB_PORT_SESSION }} dbname=${{ secrets.DB_NAME }} user=${{ secrets.DB_USER }} sslmode=require"
+
+          echo "== migration history head =="
+          psql "$CONN" -tAc 'SELECT "MigrationId" FROM "__EFMigrationsHistory" ORDER BY "MigrationId" DESC LIMIT 1'
+
+          echo "== RLS audit: tables missing RLS outside allowlist =="
+          VIOLATIONS=$(psql "$CONN" -tAc "
+            SELECT string_agg(tablename, ', ')
+            FROM pg_tables
+            WHERE schemaname='public' AND rowsecurity=false
+              AND tablename NOT IN ('__EFMigrationsHistory','addresses','tax_rate_cache');")
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::Tables without RLS after migration: $VIOLATIONS"
+            exit 1
+          fi
+          echo "RLS intact."
+
+          echo "== critical objects exist =="
+          psql "$CONN" -v ON_ERROR_STOP=1 -tAc "
+            DO \$\$
+            BEGIN
+              IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE proname='sp_public_tenant_identity') THEN
+                RAISE EXCEPTION 'sp_public_tenant_identity missing';
+              END IF;
+              IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='tenants' AND policyname='p_tenant_isolation') THEN
+                RAISE EXCEPTION 'tenants RLS policy missing';
+              END IF;
+            END \$\$;"
+          echo "All post-migration checks passed."
