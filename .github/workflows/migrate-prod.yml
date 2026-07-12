@@ -43,9 +43,12 @@ jobs:
 
       - name: Install postgres client
         # Server is PostgreSQL 17; ubuntu-24.04's default client is 16 and
-        # pg_dump refuses on major-version mismatch. PGDG repo is preconfigured
-        # on GitHub runners.
+        # pg_dump refuses on major-version mismatch. We configure the official
+        # PostgreSQL repository to get version 17.
         run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           sudo apt-get update -qq
           sudo apt-get install -y -qq postgresql-client-17
           pg_dump --version
