@@ -141,15 +141,21 @@ jobs:
           echo "All post-migration checks passed."
 
   deploy-prod:
-    # Held behind a flag: set repo variable AUTO_DEPLOY_RENDER=true to enable
-    # automatic Render deploys. While unset/false, deploy Render manually.
     needs: [changes, migrate-prod]
     if: ${{ !failure() && !cancelled() && needs.changes.outputs.backend == 'true' && vars.AUTO_DEPLOY_RENDER == 'true' }}
     runs-on: ubuntu-latest
     environment: production
 
     steps:
+      - name: Check Render credentials
+        run: |
+          if [ -z "${{ secrets.RENDER_SERVICE_ID }}" ] || [ -z "${{ secrets.RENDER_API_KEY }}" ]; then
+            echo "::notice::Render keys are missing — set RENDER_SERVICE_ID and RENDER_API_KEY secrets to enable deploy."
+            echo "SKIP_DEPLOY=true" >> "$GITHUB_ENV"
+          fi
+
       - name: Trigger Render deploy
+        if: env.SKIP_DEPLOY != 'true'
         run: |
           DEPLOY_ID=$(curl -fsS -X POST \
             "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
@@ -162,6 +168,7 @@ jobs:
           echo "DEPLOY_ID=$DEPLOY_ID" >> "$GITHUB_ENV"
 
       - name: Wait for deploy to go live
+        if: env.SKIP_DEPLOY != 'true'
         run: |
           for i in $(seq 1 80); do
             STATUS=$(curl -fsS \
@@ -180,6 +187,7 @@ jobs:
           exit 1
 
       - name: Smoke check ListPublicTenants
+        if: env.SKIP_DEPLOY != 'true'
         run: |
           printf '\x00\x00\x00\x00\x00' > empty.bin
           HEADERS=$(curl -fsS -D - -o /dev/null -X POST \
