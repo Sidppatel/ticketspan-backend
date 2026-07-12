@@ -1,4 +1,4 @@
-name: Production Database Migration
+name: Production Pipeline
 
 on:
   push:
@@ -7,17 +7,45 @@ on:
     paths:
       - 'database-scripts/**'
       - 'Dockerfile.migrate'
-      - '.github/workflows/migrate-prod.yml'
+      - 'src/**'
+      - 'protos/**'
+      - 'Dockerfile'
+      - 'svyneEventBackEnd.slnx'
   workflow_dispatch:
 
-# Migration locking: never two migration runs at once. A second push queues
-# behind the running job instead of racing it.
 concurrency:
-  group: prod-db-migration
+  group: prod-pipeline
   cancel-in-progress: false
 
 jobs:
-  migrate:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      db: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.db == 'true' }}
+      backend: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.backend == 'true' }}
+    steps:
+      - name: Checkout Code
+        if: github.event_name == 'push'
+        uses: actions/checkout@v5
+
+      - name: Detect changed areas
+        if: github.event_name == 'push'
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            db:
+              - 'database-scripts/**'
+              - 'Dockerfile.migrate'
+            backend:
+              - 'src/**'
+              - 'protos/**'
+              - 'Dockerfile'
+              - 'svyneEventBackEnd.slnx'
+
+  migrate-prod:
+    needs: changes
+    if: needs.changes.outputs.db == 'true'
     runs-on: ubuntu-latest
     environment: production
 
@@ -126,3 +154,55 @@ jobs:
               END IF;
             END \$\$;"
           echo "All post-migration checks passed."
+
+  deploy-prod:
+    # Backend-only push: migrate-prod is skipped and this runs alone.
+    # Combined push: runs only after migrate-prod succeeds (!failure()).
+    needs: [changes, migrate-prod]
+    if: ${{ !failure() && !cancelled() && needs.changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Trigger Render deploy
+        run: |
+          DEPLOY_ID=$(curl -fsS -X POST \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Content-Type: application/json" -d '{}' | jq -r '.id')
+          if [ -z "$DEPLOY_ID" ] || [ "$DEPLOY_ID" = "null" ]; then
+            echo "::error::Render deploy trigger returned no deploy id"
+            exit 1
+          fi
+          echo "DEPLOY_ID=$DEPLOY_ID" >> "$GITHUB_ENV"
+
+      - name: Wait for deploy to go live
+        run: |
+          for i in $(seq 1 80); do
+            STATUS=$(curl -fsS \
+              "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys/${DEPLOY_ID}" \
+              -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" | jq -r '.status')
+            echo "deploy status: $STATUS"
+            case "$STATUS" in
+              live) exit 0 ;;
+              build_failed|update_failed|canceled|deactivated)
+                echo "::error::Render deploy ended with status $STATUS"
+                exit 1 ;;
+            esac
+            sleep 15
+          done
+          echo "::error::Timed out waiting for Render deploy to go live"
+          exit 1
+
+      - name: Smoke check ListPublicTenants
+        run: |
+          printf '\x00\x00\x00\x00\x00' > empty.bin
+          HEADERS=$(curl -fsS -D - -o /dev/null -X POST \
+            "https://svyne-backend.onrender.com/svyne.tenant.TenantService/ListPublicTenants" \
+            -H "Content-Type: application/grpc-web+proto" \
+            --data-binary @empty.bin)
+          echo "$HEADERS"
+          if echo "$HEADERS" | grep -i '^grpc-status:' | grep -vq ': 0'; then
+            echo "::error::ListPublicTenants returned a non-OK grpc-status"
+            exit 1
+          fi
