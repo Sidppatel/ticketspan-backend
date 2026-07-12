@@ -72,7 +72,7 @@ jobs:
           ls -lh pre-migration-*.dump
 
       - name: Upload backup artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: pre-migration-backup-${{ github.sha }}
           path: pre-migration-*.dump
