@@ -15,7 +15,7 @@ WORKDIR /src
 
 # 1. Copy solution + every project file before restoring so the restore
 #    layer is only invalidated when dependencies actually change.
-COPY entryvineEventBackEnd.slnx ./
+COPY ticketspanEventBackEnd.slnx ./
 COPY src/Api/Api.csproj                ./src/Api/
 COPY src/Contracts/Contracts.csproj    ./src/Contracts/
 COPY protos/ ./protos/

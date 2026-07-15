@@ -1,19 +1,19 @@
 using Grpc.Core;
 using Npgsql;
-using EntryVine.Api.Data;
-using EntryVine.Api.Security;
-using EntryVine.Protos.Catalog;
-using EntryVine.Protos.Common;
+using TicketSpan.Api.Data;
+using TicketSpan.Api.Security;
+using TicketSpan.Protos.Catalog;
+using TicketSpan.Protos.Common;
 
-namespace EntryVine.Api.Services;
+namespace TicketSpan.Api.Services;
 
 public sealed class VenueServiceImpl : VenueService.VenueServiceBase
 {
     private readonly Db db;
     private readonly TenantContext tenantContext;
-    private readonly EntryVine.Api.Payments.SalesTaxService salesTaxService;
+    private readonly TicketSpan.Api.Payments.SalesTaxService salesTaxService;
 
-    public VenueServiceImpl(Db db, TenantContext tenantContext, EntryVine.Api.Payments.SalesTaxService salesTaxService)
+    public VenueServiceImpl(Db db, TenantContext tenantContext, TicketSpan.Api.Payments.SalesTaxService salesTaxService)
     {
         this.db = db;
         this.tenantContext = tenantContext;

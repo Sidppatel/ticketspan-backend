@@ -1,13 +1,13 @@
 syntax = "proto3";
 
-package entryvine.reporting;
+package ticketspan.reporting;
 
-option csharp_namespace = "EntryVine.Protos.Reporting";
+option csharp_namespace = "TicketSpan.Protos.Reporting";
 
 import "common.proto";
 
 service ReportingService {
-  rpc GetReportingAccess (entryvine.common.Empty) returns (ReportingAccess);
+  rpc GetReportingAccess (ticketspan.common.Empty) returns (ReportingAccess);
   rpc GetReportSummary (ReportRangeRequest) returns (ReportSummary);
   rpc GetRevenueTimeseries (TimeseriesRequest) returns (RevenueTimeseries);
   rpc GetEventPerformance (ReportRangeRequest) returns (EventPerformanceList);
@@ -19,16 +19,16 @@ service ReportingService {
 }
 
 service TenantTierService {
-  rpc ListTenantReportingAccess (entryvine.common.PageRequest) returns (TenantReportingAccessList);
-  rpc SetTenantTier (SetTenantTierRequest) returns (entryvine.common.AckResponse);
-  rpc SetTenantAdvancedReporting (SetTenantAdvancedReportingRequest) returns (entryvine.common.AckResponse);
+  rpc ListTenantReportingAccess (ticketspan.common.PageRequest) returns (TenantReportingAccessList);
+  rpc SetTenantTier (SetTenantTierRequest) returns (ticketspan.common.AckResponse);
+  rpc SetTenantAdvancedReporting (SetTenantAdvancedReportingRequest) returns (ticketspan.common.AckResponse);
   // Developer gate for ACH: enable/disable ACH for a tenant and set the fee formula
   // that replaces the service fee when a buyer pays by ACH.
-  rpc SetTenantAch (SetTenantAchRequest) returns (entryvine.common.AckResponse);
-  // Developer gate for tax routing: 'platform' = EntryVine collects and remits sales
+  rpc SetTenantAch (SetTenantAchRequest) returns (ticketspan.common.AckResponse);
+  // Developer gate for tax routing: 'platform' = TicketSpan collects and remits sales
   // tax on the tenant's behalf (default); 'self' = tax flows to the tenant payout
   // and the tenant remits it themselves.
-  rpc SetTenantTaxMode (SetTenantTaxModeRequest) returns (entryvine.common.AckResponse);
+  rpc SetTenantTaxMode (SetTenantTaxModeRequest) returns (ticketspan.common.AckResponse);
 }
 
 message ReportingAccess {
@@ -164,7 +164,7 @@ message TenantReportingAccessRow {
 
 message TenantReportingAccessList {
   repeated TenantReportingAccessRow tenants = 1;
-  entryvine.common.PageMeta meta = 2;
+  ticketspan.common.PageMeta meta = 2;
 }
 
 message SetTenantTierRequest {

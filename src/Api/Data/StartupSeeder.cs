@@ -1,6 +1,6 @@
 using Npgsql;
 
-namespace EntryVine.Api.Data;
+namespace TicketSpan.Api.Data;
 
 public sealed class StartupSeeder
 {
@@ -46,16 +46,16 @@ public sealed class StartupSeeder
 
     private static readonly (string Key, string Value, string Description)[] AppSettings =
     {
-        ("admin_invitation_email", "noreply@entryvine.com", "From address for admin invitation emails."),
+        ("admin_invitation_email", "noreply@ticketspan.com", "From address for admin invitation emails."),
         ("admin_invitation_expiry", "86400", "Admin invitation validity window in seconds (24 hours)."),
-        ("admin_invitation_subject", "You are invited to join entryvine", "Subject line for admin invitation emails."),
+        ("admin_invitation_subject", "You are invited to join ticketspan", "Subject line for admin invitation emails."),
         ("admin_invitation_link_base", "http://admin.localhost:5173/accept-invitation", "Frontend base URL for the admin invitation accept link."),
-        ("tenant_setup_email", "noreply@entryvine.com", "From address for tenant admin setup emails."),
-        ("tenant_setup_subject", "Activate your EntryVine workspace", "Subject line for tenant admin setup emails."),
+        ("tenant_setup_email", "noreply@ticketspan.com", "From address for tenant admin setup emails."),
+        ("tenant_setup_subject", "Activate your TicketSpan workspace", "Subject line for tenant admin setup emails."),
         ("tenant_setup_link_base", "http://admin.localhost:5173/set-password", "Frontend base URL for the tenant admin setup link (admin portal /set-password). After setting password the admin is redirected to the admin login."),
         ("tenant_setup_expiry_days", "7", "Tenant admin setup link validity window in days."),
-        ("password_reset_email", "noreply@entryvine.com", "From address for password reset emails."),
-        ("password_reset_subject", "Reset your EntryVine password", "Subject line for password reset emails."),
+        ("password_reset_email", "noreply@ticketspan.com", "From address for password reset emails."),
+        ("password_reset_subject", "Reset your TicketSpan password", "Subject line for password reset emails."),
         ("password_reset_link_base", "http://{slug}.localhost:5173/set-password", "Frontend base URL for the password reset link. {slug} is replaced by the tenant subdomain."),
         ("password_reset_expiry_hours", "1", "Password reset link validity window in hours."),
         ("booking_hold_seconds", "600", "Hard seat/table hold window in seconds while a booking awaits payment (10 minutes)."),

@@ -1,6 +1,6 @@
 using Npgsql;
 
-namespace EntryVine.Api.Data;
+namespace TicketSpan.Api.Data;
 
 public sealed class Db
 {

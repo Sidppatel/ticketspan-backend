@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package entryvine.floorplan;
+package ticketspan.floorplan;
 
-option csharp_namespace = "EntryVine.Protos.FloorPlan";
+option csharp_namespace = "TicketSpan.Protos.FloorPlan";
 
 import "common.proto";
 
@@ -10,10 +10,10 @@ import "common.proto";
 // per-table table_templates. Layout objects and per-table overrides are saved
 // through TableBookingService.SaveEventLayout.
 service FloorPlanService {
-  rpc SaveAsTemplate (SaveAsTemplateRequest) returns (entryvine.common.UuidValue);
-  rpc ListFloorPlanTemplates (entryvine.common.Empty) returns (ListFloorPlanTemplatesResponse);
-  rpc ApplyTemplate (ApplyTemplateRequest) returns (entryvine.common.AckResponse);
-  rpc DeleteFloorPlanTemplate (entryvine.common.UuidValue) returns (entryvine.common.AckResponse);
+  rpc SaveAsTemplate (SaveAsTemplateRequest) returns (ticketspan.common.UuidValue);
+  rpc ListFloorPlanTemplates (ticketspan.common.Empty) returns (ListFloorPlanTemplatesResponse);
+  rpc ApplyTemplate (ApplyTemplateRequest) returns (ticketspan.common.AckResponse);
+  rpc DeleteFloorPlanTemplate (ticketspan.common.UuidValue) returns (ticketspan.common.AckResponse);
 }
 
 message SaveAsTemplateRequest {

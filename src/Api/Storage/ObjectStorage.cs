@@ -2,7 +2,7 @@ using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
 
-namespace EntryVine.Api.Storage;
+namespace TicketSpan.Api.Storage;
 
 public sealed class ObjectStorage
 {

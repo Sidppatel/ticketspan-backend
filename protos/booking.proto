@@ -1,34 +1,34 @@
 syntax = "proto3";
 
-package entryvine.booking;
+package ticketspan.booking;
 
-option csharp_namespace = "EntryVine.Protos.Booking";
+option csharp_namespace = "TicketSpan.Protos.Booking";
 
 import "common.proto";
 
 service TableBookingService {
-  rpc GetEventLayout (entryvine.common.UuidValue) returns (EventLayout);
-  rpc SaveEventLayout (SaveEventLayoutRequest) returns (entryvine.common.AckResponse);
-  rpc LockTable (LockTableRequest) returns (entryvine.common.AckResponse);
-  rpc ReleaseTableLock (LockTableRequest) returns (entryvine.common.AckResponse);
-  rpc ListTablesForEvent (entryvine.common.UuidValue) returns (ListTablesResponse);
-  rpc ListEventTableTypes (entryvine.common.UuidValue) returns (ListEventTableTypesResponse);
-  rpc CreateEventTable (CreateEventTableRequest) returns (entryvine.common.UuidValue);
-  rpc DeleteEventTable (entryvine.common.UuidValue) returns (entryvine.common.AckResponse);
-  rpc CreateEventTicketType (CreateEventTicketTypeRequest) returns (entryvine.common.UuidValue);
-  rpc UpdateEventTicketType (UpdateEventTicketTypeRequest) returns (entryvine.common.AckResponse);
-  rpc DeleteEventTicketType (entryvine.common.UuidValue) returns (entryvine.common.AckResponse);
+  rpc GetEventLayout (ticketspan.common.UuidValue) returns (EventLayout);
+  rpc SaveEventLayout (SaveEventLayoutRequest) returns (ticketspan.common.AckResponse);
+  rpc LockTable (LockTableRequest) returns (ticketspan.common.AckResponse);
+  rpc ReleaseTableLock (LockTableRequest) returns (ticketspan.common.AckResponse);
+  rpc ListTablesForEvent (ticketspan.common.UuidValue) returns (ListTablesResponse);
+  rpc ListEventTableTypes (ticketspan.common.UuidValue) returns (ListEventTableTypesResponse);
+  rpc CreateEventTable (CreateEventTableRequest) returns (ticketspan.common.UuidValue);
+  rpc DeleteEventTable (ticketspan.common.UuidValue) returns (ticketspan.common.AckResponse);
+  rpc CreateEventTicketType (CreateEventTicketTypeRequest) returns (ticketspan.common.UuidValue);
+  rpc UpdateEventTicketType (UpdateEventTicketTypeRequest) returns (ticketspan.common.AckResponse);
+  rpc DeleteEventTicketType (ticketspan.common.UuidValue) returns (ticketspan.common.AckResponse);
   // Catalog table-type price rules: reusable presale/last-minute rules attached to
   // a table template and snapshotted onto event prices when a table type is created
   // from that template.
-  rpc CreateTableTemplatePriceRule (CreateTableTemplatePriceRuleRequest) returns (entryvine.common.UuidValue);
-  rpc ListTableTemplatePriceRules (entryvine.common.UuidValue) returns (ListTableTemplatePriceRulesResponse);
-  rpc DeleteTableTemplatePriceRule (entryvine.common.UuidValue) returns (entryvine.common.AckResponse);
+  rpc CreateTableTemplatePriceRule (CreateTableTemplatePriceRuleRequest) returns (ticketspan.common.UuidValue);
+  rpc ListTableTemplatePriceRules (ticketspan.common.UuidValue) returns (ListTableTemplatePriceRulesResponse);
+  rpc DeleteTableTemplatePriceRule (ticketspan.common.UuidValue) returns (ticketspan.common.AckResponse);
   // Catalog table-type templates (tenant-scoped, reusable across events).
-  rpc ListTableTemplates (entryvine.common.Empty) returns (ListTableTemplatesResponse);
-  rpc CreateTableTemplate (CreateTableTemplateRequest) returns (entryvine.common.UuidValue);
-  rpc UpdateTableTemplate (UpdateTableTemplateRequest) returns (entryvine.common.AckResponse);
-  rpc DeleteTableTemplate (entryvine.common.UuidValue) returns (entryvine.common.AckResponse);
+  rpc ListTableTemplates (ticketspan.common.Empty) returns (ListTableTemplatesResponse);
+  rpc CreateTableTemplate (CreateTableTemplateRequest) returns (ticketspan.common.UuidValue);
+  rpc UpdateTableTemplate (UpdateTableTemplateRequest) returns (ticketspan.common.AckResponse);
+  rpc DeleteTableTemplate (ticketspan.common.UuidValue) returns (ticketspan.common.AckResponse);
 }
 
 message Table {

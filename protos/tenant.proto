@@ -1,26 +1,26 @@
 syntax = "proto3";
 
-package entryvine.tenant;
+package ticketspan.tenant;
 
-option csharp_namespace = "EntryVine.Protos.Tenant";
+option csharp_namespace = "TicketSpan.Protos.Tenant";
 
 import "common.proto";
 
 service TenantService {
   rpc CreateTenant (CreateTenantRequest) returns (CreateTenantResponse);
-  rpc UpdateTenant (UpdateTenantRequest) returns (entryvine.common.AckResponse);
-  rpc ArchiveTenant (entryvine.common.UuidValue) returns (entryvine.common.AckResponse);
-  rpc GetTenant (entryvine.common.UuidValue) returns (Tenant);
-  rpc GetMyTenant (entryvine.common.Empty) returns (Tenant);
-  rpc UpdateMyTenantContact (UpdateMyTenantContactRequest) returns (entryvine.common.AckResponse);
-  rpc UpdateMyTenantBranding (UpdateMyTenantBrandingRequest) returns (entryvine.common.AckResponse);
+  rpc UpdateTenant (UpdateTenantRequest) returns (ticketspan.common.AckResponse);
+  rpc ArchiveTenant (ticketspan.common.UuidValue) returns (ticketspan.common.AckResponse);
+  rpc GetTenant (ticketspan.common.UuidValue) returns (Tenant);
+  rpc GetMyTenant (ticketspan.common.Empty) returns (Tenant);
+  rpc UpdateMyTenantContact (UpdateMyTenantContactRequest) returns (ticketspan.common.AckResponse);
+  rpc UpdateMyTenantBranding (UpdateMyTenantBrandingRequest) returns (ticketspan.common.AckResponse);
   rpc GetPublicTenantBranding (PublicTenantBrandingRequest) returns (PublicTenantBranding);
-  rpc ListTenants (entryvine.common.PageRequest) returns (ListTenantsResponse);
-  rpc ListPublicTenants (entryvine.common.Empty) returns (ListPublicTenantsResponse);
-  rpc ListTenantMembers (entryvine.common.UuidValue) returns (ListTenantMembersResponse);
-  rpc GetTenantStripeStatus (entryvine.common.UuidValue) returns (TenantStripeStatus);
-  rpc GetTenantStripeProfile (entryvine.common.UuidValue) returns (TenantStripeProfile);
-  rpc UpdateTenantStripeProfile (UpdateTenantStripeProfileRequest) returns (entryvine.common.AckResponse);
+  rpc ListTenants (ticketspan.common.PageRequest) returns (ListTenantsResponse);
+  rpc ListPublicTenants (ticketspan.common.Empty) returns (ListPublicTenantsResponse);
+  rpc ListTenantMembers (ticketspan.common.UuidValue) returns (ListTenantMembersResponse);
+  rpc GetTenantStripeStatus (ticketspan.common.UuidValue) returns (TenantStripeStatus);
+  rpc GetTenantStripeProfile (ticketspan.common.UuidValue) returns (TenantStripeProfile);
+  rpc UpdateTenantStripeProfile (UpdateTenantStripeProfileRequest) returns (ticketspan.common.AckResponse);
 }
 
 message TenantStripeProfile {
@@ -149,7 +149,7 @@ message UpdateTenantRequest {
 
 message ListTenantsResponse {
   repeated Tenant tenants = 1;
-  entryvine.common.PageMeta meta = 2;
+  ticketspan.common.PageMeta meta = 2;
 }
 
 message PublicTenant {

@@ -4,8 +4,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <RootNamespace>EntryVine.Api</RootNamespace>
-    <AssemblyName>EntryVine.Api</AssemblyName>
+    <RootNamespace>TicketSpan.Api</RootNamespace>
+    <AssemblyName>TicketSpan.Api</AssemblyName>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 

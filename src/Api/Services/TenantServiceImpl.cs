@@ -1,13 +1,13 @@
 using Grpc.Core;
 using Npgsql;
-using EntryVine.Api.Data;
-using EntryVine.Api.Email;
-using EntryVine.Api.Payments;
-using EntryVine.Api.Security;
-using EntryVine.Protos.Common;
-using EntryVine.Protos.Tenant;
+using TicketSpan.Api.Data;
+using TicketSpan.Api.Email;
+using TicketSpan.Api.Payments;
+using TicketSpan.Api.Security;
+using TicketSpan.Protos.Common;
+using TicketSpan.Protos.Tenant;
 
-namespace EntryVine.Api.Services;
+namespace TicketSpan.Api.Services;
 
 public sealed class TenantServiceImpl : TenantService.TenantServiceBase
 {
@@ -121,8 +121,8 @@ public sealed class TenantServiceImpl : TenantService.TenantServiceBase
 
         try
         {
-            var fromAddress = await settings.GetStringAsync("tenant_setup_email", "noreply@entryvine.com", ct);
-            var subject = await settings.GetStringAsync("tenant_setup_subject", "Activate your EntryVine workspace", ct);
+            var fromAddress = await settings.GetStringAsync("tenant_setup_email", "noreply@ticketspan.com", ct);
+            var subject = await settings.GetStringAsync("tenant_setup_subject", "Activate your TicketSpan workspace", ct);
             var values = new Dictionary<string, string>
             {
                 ["Subject"] = subject,

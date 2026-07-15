@@ -1,16 +1,16 @@
 using Grpc.Core;
 using Npgsql;
 using Stripe;
-using EntryVine.Api.Data;
-using EntryVine.Api.Payments;
-using EntryVine.Api.Security;
-using EntryVine.Protos.Common;
-using EntryVine.Protos.Booking;
-using EntryVine.Protos.Pricing;
+using TicketSpan.Api.Data;
+using TicketSpan.Api.Payments;
+using TicketSpan.Api.Security;
+using TicketSpan.Protos.Common;
+using TicketSpan.Protos.Booking;
+using TicketSpan.Protos.Pricing;
 
-using EntryVine.Api.Email;
+using TicketSpan.Api.Email;
 
-namespace EntryVine.Api.Services;
+namespace TicketSpan.Api.Services;
 
 public sealed partial class BookingServiceImpl : BookingService.BookingServiceBase
 {

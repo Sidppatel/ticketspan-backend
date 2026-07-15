@@ -1,12 +1,12 @@
 using Grpc.Core;
 using Npgsql;
-using EntryVine.Api.Data;
-using EntryVine.Api.Payments;
-using EntryVine.Api.Security;
-using EntryVine.Protos.Admin;
-using EntryVine.Protos.Common;
+using TicketSpan.Api.Data;
+using TicketSpan.Api.Payments;
+using TicketSpan.Api.Security;
+using TicketSpan.Protos.Admin;
+using TicketSpan.Protos.Common;
 
-namespace EntryVine.Api.Services;
+namespace TicketSpan.Api.Services;
 
 public sealed class FinancialServiceImpl : FinancialService.FinancialServiceBase
 {

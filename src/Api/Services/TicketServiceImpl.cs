@@ -1,13 +1,13 @@
 using Grpc.Core;
 using Npgsql;
-using EntryVine.Api.Data;
-using EntryVine.Api.Security;
-using EntryVine.Protos.Common;
-using EntryVine.Protos.Booking;
+using TicketSpan.Api.Data;
+using TicketSpan.Api.Security;
+using TicketSpan.Protos.Common;
+using TicketSpan.Protos.Booking;
 
-using EntryVine.Api.Email;
+using TicketSpan.Api.Email;
 
-namespace EntryVine.Api.Services;
+namespace TicketSpan.Api.Services;
 
 public sealed class TicketServiceImpl : TicketService.TicketServiceBase
 {
@@ -157,7 +157,7 @@ public sealed class TicketServiceImpl : TicketService.TicketServiceBase
 
                 if (!string.IsNullOrEmpty(ticketCode))
                 {
-                    var fromAddress = await settings.GetStringAsync("admin_invitation_email", "noreply@entryvine.com", ct);
+                    var fromAddress = await settings.GetStringAsync("admin_invitation_email", "noreply@ticketspan.com", ct);
                     var subject = $"You have been invited to {eventTitle}!";
                     var linkBase = await settings.GetStringAsync("ticket_claim_link_base", "", ct);
                     if (string.IsNullOrEmpty(linkBase))

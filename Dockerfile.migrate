@@ -9,7 +9,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 WORKDIR /src
 
-COPY entryvineEventBackEnd.slnx ./
+COPY ticketspanEventBackEnd.slnx ./
 COPY database-scripts/Db/Db.csproj                                       ./database-scripts/Db/
 COPY database-scripts/MigrationRunner/MigrationRunner.csproj             ./database-scripts/MigrationRunner/
 

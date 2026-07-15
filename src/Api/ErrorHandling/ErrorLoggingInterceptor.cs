@@ -1,8 +1,8 @@
 using Grpc.Core;
 using Grpc.Core.Interceptors;
-using EntryVine.Api.Security;
+using TicketSpan.Api.Security;
 
-namespace EntryVine.Api.ErrorHandling;
+namespace TicketSpan.Api.ErrorHandling;
 
 public sealed class ErrorLoggingInterceptor : Interceptor
 {

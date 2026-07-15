@@ -10,7 +10,7 @@ on:
       - 'src/**'
       - 'protos/**'
       - 'Dockerfile'
-      - 'entryvineEventBackEnd.slnx'
+      - 'ticketspanEventBackEnd.slnx'
   workflow_dispatch:
 
 concurrency:
@@ -44,7 +44,7 @@ jobs:
               - 'src/**'
               - 'protos/**'
               - 'Dockerfile'
-              - 'entryvineEventBackEnd.slnx'
+              - 'ticketspanEventBackEnd.slnx'
 
   migrate-prod:
     needs: changes
@@ -197,7 +197,7 @@ jobs:
         run: |
           printf '\x00\x00\x00\x00\x00' > empty.bin
           HEADERS=$(curl -fsS -D - -o /dev/null -X POST \
-            "https://entryvine-backend.onrender.com/entryvine.tenant.TenantService/ListPublicTenants" \
+            "https://ticketspan-backend.onrender.com/ticketspan.tenant.TenantService/ListPublicTenants" \
             -H "Content-Type: application/grpc-web+proto" \
             --data-binary @empty.bin)
           echo "$HEADERS"

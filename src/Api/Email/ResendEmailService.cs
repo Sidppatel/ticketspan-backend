@@ -1,7 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 
-namespace EntryVine.Api.Email;
+namespace TicketSpan.Api.Email;
 
 public sealed class ResendEmailService : IEmailService
 {

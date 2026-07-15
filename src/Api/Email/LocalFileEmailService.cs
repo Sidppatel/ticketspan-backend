@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace EntryVine.Api.Email;
+namespace TicketSpan.Api.Email;
 
 public sealed class LocalFileEmailService : IEmailService
 {
@@ -18,7 +18,7 @@ public sealed class LocalFileEmailService : IEmailService
             var current = Directory.GetCurrentDirectory();
             var candidates = new[]
             {
-                @"D:\entryvine-event-system\local_emails",
+                @"D:\ticketspan-event-system\local_emails",
                 Path.Combine(current, "local_emails"),
                 Path.Combine(current, "..", "local_emails"),
                 Path.Combine(current, "..", "..", "local_emails")
@@ -36,7 +36,7 @@ public sealed class LocalFileEmailService : IEmailService
             
             if (string.IsNullOrEmpty(outputDir))
             {
-                outputDir = @"D:\entryvine-event-system\local_emails";
+                outputDir = @"D:\ticketspan-event-system\local_emails";
             }
         }
     }

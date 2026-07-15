@@ -1,28 +1,28 @@
 syntax = "proto3";
 
-package entryvine.pricing;
+package ticketspan.pricing;
 
-option csharp_namespace = "EntryVine.Protos.Pricing";
+option csharp_namespace = "TicketSpan.Protos.Pricing";
 
 import "common.proto";
 
 // The Pricing Module: the single source of truth for all pricing. Floor plan and
 // checkout consume CalculatePrice; they never compute prices themselves.
 service PricingService {
-  rpc CreatePrice (CreatePriceRequest) returns (entryvine.common.UuidValue);
-  rpc UpdatePrice (UpdatePriceRequest) returns (entryvine.common.AckResponse);
-  rpc GetPrice (entryvine.common.UuidValue) returns (Price);
-  rpc ListPricesForEvent (entryvine.common.UuidValue) returns (ListPricesResponse);
-  rpc DeletePrice (entryvine.common.UuidValue) returns (entryvine.common.AckResponse);
+  rpc CreatePrice (CreatePriceRequest) returns (ticketspan.common.UuidValue);
+  rpc UpdatePrice (UpdatePriceRequest) returns (ticketspan.common.AckResponse);
+  rpc GetPrice (ticketspan.common.UuidValue) returns (Price);
+  rpc ListPricesForEvent (ticketspan.common.UuidValue) returns (ListPricesResponse);
+  rpc DeletePrice (ticketspan.common.UuidValue) returns (ticketspan.common.AckResponse);
 
-  rpc CreatePriceRule (CreatePriceRuleRequest) returns (entryvine.common.UuidValue);
-  rpc UpdatePriceRule (UpdatePriceRuleRequest) returns (entryvine.common.AckResponse);
-  rpc DeletePriceRule (entryvine.common.UuidValue) returns (entryvine.common.AckResponse);
-  rpc ListPriceRules (entryvine.common.UuidValue) returns (ListPriceRulesResponse);
-  rpc ListEventPriceRules (entryvine.common.UuidValue) returns (ListPriceRulesResponse);
+  rpc CreatePriceRule (CreatePriceRuleRequest) returns (ticketspan.common.UuidValue);
+  rpc UpdatePriceRule (UpdatePriceRuleRequest) returns (ticketspan.common.AckResponse);
+  rpc DeletePriceRule (ticketspan.common.UuidValue) returns (ticketspan.common.AckResponse);
+  rpc ListPriceRules (ticketspan.common.UuidValue) returns (ListPriceRulesResponse);
+  rpc ListEventPriceRules (ticketspan.common.UuidValue) returns (ListPriceRulesResponse);
 
   rpc CalculatePrice (CalculatePriceRequest) returns (PriceBreakdown);
-  rpc SetTenantDefaultFeeFormula (SetTenantDefaultFeeFormulaRequest) returns (entryvine.common.AckResponse);
+  rpc SetTenantDefaultFeeFormula (SetTenantDefaultFeeFormulaRequest) returns (ticketspan.common.AckResponse);
 }
 
 message Price {

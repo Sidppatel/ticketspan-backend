@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace EntryVine.Api.Security;
+namespace TicketSpan.Api.Security;
 
 public sealed class PasswordHasher
 {

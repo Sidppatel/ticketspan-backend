@@ -1,12 +1,12 @@
 using Grpc.Core;
 using Npgsql;
-using EntryVine.Api.Data;
-using EntryVine.Api.Email;
-using EntryVine.Api.Security;
-using EntryVine.Protos.Admin;
-using EntryVine.Protos.Common;
+using TicketSpan.Api.Data;
+using TicketSpan.Api.Email;
+using TicketSpan.Api.Security;
+using TicketSpan.Protos.Admin;
+using TicketSpan.Protos.Common;
 
-namespace EntryVine.Api.Services;
+namespace TicketSpan.Api.Services;
 
 public sealed class InvitationServiceImpl : InvitationService.InvitationServiceBase
 {
@@ -59,8 +59,8 @@ public sealed class InvitationServiceImpl : InvitationService.InvitationServiceB
 
     private async Task SendInvitationEmailAsync(string recipient, string token, int expirySeconds, CancellationToken ct)
     {
-        var fromAddress = await settings.GetStringAsync("admin_invitation_email", "noreply@entryvine.com", ct);
-        var subject = await settings.GetStringAsync("admin_invitation_subject", "You are invited to join entryvine", ct);
+        var fromAddress = await settings.GetStringAsync("admin_invitation_email", "noreply@ticketspan.com", ct);
+        var subject = await settings.GetStringAsync("admin_invitation_subject", "You are invited to join ticketspan", ct);
         var linkBase = await settings.GetStringAsync("admin_invitation_link_base", "http://admin.localhost:5173/accept-invitation", ct);
         var separator = linkBase.Contains('?') ? "&" : "?";
         var inviteLink = $"{linkBase}{separator}token={token}";
@@ -72,7 +72,7 @@ public sealed class InvitationServiceImpl : InvitationService.InvitationServiceB
             ["Email"] = recipient,
             ["InviteLink"] = inviteLink,
             ["ExpiryHours"] = expiryHours,
-            ["TenantName"] = string.IsNullOrEmpty(tenantContext.TenantSlug) ? "EntryVine" : tenantContext.TenantSlug
+            ["TenantName"] = string.IsNullOrEmpty(tenantContext.TenantSlug) ? "TicketSpan" : tenantContext.TenantSlug
         };
         var htmlBody = await templates.RenderAsync("admin_invitation.html", values, ct);
         await email.SendAsync(fromAddress, recipient, subject, htmlBody, ct);

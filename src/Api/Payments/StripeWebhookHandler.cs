@@ -2,10 +2,10 @@ using System.Security.Cryptography;
 using Npgsql;
 using NpgsqlTypes;
 using Stripe;
-using EntryVine.Api.Data;
-using EntryVine.Api.Email;
+using TicketSpan.Api.Data;
+using TicketSpan.Api.Email;
 
-namespace EntryVine.Api.Payments;
+namespace TicketSpan.Api.Payments;
 
 
 

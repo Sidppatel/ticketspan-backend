@@ -1,11 +1,11 @@
 using Grpc.Core;
 using Npgsql;
-using EntryVine.Api.Data;
-using EntryVine.Api.Security;
-using EntryVine.Protos.Admin;
-using EntryVine.Protos.Common;
+using TicketSpan.Api.Data;
+using TicketSpan.Api.Security;
+using TicketSpan.Protos.Admin;
+using TicketSpan.Protos.Common;
 
-namespace EntryVine.Api.Services;
+namespace TicketSpan.Api.Services;
 
 public sealed class DashboardServiceImpl : DashboardService.DashboardServiceBase
 {

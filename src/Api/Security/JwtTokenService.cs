@@ -3,7 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 
-namespace EntryVine.Api.Security;
+namespace TicketSpan.Api.Security;
 
 public sealed class JwtTokenService
 {
@@ -17,8 +17,8 @@ public sealed class JwtTokenService
     {
         var secret = configuration["JWT_SIGNING_KEY"] ?? "local-development-jwt-signing-key-change-me-32+chars";
         signingKey = Encoding.UTF8.GetBytes(secret);
-        issuer = configuration["JWT_ISSUER"] ?? "entryvine";
-        audience = configuration["JWT_AUDIENCE"] ?? "entryvine-clients";
+        issuer = configuration["JWT_ISSUER"] ?? "ticketspan";
+        audience = configuration["JWT_AUDIENCE"] ?? "ticketspan-clients";
         lifetimeMinutes = int.TryParse(configuration["JWT_LIFETIME_MINUTES"], out var m) ? m : 60;
         refreshLifetimeMinutes = int.TryParse(configuration["JWT_REFRESH_LIFETIME_MINUTES"], out var rm) ? rm : 43200;
     }

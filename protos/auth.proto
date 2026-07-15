@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package entryvine.auth;
+package ticketspan.auth;
 
-option csharp_namespace = "EntryVine.Protos.Auth";
+option csharp_namespace = "TicketSpan.Protos.Auth";
 
 import "common.proto";
 
@@ -11,18 +11,18 @@ service AuthService {
   rpc SignUp (SignUpRequest) returns (AuthResponse);
   rpc GoogleSignIn (GoogleSignInRequest) returns (AuthResponse);
   rpc RefreshToken (RefreshTokenRequest) returns (AuthResponse);
-  rpc Logout (LogoutRequest) returns (entryvine.common.AckResponse);
-  rpc RequestMagicLink (MagicLinkRequest) returns (entryvine.common.AckResponse);
+  rpc Logout (LogoutRequest) returns (ticketspan.common.AckResponse);
+  rpc RequestMagicLink (MagicLinkRequest) returns (ticketspan.common.AckResponse);
   rpc VerifyMagicLink (MagicLinkVerifyRequest) returns (AuthResponse);
-  rpc RequestPasswordReset (PasswordResetRequest) returns (entryvine.common.AckResponse);
+  rpc RequestPasswordReset (PasswordResetRequest) returns (ticketspan.common.AckResponse);
   // Validate a reset token without consuming it (called when the reset page loads).
-  rpc ValidatePasswordResetToken (ValidateResetTokenRequest) returns (entryvine.common.AckResponse);
-  rpc SetPassword (SetPasswordRequest) returns (entryvine.common.AckResponse);
-  rpc Me (entryvine.common.Empty) returns (UserProfile);
+  rpc ValidatePasswordResetToken (ValidateResetTokenRequest) returns (ticketspan.common.AckResponse);
+  rpc SetPassword (SetPasswordRequest) returns (ticketspan.common.AckResponse);
+  rpc Me (ticketspan.common.Empty) returns (UserProfile);
   rpc UpdateProfile (UpdateProfileRequest) returns (UserProfile);
   rpc SetAvatar (SetAvatarRequest) returns (UserProfile);
   rpc LinkGoogle (LinkGoogleRequest) returns (UserProfile);
-  rpc UnlinkGoogle (entryvine.common.Empty) returns (UserProfile);
+  rpc UnlinkGoogle (ticketspan.common.Empty) returns (UserProfile);
 }
 
 message LinkGoogleRequest {

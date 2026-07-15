@@ -1,4 +1,4 @@
-namespace EntryVine.Api;
+namespace TicketSpan.Api;
 
 public static class Lookups
 {

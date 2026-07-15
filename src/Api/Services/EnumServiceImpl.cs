@@ -1,9 +1,9 @@
 using Grpc.Core;
 using Npgsql;
-using EntryVine.Api.Data;
-using EntryVine.Protos.Enums;
+using TicketSpan.Api.Data;
+using TicketSpan.Protos.Enums;
 
-namespace EntryVine.Api.Services;
+namespace TicketSpan.Api.Services;
 
 public sealed class EnumServiceImpl : EnumService.EnumServiceBase
 {
@@ -30,7 +30,7 @@ public sealed class EnumServiceImpl : EnumService.EnumServiceBase
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
         {
-            response.Values.Add(new EntryVine.Protos.Enums.EnumValue
+            response.Values.Add(new TicketSpan.Protos.Enums.EnumValue
             {
                 EnumType = reader.GetString(0),
                 Value = reader.GetString(1),

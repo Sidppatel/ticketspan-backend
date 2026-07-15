@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package entryvine.enums;
+package ticketspan.enums;
 
-option csharp_namespace = "EntryVine.Protos.Enums";
+option csharp_namespace = "TicketSpan.Protos.Enums";
 
 service EnumService {
   rpc ListEnums (ListEnumsRequest) returns (ListEnumsResponse);

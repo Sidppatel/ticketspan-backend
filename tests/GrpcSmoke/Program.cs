@@ -1,22 +1,22 @@
 using Grpc.Core;
 using Grpc.Net.Client;
 using Microsoft.Extensions.Configuration;
-using EntryVine.Api.Security;
-using EntryVine.Protos.Common;
-using EntryVine.Protos.Tenant;
+using TicketSpan.Api.Security;
+using TicketSpan.Protos.Common;
+using TicketSpan.Protos.Tenant;
 
 AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
 
 var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
 {
     ["JWT_SIGNING_KEY"] = "local-development-jwt-signing-key-change-me-32+chars",
-    ["JWT_ISSUER"] = "entryvine",
-    ["JWT_AUDIENCE"] = "entryvine-clients"
+    ["JWT_ISSUER"] = "ticketspan",
+    ["JWT_AUDIENCE"] = "ticketspan-clients"
 }).Build();
 
 var jwt = new JwtTokenService(config);
 var devUserId = Guid.Parse("20000000-0000-0000-0000-000000000099");
-var (devToken, _) = jwt.Issue(devUserId, "developer@entryvine.test", null, 99, "");
+var (devToken, _) = jwt.Issue(devUserId, "developer@ticketspan.test", null, 99, "");
 
 var channel = GrpcChannel.ForAddress("http://localhost:5262");
 var headers = new Metadata { { "Authorization", $"Bearer {devToken}" } };
@@ -42,8 +42,8 @@ Console.WriteLine($"ListTenantMembers -> count={members.Members.Count} first_rol
 
 var (adminToken, _) = jwt.Issue(Guid.Parse(created.AdminUsersId), $"admin@{slug}.test", Guid.Parse(created.TenantsId), 1, slug);
 var adminHeaders = new Metadata { { "Authorization", $"Bearer {adminToken}" } };
-var venueClient = new EntryVine.Protos.Catalog.VenueService.VenueServiceClient(channel);
-var venue = await venueClient.CreateVenueAsync(new EntryVine.Protos.Catalog.CreateVenueRequest
+var venueClient = new TicketSpan.Protos.Catalog.VenueService.VenueServiceClient(channel);
+var venue = await venueClient.CreateVenueAsync(new TicketSpan.Protos.Catalog.CreateVenueRequest
 {
     Name = "Main Hall", City = "Town", State = "TS", Zip = "11111"
 }, adminHeaders);
@@ -51,15 +51,15 @@ Console.WriteLine($"CreateVenue -> venues_id={venue.Value}");
 var venues = await venueClient.ListVenuesAsync(new PageRequest { Limit = 50 }, adminHeaders);
 Console.WriteLine($"ListVenues -> count={venues.Venues.Count}");
 
-var perfClient = new EntryVine.Protos.Catalog.PerformerService.PerformerServiceClient(channel);
-var perf = await perfClient.CreatePerformerAsync(new EntryVine.Protos.Catalog.CreatePerformerRequest
+var perfClient = new TicketSpan.Protos.Catalog.PerformerService.PerformerServiceClient(channel);
+var perf = await perfClient.CreatePerformerAsync(new TicketSpan.Protos.Catalog.CreatePerformerRequest
 {
     Name = "Headliner", Slug = "headliner-" + slug, MetaJson = "[]"
 }, adminHeaders);
 Console.WriteLine($"CreatePerformer -> performers_id={perf.Value}");
 
-var eventClient = new EntryVine.Protos.Event.EventService.EventServiceClient(channel);
-var ev = await eventClient.CreateEventAsync(new EntryVine.Protos.Event.CreateEventRequest
+var eventClient = new TicketSpan.Protos.Event.EventService.EventServiceClient(channel);
+var ev = await eventClient.CreateEventAsync(new TicketSpan.Protos.Event.CreateEventRequest
 {
     Title = "Gala Night", Slug = "gala-" + slug, Status = "Draft", LayoutMode = "Open",
     VenuesId = venue.Value,
@@ -70,12 +70,12 @@ Console.WriteLine($"CreateEvent -> events_id={ev.EventsId}");
 var gotEvent = await eventClient.GetEventAsync(new UuidValue { Value = ev.EventsId }, adminHeaders);
 Console.WriteLine($"GetEvent -> title={gotEvent.Title} status={gotEvent.Status}");
 
-var taxVenue = await venueClient.CreateVenueAsync(new EntryVine.Protos.Catalog.CreateVenueRequest
+var taxVenue = await venueClient.CreateVenueAsync(new TicketSpan.Protos.Catalog.CreateVenueRequest
 {
     Name = "Taxless Venue"
 }, adminHeaders);
 Console.WriteLine($"CreateVenue(no zip) -> venues_id={taxVenue.Value}");
-var taxEvent = await eventClient.CreateEventAsync(new EntryVine.Protos.Event.CreateEventRequest
+var taxEvent = await eventClient.CreateEventAsync(new TicketSpan.Protos.Event.CreateEventRequest
 {
     Title = "Tax Recalc Event", Slug = "tax-" + slug, Status = "Draft", LayoutMode = "Open",
     VenuesId = taxVenue.Value,
@@ -84,7 +84,7 @@ var taxEvent = await eventClient.CreateEventAsync(new EntryVine.Protos.Event.Cre
 }, adminHeaders);
 var venueBefore = await venueClient.GetVenueAsync(new UuidValue { Value = taxVenue.Value }, adminHeaders);
 Console.WriteLine($"GetVenue(before zip) -> zip='{venueBefore.Zip}' combined_rate={venueBefore.CombinedTaxRate}");
-await venueClient.UpdateVenueAsync(new EntryVine.Protos.Catalog.UpdateVenueRequest
+await venueClient.UpdateVenueAsync(new TicketSpan.Protos.Catalog.UpdateVenueRequest
 {
     VenuesId = taxVenue.Value, Name = "Taxless Venue", IsActive = true,
     Line1 = "1 Test St", City = "Mobile", State = "AL", Zip = "36611"
@@ -106,7 +106,7 @@ Console.WriteLine($"TaxRecalc -> {(taxRecalcOk ? "PASS" : "FAIL")}");
 var ghostRejected = false;
 try
 {
-    await venueClient.UpdateVenueAsync(new EntryVine.Protos.Catalog.UpdateVenueRequest
+    await venueClient.UpdateVenueAsync(new TicketSpan.Protos.Catalog.UpdateVenueRequest
     {
         VenuesId = Guid.NewGuid().ToString(), Name = "Ghost", IsActive = true, Zip = "36611"
     }, adminHeaders);
@@ -117,11 +117,11 @@ catch (RpcException ex) when (ex.StatusCode == Grpc.Core.StatusCode.NotFound)
 }
 Console.WriteLine($"UpdateVenue(missing id) -> {(ghostRejected ? "NotFound as expected" : "FAIL: silent success")}");
 
-var dashClient = new EntryVine.Protos.Admin.DashboardService.DashboardServiceClient(channel);
+var dashClient = new TicketSpan.Protos.Admin.DashboardService.DashboardServiceClient(channel);
 var devDash = await dashClient.GetDeveloperDashboardAsync(new Empty(), headers);
 Console.WriteLine($"DeveloperDashboard -> tenants={devDash.TotalTenants} users={devDash.TotalUsers}");
 
-var healthClient = new EntryVine.Protos.Admin.HealthService.HealthServiceClient(channel);
+var healthClient = new TicketSpan.Protos.Admin.HealthService.HealthServiceClient(channel);
 var health = await healthClient.CheckAsync(new Empty());
 Console.WriteLine($"Health -> status={health.Status} db={health.Database}");
 

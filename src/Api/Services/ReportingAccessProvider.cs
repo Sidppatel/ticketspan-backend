@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Caching.Memory;
 using Npgsql;
 
-namespace EntryVine.Api.Services;
+namespace TicketSpan.Api.Services;
 
 public sealed record TenantReportingAccessInfo(string Tier, bool OverrideEnabled, bool HasAdvanced, string TaxCollectionMode);
 

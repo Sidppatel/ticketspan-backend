@@ -4,13 +4,13 @@ using Grpc.Core;
 using Microsoft.Extensions.Caching.Memory;
 using Npgsql;
 using NpgsqlTypes;
-using EntryVine.Api.Data;
-using EntryVine.Api.ErrorHandling;
-using EntryVine.Api.Security;
-using EntryVine.Protos.Admin;
-using EntryVine.Protos.Common;
+using TicketSpan.Api.Data;
+using TicketSpan.Api.ErrorHandling;
+using TicketSpan.Api.Security;
+using TicketSpan.Protos.Admin;
+using TicketSpan.Protos.Common;
 
-namespace EntryVine.Api.Services;
+namespace TicketSpan.Api.Services;
 
 public sealed class LogServiceImpl : LogService.LogServiceBase
 {

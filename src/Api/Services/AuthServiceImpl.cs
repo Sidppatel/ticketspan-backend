@@ -1,12 +1,12 @@
 using Google.Apis.Auth;
 using Grpc.Core;
 using Npgsql;
-using EntryVine.Api.Data;
-using EntryVine.Api.Email;
-using EntryVine.Api.Security;
-using EntryVine.Protos.Auth;
+using TicketSpan.Api.Data;
+using TicketSpan.Api.Email;
+using TicketSpan.Api.Security;
+using TicketSpan.Protos.Auth;
 
-namespace EntryVine.Api.Services;
+namespace TicketSpan.Api.Services;
 
 public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
 {
@@ -210,7 +210,7 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
         return BuildAuth(usersId, profile.Email, rowTenant, role, request.TenantSlug, profile);
     }
 
-    public override async Task<UserProfile> Me(EntryVine.Protos.Common.Empty request, ServerCallContext context)
+    public override async Task<UserProfile> Me(TicketSpan.Protos.Common.Empty request, ServerCallContext context)
     {
         var tc = context.GetHttpContext().RequestServices.GetRequiredService<TenantContext>();
         if (tc.UsersId is not { } usersId)
@@ -299,7 +299,7 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
         return await LoadProfileAsync(usersId, tc, ct);
     }
 
-    public override async Task<UserProfile> UnlinkGoogle(EntryVine.Protos.Common.Empty request, ServerCallContext context)
+    public override async Task<UserProfile> UnlinkGoogle(TicketSpan.Protos.Common.Empty request, ServerCallContext context)
     {
         var ct = context.CancellationToken;
         var tc = context.GetHttpContext().RequestServices.GetRequiredService<TenantContext>();
@@ -407,14 +407,14 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
         return Task.FromResult(BuildAuth(usersId, email, tenantsId, role, slug, profile));
     }
 
-    public override async Task<EntryVine.Protos.Common.AckResponse> Logout(LogoutRequest request, ServerCallContext context)
+    public override async Task<TicketSpan.Protos.Common.AckResponse> Logout(LogoutRequest request, ServerCallContext context)
     {
         var ct = context.CancellationToken;
         await using var connection = await db.OpenAsync(null, null, ct);
         await using var cmd = new NpgsqlCommand("SELECT sp_revoke_device_session(@h)", connection);
         cmd.Parameters.AddWithValue("h", request.SessionHash);
         await cmd.ExecuteNonQueryAsync(ct);
-        return new EntryVine.Protos.Common.AckResponse { Success = true, Message = "Logged out" };
+        return new TicketSpan.Protos.Common.AckResponse { Success = true, Message = "Logged out" };
     }
 
     private AuthResponse BuildAuth(Guid usersId, string email, Guid? tenantsId, int role, string slug, UserProfile profile)

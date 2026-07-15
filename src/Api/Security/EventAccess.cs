@@ -1,7 +1,7 @@
 using Grpc.Core;
 using Npgsql;
 
-namespace EntryVine.Api.Security;
+namespace TicketSpan.Api.Security;
 
 
 

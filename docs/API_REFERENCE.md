@@ -1,6 +1,6 @@
-# EntryVine Backend API Reference
+# TicketSpan Backend API Reference
 
-Transport: **gRPC-Web over HTTPS** (Protobuf). REST is used only for the documented exceptions (Stripe webhooks, file upload, health). Contracts: `protos/` → generated `EntryVine.Protos`. Mutations return `entryvine.common.AckResponse { success, message, code }`.
+Transport: **gRPC-Web over HTTPS** (Protobuf). REST is used only for the documented exceptions (Stripe webhooks, file upload, health). Contracts: `protos/` → generated `TicketSpan.Protos`. Mutations return `ticketspan.common.AckResponse { success, message, code }`.
 
 Auth: JWT bearer. Claims: `sub` (users_id), `email`, `role` (0 Attendee, 1 Main Admin, 2 Staff, 3 Sub-Tenant, 99 Developer), `tenants_id` (null for developers), `tenant_slug`. Tenant/RLS context (`app.current_user_id`, `app.current_tenant`) is set per request from the JWT.
 

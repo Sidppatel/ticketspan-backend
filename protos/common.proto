@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package entryvine.common;
+package ticketspan.common;
 
-option csharp_namespace = "EntryVine.Protos.Common";
+option csharp_namespace = "TicketSpan.Protos.Common";
 
 message AckResponse {
   bool success = 1;

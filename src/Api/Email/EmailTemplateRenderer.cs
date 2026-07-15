@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Hosting;
 
-namespace EntryVine.Api.Email;
+namespace TicketSpan.Api.Email;
 
 public sealed class EmailTemplateRenderer
 {

@@ -1,6 +1,6 @@
 using Stripe;
 
-namespace EntryVine.Api.Payments;
+namespace TicketSpan.Api.Payments;
 
 public sealed class StripeService
 {

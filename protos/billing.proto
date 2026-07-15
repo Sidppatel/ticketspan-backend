@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package entryvine.billing;
+package ticketspan.billing;
 
-option csharp_namespace = "EntryVine.Protos.Billing";
+option csharp_namespace = "TicketSpan.Protos.Billing";
 
 import "common.proto";
 
@@ -10,42 +10,42 @@ import "common.proto";
 // add-ons, fee overrides, and platform revenue reports. Every mutation is
 // audit-logged (who/when/from/to/why) by the service.
 service DeveloperBillingService {
-  rpc ListTenantBilling (entryvine.common.PageRequest) returns (TenantBillingList);
+  rpc ListTenantBilling (ticketspan.common.PageRequest) returns (TenantBillingList);
 
-  rpc StartTrial (TenantRequest) returns (entryvine.common.AckResponse);
-  rpc CreateSubscription (SubscriptionRequest) returns (entryvine.common.AckResponse);
-  rpc ChangeSubscriptionTier (SubscriptionRequest) returns (entryvine.common.AckResponse);
-  rpc CancelSubscription (CancelSubscriptionRequest) returns (entryvine.common.AckResponse);
+  rpc StartTrial (TenantRequest) returns (ticketspan.common.AckResponse);
+  rpc CreateSubscription (SubscriptionRequest) returns (ticketspan.common.AckResponse);
+  rpc ChangeSubscriptionTier (SubscriptionRequest) returns (ticketspan.common.AckResponse);
+  rpc CancelSubscription (CancelSubscriptionRequest) returns (ticketspan.common.AckResponse);
 
-  rpc ListEventUpgrades (entryvine.common.PageRequest) returns (EventUpgradeList);
-  rpc ActivateEventUpgrade (EventUpgradeRequest) returns (entryvine.common.AckResponse);
-  rpc CancelEventUpgrade (CancelEventUpgradeRequest) returns (entryvine.common.AckResponse);
+  rpc ListEventUpgrades (ticketspan.common.PageRequest) returns (EventUpgradeList);
+  rpc ActivateEventUpgrade (EventUpgradeRequest) returns (ticketspan.common.AckResponse);
+  rpc CancelEventUpgrade (CancelEventUpgradeRequest) returns (ticketspan.common.AckResponse);
 
   rpc ListTenantAddons (TenantRequest) returns (TenantAddonList);
-  rpc ProvisionAddon (ProvisionAddonRequest) returns (entryvine.common.AckResponse);
-  rpc CancelAddon (CancelAddonRequest) returns (entryvine.common.AckResponse);
+  rpc ProvisionAddon (ProvisionAddonRequest) returns (ticketspan.common.AckResponse);
+  rpc CancelAddon (CancelAddonRequest) returns (ticketspan.common.AckResponse);
 
-  rpc ListFeeOverrides (entryvine.common.Empty) returns (FeeOverrideList);
-  rpc SetEventFeeOverride (SetEventFeeOverrideRequest) returns (entryvine.common.AckResponse);
-  rpc ClearEventFeeOverride (ClearEventFeeOverrideRequest) returns (entryvine.common.AckResponse);
+  rpc ListFeeOverrides (ticketspan.common.Empty) returns (FeeOverrideList);
+  rpc SetEventFeeOverride (SetEventFeeOverrideRequest) returns (ticketspan.common.AckResponse);
+  rpc ClearEventFeeOverride (ClearEventFeeOverrideRequest) returns (ticketspan.common.AckResponse);
 
   rpc GetRevenueReport (RevenueReportRequest) returns (RevenueReport);
   rpc GetTenantActivity (TenantActivityRequest) returns (TenantActivityList);
   rpc GetTaxReport (RevenueReportRequest) returns (TaxReport);
   // Monthly remittance view split by who collected the tax: 'platform' months
-  // are what EntryVine owes the tax authorities; 'self' months are informational
+  // are what TicketSpan owes the tax authorities; 'self' months are informational
   // (tenants remit those themselves). Tenant breakdown inside each month.
   rpc GetTaxRemittanceReport (RevenueReportRequest) returns (TaxRemittanceReport);
   rpc GetTenantDashboard (TenantRequest) returns (TenantDashboard);
 
-  rpc ListTaxOverrides (entryvine.common.Empty) returns (TaxOverrideList);
-  rpc SetEventTaxOverride (SetEventTaxOverrideRequest) returns (entryvine.common.AckResponse);
-  rpc ClearEventTaxOverride (ClearEventFeeOverrideRequest) returns (entryvine.common.AckResponse);
+  rpc ListTaxOverrides (ticketspan.common.Empty) returns (TaxOverrideList);
+  rpc SetEventTaxOverride (SetEventTaxOverrideRequest) returns (ticketspan.common.AckResponse);
+  rpc ClearEventTaxOverride (ClearEventFeeOverrideRequest) returns (ticketspan.common.AckResponse);
 
-  rpc ListTaxRates (entryvine.common.Empty) returns (TaxRateList);
+  rpc ListTaxRates (ticketspan.common.Empty) returns (TaxRateList);
   rpc LookupTaxRate (TaxRateLookupRequest) returns (TaxRateRow);
-  rpc RefreshAllTaxRates (entryvine.common.Empty) returns (entryvine.common.AckResponse);
-  rpc ListVenueTaxSummaries (entryvine.common.Empty) returns (VenueTaxSummaryList);
+  rpc RefreshAllTaxRates (ticketspan.common.Empty) returns (ticketspan.common.AckResponse);
+  rpc ListVenueTaxSummaries (ticketspan.common.Empty) returns (VenueTaxSummaryList);
 }
 
 message TenantRequest {
@@ -74,7 +74,7 @@ message TenantBillingRow {
 
 message TenantBillingList {
   repeated TenantBillingRow tenants = 1;
-  entryvine.common.PageMeta meta = 2;
+  ticketspan.common.PageMeta meta = 2;
 }
 
 message SubscriptionRequest {
@@ -108,7 +108,7 @@ message EventUpgradeRow {
 
 message EventUpgradeList {
   repeated EventUpgradeRow upgrades = 1;
-  entryvine.common.PageMeta meta = 2;
+  ticketspan.common.PageMeta meta = 2;
 }
 
 message EventUpgradeRequest {

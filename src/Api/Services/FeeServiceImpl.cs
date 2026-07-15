@@ -1,11 +1,11 @@
 using Grpc.Core;
 using Npgsql;
-using EntryVine.Api.Data;
-using EntryVine.Api.Security;
-using EntryVine.Protos.Common;
-using EntryVine.Protos.Fees;
+using TicketSpan.Api.Data;
+using TicketSpan.Api.Security;
+using TicketSpan.Protos.Common;
+using TicketSpan.Protos.Fees;
 
-namespace EntryVine.Api.Services;
+namespace TicketSpan.Api.Services;
 
 public sealed class FeeServiceImpl : FeeService.FeeServiceBase
 {

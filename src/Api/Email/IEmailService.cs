@@ -1,4 +1,4 @@
-namespace EntryVine.Api.Email;
+namespace TicketSpan.Api.Email;
 
 public interface IEmailService
 {

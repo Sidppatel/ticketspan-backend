@@ -1,9 +1,9 @@
 using System.Text.Json.Serialization;
 using Npgsql;
-using EntryVine.Api.Data;
-using EntryVine.Api.ErrorHandling;
+using TicketSpan.Api.Data;
+using TicketSpan.Api.ErrorHandling;
 
-namespace EntryVine.Api.Payments;
+namespace TicketSpan.Api.Payments;
 
 public sealed class SalesTaxService
 {

@@ -2,13 +2,13 @@ using System.Text.Json;
 using Grpc.Core;
 using Npgsql;
 using NpgsqlTypes;
-using EntryVine.Api.Data;
-using EntryVine.Api.Payments;
-using EntryVine.Api.Security;
-using EntryVine.Protos.Billing;
-using EntryVine.Protos.Common;
+using TicketSpan.Api.Data;
+using TicketSpan.Api.Payments;
+using TicketSpan.Api.Security;
+using TicketSpan.Protos.Billing;
+using TicketSpan.Protos.Common;
 
-namespace EntryVine.Api.Services;
+namespace TicketSpan.Api.Services;
 
 
 

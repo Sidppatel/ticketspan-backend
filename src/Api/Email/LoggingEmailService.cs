@@ -3,10 +3,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
-using EntryVine.Api.Data;
-using EntryVine.Api.Security;
+using TicketSpan.Api.Data;
+using TicketSpan.Api.Security;
 
-namespace EntryVine.Api.Email;
+namespace TicketSpan.Api.Email;
 
 public sealed class LoggingEmailService : IEmailService
 {

@@ -1,37 +1,37 @@
 syntax = "proto3";
 
-package entryvine.admin;
+package ticketspan.admin;
 
-option csharp_namespace = "EntryVine.Protos.Admin";
+option csharp_namespace = "TicketSpan.Protos.Admin";
 
 import "common.proto";
 
 service DashboardService {
-  rpc GetAdminDashboard (entryvine.common.Empty) returns (AdminDashboard);
-  rpc GetDeveloperDashboard (entryvine.common.Empty) returns (DeveloperDashboard);
+  rpc GetAdminDashboard (ticketspan.common.Empty) returns (AdminDashboard);
+  rpc GetDeveloperDashboard (ticketspan.common.Empty) returns (DeveloperDashboard);
 }
 
 service FinancialService {
   rpc GetMonthlyReport (MonthlyReportRequest) returns (MonthlyReport);
-  rpc GetStripeStatus (entryvine.common.UuidValue) returns (StripeStatus);
-  rpc StartStripeOnboarding (entryvine.common.UuidValue) returns (StripeOnboardingLink);
+  rpc GetStripeStatus (ticketspan.common.UuidValue) returns (StripeStatus);
+  rpc StartStripeOnboarding (ticketspan.common.UuidValue) returns (StripeOnboardingLink);
 }
 
 service StaffService {
-  rpc ListStaffForEvent (entryvine.common.UuidValue) returns (ListStaffResponse);
-  rpc AssignStaff (AssignStaffRequest) returns (entryvine.common.AckResponse);
-  rpc UnassignStaff (AssignStaffRequest) returns (entryvine.common.AckResponse);
-  rpc ListAllStaff (entryvine.common.Empty) returns (ListStaffResponse);
+  rpc ListStaffForEvent (ticketspan.common.UuidValue) returns (ListStaffResponse);
+  rpc AssignStaff (AssignStaffRequest) returns (ticketspan.common.AckResponse);
+  rpc UnassignStaff (AssignStaffRequest) returns (ticketspan.common.AckResponse);
+  rpc ListAllStaff (ticketspan.common.Empty) returns (ListStaffResponse);
   rpc AssignStaffByEmail (AssignStaffByEmailRequest) returns (AssignStaffByEmailResponse);
   rpc AddOrInviteStaff (AddOrInviteStaffRequest) returns (AddOrInviteStaffResponse);
-  rpc RemoveStaffRole (entryvine.common.UuidValue) returns (entryvine.common.AckResponse);
+  rpc RemoveStaffRole (ticketspan.common.UuidValue) returns (ticketspan.common.AckResponse);
 }
 
 service InvitationService {
-  rpc CreateInvitation (CreateInvitationRequest) returns (entryvine.common.UuidValue);
-  rpc AcceptInvitation (AcceptInvitationRequest) returns (entryvine.common.AckResponse);
-  rpc RevokeInvitation (entryvine.common.UuidValue) returns (entryvine.common.AckResponse);
-  rpc ListInvitations (entryvine.common.PageRequest) returns (ListInvitationsResponse);
+  rpc CreateInvitation (CreateInvitationRequest) returns (ticketspan.common.UuidValue);
+  rpc AcceptInvitation (AcceptInvitationRequest) returns (ticketspan.common.AckResponse);
+  rpc RevokeInvitation (ticketspan.common.UuidValue) returns (ticketspan.common.AckResponse);
+  rpc ListInvitations (ticketspan.common.PageRequest) returns (ListInvitationsResponse);
 }
 
 service LogService {
@@ -39,24 +39,24 @@ service LogService {
   rpc GetDeveloperLogs (LogQuery) returns (LogPage);
   rpc GetSystemLogs (LogQuery) returns (LogPage);
   rpc GetErrorLogs (ErrorLogQuery) returns (ErrorLogPage);
-  rpc GetErrorLogStats (entryvine.common.Empty) returns (ErrorLogStats);
-  rpc ResolveErrorLog (ResolveErrorLogRequest) returns (entryvine.common.AckResponse);
-  rpc ReportClientErrors (ClientErrorBatch) returns (entryvine.common.AckResponse);
+  rpc GetErrorLogStats (ticketspan.common.Empty) returns (ErrorLogStats);
+  rpc ResolveErrorLog (ResolveErrorLogRequest) returns (ticketspan.common.AckResponse);
+  rpc ReportClientErrors (ClientErrorBatch) returns (ticketspan.common.AckResponse);
 }
 
 service FeedbackService {
-  rpc CreateFeedback (CreateFeedbackRequest) returns (entryvine.common.UuidValue);
-  rpc ListFeedback (entryvine.common.PageRequest) returns (ListFeedbackResponse);
-  rpc DeleteFeedback (entryvine.common.UuidValue) returns (entryvine.common.AckResponse);
+  rpc CreateFeedback (CreateFeedbackRequest) returns (ticketspan.common.UuidValue);
+  rpc ListFeedback (ticketspan.common.PageRequest) returns (ListFeedbackResponse);
+  rpc DeleteFeedback (ticketspan.common.UuidValue) returns (ticketspan.common.AckResponse);
 }
 
 service PlatformLeadService {
-  rpc CreatePlatformLead (CreatePlatformLeadRequest) returns (entryvine.common.UuidValue);
-  rpc ListPlatformLeads (entryvine.common.PageRequest) returns (ListPlatformLeadsResponse);
+  rpc CreatePlatformLead (CreatePlatformLeadRequest) returns (ticketspan.common.UuidValue);
+  rpc ListPlatformLeads (ticketspan.common.PageRequest) returns (ListPlatformLeadsResponse);
 }
 
 service HealthService {
-  rpc Check (entryvine.common.Empty) returns (HealthStatus);
+  rpc Check (ticketspan.common.Empty) returns (HealthStatus);
 }
 
 message AdminDashboard {
@@ -153,11 +153,11 @@ message Invitation {
 
 message ListInvitationsResponse {
   repeated Invitation invitations = 1;
-  entryvine.common.PageMeta meta = 2;
+  ticketspan.common.PageMeta meta = 2;
 }
 
 message LogQuery {
-  entryvine.common.PageRequest page = 1;
+  ticketspan.common.PageRequest page = 1;
   string action = 2;
   string entity_type = 3;
   int64 from = 4;
@@ -177,11 +177,11 @@ message LogEntry {
 
 message LogPage {
   repeated LogEntry entries = 1;
-  entryvine.common.PageMeta meta = 2;
+  ticketspan.common.PageMeta meta = 2;
 }
 
 message ErrorLogQuery {
-  entryvine.common.PageRequest page = 1;
+  ticketspan.common.PageRequest page = 1;
   string severity = 2;
   string source = 3;
   int32 resolved_filter = 4;
@@ -214,7 +214,7 @@ message ErrorLogEntry {
 
 message ErrorLogPage {
   repeated ErrorLogEntry entries = 1;
-  entryvine.common.PageMeta meta = 2;
+  ticketspan.common.PageMeta meta = 2;
 }
 
 message ErrorLogCount {
@@ -276,7 +276,7 @@ message Feedback {
 
 message ListFeedbackResponse {
   repeated Feedback feedback = 1;
-  entryvine.common.PageMeta meta = 2;
+  ticketspan.common.PageMeta meta = 2;
 }
 
 message CreatePlatformLeadRequest {
@@ -299,7 +299,7 @@ message PlatformLead {
 
 message ListPlatformLeadsResponse {
   repeated PlatformLead leads = 1;
-  entryvine.common.PageMeta meta = 2;
+  ticketspan.common.PageMeta meta = 2;
 }
 
 message HealthStatus {

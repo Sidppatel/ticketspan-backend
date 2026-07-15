@@ -4,8 +4,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <RootNamespace>EntryVine.Protos</RootNamespace>
-    <AssemblyName>EntryVine.Protos</AssemblyName>
+    <RootNamespace>TicketSpan.Protos</RootNamespace>
+    <AssemblyName>TicketSpan.Protos</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

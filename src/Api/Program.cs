@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.IdentityModel.Tokens;
-using EntryVine.Api.Data;
-using EntryVine.Api.Middleware;
-using EntryVine.Api.Security;
-using EntryVine.Api.Services;
+using TicketSpan.Api.Data;
+using TicketSpan.Api.Middleware;
+using TicketSpan.Api.Security;
+using TicketSpan.Api.Services;
 
 System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
@@ -73,32 +73,32 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddGrpc(options =>
 {
-    options.Interceptors.Add<EntryVine.Api.ErrorHandling.ErrorLoggingInterceptor>();
-    options.Interceptors.Add<EntryVine.Api.Security.EventManagerAuthorizationInterceptor>();
+    options.Interceptors.Add<TicketSpan.Api.ErrorHandling.ErrorLoggingInterceptor>();
+    options.Interceptors.Add<TicketSpan.Api.Security.EventManagerAuthorizationInterceptor>();
 });
-builder.Services.AddSingleton<EntryVine.Api.ErrorHandling.ErrorLogger>();
-builder.Services.AddSingleton<EntryVine.Api.ErrorHandling.ErrorLoggingInterceptor>();
+builder.Services.AddSingleton<TicketSpan.Api.ErrorHandling.ErrorLogger>();
+builder.Services.AddSingleton<TicketSpan.Api.ErrorHandling.ErrorLoggingInterceptor>();
 builder.Services.AddSingleton<Db>();
 builder.Services.AddSingleton<StartupSeeder>();
 builder.Services.AddSingleton<AppSettingsProvider>();
-builder.Services.AddSingleton<EntryVine.Api.Email.EmailTemplateRenderer>();
+builder.Services.AddSingleton<TicketSpan.Api.Email.EmailTemplateRenderer>();
 builder.Services.AddHttpContextAccessor();
 if (!string.IsNullOrEmpty(builder.Configuration["RESEND_API_KEY"]))
 {
-    builder.Services.AddSingleton<EntryVine.Api.Email.ResendEmailService>();
-    builder.Services.AddSingleton<EntryVine.Api.Email.IEmailService>(sp =>
-        new EntryVine.Api.Email.LoggingEmailService(
-            sp.GetRequiredService<EntryVine.Api.Email.ResendEmailService>(),
+    builder.Services.AddSingleton<TicketSpan.Api.Email.ResendEmailService>();
+    builder.Services.AddSingleton<TicketSpan.Api.Email.IEmailService>(sp =>
+        new TicketSpan.Api.Email.LoggingEmailService(
+            sp.GetRequiredService<TicketSpan.Api.Email.ResendEmailService>(),
             sp.GetRequiredService<Db>(),
             sp
         ));
 }
 else
 {
-    builder.Services.AddSingleton<EntryVine.Api.Email.LocalFileEmailService>();
-    builder.Services.AddSingleton<EntryVine.Api.Email.IEmailService>(sp =>
-        new EntryVine.Api.Email.LoggingEmailService(
-            sp.GetRequiredService<EntryVine.Api.Email.LocalFileEmailService>(),
+    builder.Services.AddSingleton<TicketSpan.Api.Email.LocalFileEmailService>();
+    builder.Services.AddSingleton<TicketSpan.Api.Email.IEmailService>(sp =>
+        new TicketSpan.Api.Email.LoggingEmailService(
+            sp.GetRequiredService<TicketSpan.Api.Email.LocalFileEmailService>(),
             sp.GetRequiredService<Db>(),
             sp
         ));
@@ -108,13 +108,13 @@ builder.Services.AddSingleton<ReportingAccessProvider>();
 builder.Services.AddSingleton<PasswordHasher>();
 builder.Services.AddSingleton<JwtTokenService>();
 builder.Services.AddScoped<TenantContext>();
-builder.Services.AddSingleton<EntryVine.Api.Storage.ObjectStorage>();
-builder.Services.AddSingleton<EntryVine.Api.Payments.StripeService>();
-builder.Services.AddSingleton<EntryVine.Api.Payments.StripeWebhookHandler>();
+builder.Services.AddSingleton<TicketSpan.Api.Storage.ObjectStorage>();
+builder.Services.AddSingleton<TicketSpan.Api.Payments.StripeService>();
+builder.Services.AddSingleton<TicketSpan.Api.Payments.StripeWebhookHandler>();
 builder.Services.AddHttpClient("salestaxzip");
-builder.Services.AddSingleton<EntryVine.Api.Payments.SalesTaxService>();
-builder.Services.AddHostedService<EntryVine.Api.Payments.HoldExpiryWorker>();
-builder.Services.AddHostedService<EntryVine.Api.Payments.BillingWorker>();
+builder.Services.AddSingleton<TicketSpan.Api.Payments.SalesTaxService>();
+builder.Services.AddHostedService<TicketSpan.Api.Payments.HoldExpiryWorker>();
+builder.Services.AddHostedService<TicketSpan.Api.Payments.BillingWorker>();
 
 var jwtService = new JwtTokenService(builder.Configuration);
 var validation = jwtService.ValidationParameters;
@@ -141,7 +141,7 @@ builder.Services.AddRateLimiter(options =>
     options.GlobalLimiter = System.Threading.RateLimiting.PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
     {
         if (!HttpMethods.IsPost(httpContext.Request.Method)
-            || !httpContext.Request.Path.StartsWithSegments("/entryvine.auth.AuthService"))
+            || !httpContext.Request.Path.StartsWithSegments("/ticketspan.auth.AuthService"))
         {
             return System.Threading.RateLimiting.RateLimitPartition.GetNoLimiter("none");
         }
@@ -159,7 +159,7 @@ var app = builder.Build();
 
 await app.Services.GetRequiredService<StartupSeeder>().SeedAsync(CancellationToken.None);
 
-app.UseMiddleware<EntryVine.Api.ErrorHandling.ErrorLoggingMiddleware>();
+app.UseMiddleware<TicketSpan.Api.ErrorHandling.ErrorLoggingMiddleware>();
 app.UseRouting();
 app.UseRateLimiter();
 app.UseCors(CorsPolicy);
@@ -193,7 +193,7 @@ app.MapGrpcService<FloorPlanServiceImpl>();
 app.MapGrpcService<ReportingServiceImpl>();
 app.MapGrpcService<TenantTierServiceImpl>();
 app.MapGrpcService<DeveloperBillingServiceImpl>();
-app.MapGet("/", () => "EntryVine gRPC API");
+app.MapGet("/", () => "TicketSpan gRPC API");
 app.MapGet("/health/live", () => Results.Ok("live"));
 app.MapGet("/health/ready", async (Db db, CancellationToken ct) =>
 {
@@ -213,8 +213,8 @@ app.MapGet("/health/ready", async (Db db, CancellationToken ct) =>
 app.MapPost("/webhooks/stripe", async (
     HttpRequest request,
     IConfiguration config,
-    EntryVine.Api.Payments.StripeWebhookHandler handler,
-    EntryVine.Api.ErrorHandling.ErrorLogger errorLogger,
+    TicketSpan.Api.Payments.StripeWebhookHandler handler,
+    TicketSpan.Api.ErrorHandling.ErrorLogger errorLogger,
     CancellationToken ct) =>
 {
     using var reader = new StreamReader(request.Body);
@@ -263,11 +263,11 @@ app.MapPost("/webhooks/stripe", async (
     catch (Exception ex)
     {
         await errorLogger.LogErrorAsync(
-            EntryVine.Api.ErrorHandling.ErrorSeverity.Critical,
+            TicketSpan.Api.ErrorHandling.ErrorSeverity.Critical,
             "StripeWebhookFailure",
             $"Failed handling Stripe event {stripeEvent.Type} {stripeEvent.Id}",
             ex,
-            new EntryVine.Api.ErrorHandling.ErrorContext
+            new TicketSpan.Api.ErrorHandling.ErrorContext
             {
                 RequestPath = "/webhooks/stripe",
                 RequestMethod = "POST",
@@ -285,7 +285,7 @@ app.MapPost("/webhooks/stripe", async (
     return Results.Ok();
 }).AllowAnonymous();
 
-app.MapPost("/uploads/images", async (HttpRequest request, Db db, TenantContext tenant, EntryVine.Api.Storage.ObjectStorage storage, EntryVine.Api.ErrorHandling.ErrorLogger errorLogger, CancellationToken ct) =>
+app.MapPost("/uploads/images", async (HttpRequest request, Db db, TenantContext tenant, TicketSpan.Api.Storage.ObjectStorage storage, TicketSpan.Api.ErrorHandling.ErrorLogger errorLogger, CancellationToken ct) =>
 {
     if (!request.HasFormContentType)
     {
@@ -346,11 +346,11 @@ app.MapPost("/uploads/images", async (HttpRequest request, Db db, TenantContext 
     catch (Exception ex)
     {
         await errorLogger.LogErrorAsync(
-            EntryVine.Api.ErrorHandling.ErrorSeverity.High,
+            TicketSpan.Api.ErrorHandling.ErrorSeverity.High,
             "ImageUploadFailure",
             $"Failed uploading image {file.FileName} for {entityType}/{entityId}",
             ex,
-            new EntryVine.Api.ErrorHandling.ErrorContext
+            new TicketSpan.Api.ErrorHandling.ErrorContext
             {
                 RequestPath = "/uploads/images",
                 RequestMethod = "POST",
@@ -367,7 +367,7 @@ app.MapPost("/uploads/images", async (HttpRequest request, Db db, TenantContext 
     }
 }).RequireAuthorization();
 
-app.MapGet("/images/{imagesId}", async (string imagesId, Db db, EntryVine.Api.Storage.ObjectStorage storage, CancellationToken ct) =>
+app.MapGet("/images/{imagesId}", async (string imagesId, Db db, TicketSpan.Api.Storage.ObjectStorage storage, CancellationToken ct) =>
 {
     if (!Guid.TryParse(imagesId, out var id))
     {
@@ -401,7 +401,7 @@ app.MapGet("/stripe/onboard/refresh", (string? tenant, IConfiguration config) =>
     Results.Redirect($"{AdminFrontend(config)}/financial?stripe=refresh")).AllowAnonymous();
 
 
-var lifecycleLogger = app.Services.GetRequiredService<EntryVine.Api.ErrorHandling.ErrorLogger>();
+var lifecycleLogger = app.Services.GetRequiredService<TicketSpan.Api.ErrorHandling.ErrorLogger>();
 app.Lifetime.ApplicationStarted.Register(() =>
     _ = lifecycleLogger.LogInfoAsync("SystemLifecycle", "Application started"));
 app.Lifetime.ApplicationStopping.Register(() =>

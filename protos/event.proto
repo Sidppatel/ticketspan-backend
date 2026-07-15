@@ -1,34 +1,34 @@
 syntax = "proto3";
 
-package entryvine.event;
+package ticketspan.event;
 
-option csharp_namespace = "EntryVine.Protos.Event";
+option csharp_namespace = "TicketSpan.Protos.Event";
 
 import "common.proto";
 
 service EventService {
   rpc CreateEvent (CreateEventRequest) returns (CreateEventResponse);
-  rpc UpdateEvent (UpdateEventRequest) returns (entryvine.common.AckResponse);
-  rpc DeleteEvent (entryvine.common.UuidValue) returns (entryvine.common.AckResponse);
-  rpc GetEvent (entryvine.common.UuidValue) returns (Event);
+  rpc UpdateEvent (UpdateEventRequest) returns (ticketspan.common.AckResponse);
+  rpc DeleteEvent (ticketspan.common.UuidValue) returns (ticketspan.common.AckResponse);
+  rpc GetEvent (ticketspan.common.UuidValue) returns (Event);
   rpc GetEventBySlug (GetEventBySlugRequest) returns (Event);
   rpc ListEvents (ListEventsRequest) returns (ListEventsResponse);
   rpc SearchEvents (SearchEventsRequest) returns (ListEventsResponse);
-  rpc ChangeEventStatus (ChangeEventStatusRequest) returns (entryvine.common.AckResponse);
-  rpc GetEventStats (entryvine.common.UuidValue) returns (EventStats);
-  rpc SetEventFeesIncluded (SetEventFeesIncludedRequest) returns (entryvine.common.AckResponse);
+  rpc ChangeEventStatus (ChangeEventStatusRequest) returns (ticketspan.common.AckResponse);
+  rpc GetEventStats (ticketspan.common.UuidValue) returns (EventStats);
+  rpc SetEventFeesIncluded (SetEventFeesIncludedRequest) returns (ticketspan.common.AckResponse);
   // Admin opt-in to offering ACH at checkout (only sticks if the tenant is ACH-enabled).
-  rpc SetEventAch (SetEventAchRequest) returns (entryvine.common.AckResponse);
-  rpc ListScheduleItems (entryvine.common.UuidValue) returns (ListScheduleItemsResponse);
-  rpc CreateScheduleItem (CreateScheduleItemRequest) returns (entryvine.common.UuidValue);
-  rpc UpdateScheduleItem (UpdateScheduleItemRequest) returns (entryvine.common.AckResponse);
-  rpc DeleteScheduleItem (entryvine.common.UuidValue) returns (entryvine.common.AckResponse);
+  rpc SetEventAch (SetEventAchRequest) returns (ticketspan.common.AckResponse);
+  rpc ListScheduleItems (ticketspan.common.UuidValue) returns (ListScheduleItemsResponse);
+  rpc CreateScheduleItem (CreateScheduleItemRequest) returns (ticketspan.common.UuidValue);
+  rpc UpdateScheduleItem (UpdateScheduleItemRequest) returns (ticketspan.common.AckResponse);
+  rpc DeleteScheduleItem (ticketspan.common.UuidValue) returns (ticketspan.common.AckResponse);
   rpc ListEventImages (ListEventImagesRequest) returns (ListEventImagesResponse);
   rpc AddEventImage (AddEventImageRequest) returns (EventImage);
-  rpc RemoveEventImage (RemoveEventImageRequest) returns (entryvine.common.AckResponse);
-  rpc SetPrimaryEventImage (RemoveEventImageRequest) returns (entryvine.common.AckResponse);
-  rpc ReorderEventImages (ReorderEventImagesRequest) returns (entryvine.common.AckResponse);
-  rpc GetMediaSettings (entryvine.common.Empty) returns (MediaSettings);
+  rpc RemoveEventImage (RemoveEventImageRequest) returns (ticketspan.common.AckResponse);
+  rpc SetPrimaryEventImage (RemoveEventImageRequest) returns (ticketspan.common.AckResponse);
+  rpc ReorderEventImages (ReorderEventImagesRequest) returns (ticketspan.common.AckResponse);
+  rpc GetMediaSettings (ticketspan.common.Empty) returns (MediaSettings);
 }
 
 message EventImage {
@@ -178,7 +178,7 @@ message ChangeEventStatusRequest {
 }
 
 message ListEventsRequest {
-  entryvine.common.PageRequest page = 1;
+  ticketspan.common.PageRequest page = 1;
   string status = 2;
   string category = 3;
 }
@@ -187,7 +187,7 @@ message SearchEventsRequest { string query = 1; }
 
 message ListEventsResponse {
   repeated Event events = 1;
-  entryvine.common.PageMeta meta = 2;
+  ticketspan.common.PageMeta meta = 2;
 }
 
 message EventStats {

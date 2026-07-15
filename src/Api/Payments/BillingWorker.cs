@@ -1,9 +1,9 @@
 using Npgsql;
-using EntryVine.Api.Data;
-using EntryVine.Api.Email;
-using EntryVine.Api.ErrorHandling;
+using TicketSpan.Api.Data;
+using TicketSpan.Api.Email;
+using TicketSpan.Api.ErrorHandling;
 
-namespace EntryVine.Api.Payments;
+namespace TicketSpan.Api.Payments;
 
 
 
@@ -119,8 +119,8 @@ public sealed class BillingWorker : BackgroundService
             {
                 var daysLeft = Math.Max((int)Math.Ceiling((reminder.EndsAt - DateTime.UtcNow).TotalDays), 0);
                 await emailService.SendAsync(
-                    "noreply@entryvine.com", email,
-                    $"Your entryvine trial ends in {daysLeft} day{(daysLeft == 1 ? "" : "s")}",
+                    "noreply@ticketspan.com", email,
+                    $"Your ticketspan trial ends in {daysLeft} day{(daysLeft == 1 ? "" : "s")}",
                     $"<p>Hi {tenantName},</p><p>Your 14-day Professional trial ends on "
                     + $"{reminder.EndsAt:MMMM d, yyyy}. Subscribe to keep Advanced Analytics and your "
                     + "trial features — or do nothing and your account returns to the free plan.</p>",

@@ -1,9 +1,9 @@
 using System.Security.Claims;
 using Npgsql;
-using EntryVine.Api.Data;
-using EntryVine.Api.Security;
+using TicketSpan.Api.Data;
+using TicketSpan.Api.Security;
 
-namespace EntryVine.Api.Middleware;
+namespace TicketSpan.Api.Middleware;
 
 public sealed class TenantResolutionMiddleware
 {

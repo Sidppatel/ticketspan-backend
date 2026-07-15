@@ -1,16 +1,16 @@
 using Google.Apis.Auth;
 using Grpc.Core;
 using Npgsql;
-using EntryVine.Api.Data;
-using EntryVine.Api.Email;
-using EntryVine.Api.Security;
-using EntryVine.Protos.Auth;
+using TicketSpan.Api.Data;
+using TicketSpan.Api.Email;
+using TicketSpan.Api.Security;
+using TicketSpan.Protos.Auth;
 
-namespace EntryVine.Api.Services;
+namespace TicketSpan.Api.Services;
 
 public sealed partial class AuthServiceImpl
 {
-    public override async Task<EntryVine.Protos.Common.AckResponse> RequestMagicLink(MagicLinkRequest request, ServerCallContext context)
+    public override async Task<TicketSpan.Protos.Common.AckResponse> RequestMagicLink(MagicLinkRequest request, ServerCallContext context)
     {
         var ct = context.CancellationToken;
         var tenantsId = await ResolveTenantAsync(request.TenantSlug, ct);
@@ -23,7 +23,7 @@ public sealed partial class AuthServiceImpl
         cmd.Parameters.AddWithValue("exp", DateTime.UtcNow.AddMinutes(15));
         cmd.Parameters.AddWithValue("t", (object?)tenantsId ?? DBNull.Value);
         await cmd.ExecuteNonQueryAsync(ct);
-        return new EntryVine.Protos.Common.AckResponse { Success = true, Message = "Magic link sent" };
+        return new TicketSpan.Protos.Common.AckResponse { Success = true, Message = "Magic link sent" };
     }
 
     public override async Task<AuthResponse> VerifyMagicLink(MagicLinkVerifyRequest request, ServerCallContext context)
@@ -94,7 +94,7 @@ public sealed partial class AuthServiceImpl
         return BuildAuth(usersId, email, rowTenant, role, string.Empty, profile);
     }
 
-    public override async Task<EntryVine.Protos.Common.AckResponse> RequestPasswordReset(PasswordResetRequest request, ServerCallContext context)
+    public override async Task<TicketSpan.Protos.Common.AckResponse> RequestPasswordReset(PasswordResetRequest request, ServerCallContext context)
     {
         var ct = context.CancellationToken;
         var emailHash = EmailHasher.Hash(request.Email);
@@ -106,7 +106,7 @@ public sealed partial class AuthServiceImpl
             var result = await lookup.ExecuteScalarAsync(ct);
             if (result is not Guid u)
             {
-                return new EntryVine.Protos.Common.AckResponse { Success = true, Message = "If the account exists, a reset link was sent" };
+                return new TicketSpan.Protos.Common.AckResponse { Success = true, Message = "If the account exists, a reset link was sent" };
             }
             usersId = u;
         }
@@ -122,8 +122,8 @@ public sealed partial class AuthServiceImpl
 
         try
         {
-            var fromAddress = await settings.GetStringAsync("password_reset_email", "noreply@entryvine.com", ct);
-            var subject = await settings.GetStringAsync("password_reset_subject", "Reset your EntryVine password", ct);
+            var fromAddress = await settings.GetStringAsync("password_reset_email", "noreply@ticketspan.com", ct);
+            var subject = await settings.GetStringAsync("password_reset_subject", "Reset your TicketSpan password", ct);
             string resetBase;
             if (!string.IsNullOrEmpty(request.Origin))
             {
@@ -157,10 +157,10 @@ public sealed partial class AuthServiceImpl
             logger.LogError(ex, "Failed to send password reset email");
         }
 
-        return new EntryVine.Protos.Common.AckResponse { Success = true, Message = "If the account exists, a reset link was sent" };
+        return new TicketSpan.Protos.Common.AckResponse { Success = true, Message = "If the account exists, a reset link was sent" };
     }
 
-    public override async Task<EntryVine.Protos.Common.AckResponse> ValidatePasswordResetToken(ValidateResetTokenRequest request, ServerCallContext context)
+    public override async Task<TicketSpan.Protos.Common.AckResponse> ValidatePasswordResetToken(ValidateResetTokenRequest request, ServerCallContext context)
     {
         var ct = context.CancellationToken;
         var hash = EmailHasher.Hash(request.Token);
@@ -181,10 +181,10 @@ public sealed partial class AuthServiceImpl
             throw new RpcException(new Status(StatusCode.Unauthenticated,
                 "This reset link has already been used or has expired. Please request a new one."));
         }
-        return new EntryVine.Protos.Common.AckResponse { Success = true, Message = "Token valid" };
+        return new TicketSpan.Protos.Common.AckResponse { Success = true, Message = "Token valid" };
     }
 
-    public override async Task<EntryVine.Protos.Common.AckResponse> SetPassword(SetPasswordRequest request, ServerCallContext context)
+    public override async Task<TicketSpan.Protos.Common.AckResponse> SetPassword(SetPasswordRequest request, ServerCallContext context)
     {
         var ct = context.CancellationToken;
         var hash = EmailHasher.Hash(request.Token);
@@ -206,6 +206,6 @@ public sealed partial class AuthServiceImpl
         cmd.Parameters.AddWithValue("h", newHash);
         cmd.Parameters.AddWithValue("pv", passwordHasher.CurrentVersion);
         await cmd.ExecuteNonQueryAsync(ct);
-        return new EntryVine.Protos.Common.AckResponse { Success = true, Message = "Password updated" };
+        return new TicketSpan.Protos.Common.AckResponse { Success = true, Message = "Password updated" };
     }
 }

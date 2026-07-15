@@ -1,14 +1,14 @@
 syntax = "proto3";
 
-package entryvine.booking;
+package ticketspan.booking;
 
-option csharp_namespace = "EntryVine.Protos.Booking";
+option csharp_namespace = "TicketSpan.Protos.Booking";
 
 import "common.proto";
 import "pricing.proto";
 
 service BookingService {
-  rpc ListEventTicketTypes (entryvine.common.UuidValue) returns (ListEventTicketTypesResponse);
+  rpc ListEventTicketTypes (ticketspan.common.UuidValue) returns (ListEventTicketTypesResponse);
   rpc CreateBooking (CreateBookingRequest) returns (CreateBookingResponse);
   rpc ReserveOpenCapacity (ReserveOpenCapacityRequest) returns (CreateBookingResponse);
   // Cart checkout: one booking aggregating many ticket/table lines, one payment.
@@ -21,30 +21,30 @@ service BookingService {
   // Re-price the booking for the chosen method (card/ach) and update the Stripe
   // intent amount server-side. Returns the new total + ACH savings.
   rpc UpdatePaymentIntentForMethod (UpdatePaymentMethodRequest) returns (UpdatePaymentMethodResponse);
-  rpc GetPaymentStatus (entryvine.common.UuidValue) returns (PaymentStatusResponse);
-  rpc ConfirmBooking (ConfirmBookingRequest) returns (entryvine.common.AckResponse);
-  rpc CancelBooking (entryvine.common.UuidValue) returns (entryvine.common.AckResponse);
-  rpc RefundBooking (entryvine.common.UuidValue) returns (entryvine.common.AckResponse);
-  rpc GetBooking (entryvine.common.UuidValue) returns (Booking);
+  rpc GetPaymentStatus (ticketspan.common.UuidValue) returns (PaymentStatusResponse);
+  rpc ConfirmBooking (ConfirmBookingRequest) returns (ticketspan.common.AckResponse);
+  rpc CancelBooking (ticketspan.common.UuidValue) returns (ticketspan.common.AckResponse);
+  rpc RefundBooking (ticketspan.common.UuidValue) returns (ticketspan.common.AckResponse);
+  rpc GetBooking (ticketspan.common.UuidValue) returns (Booking);
   rpc ListBookings (ListBookingsRequest) returns (ListBookingsResponse);
-  rpc GetBookingStats (entryvine.common.UuidValue) returns (BookingStats);
+  rpc GetBookingStats (ticketspan.common.UuidValue) returns (BookingStats);
 }
 
 service TicketService {
-  rpc GetTicket (entryvine.common.UuidValue) returns (Ticket);
-  rpc ClaimTicket (ClaimTicketRequest) returns (entryvine.common.AckResponse);
-  rpc InviteTicket (InviteTicketRequest) returns (entryvine.common.AckResponse);
-  rpc ListTickets (entryvine.common.UuidValue) returns (ListTicketsResponse);
-  rpc ClaimTicketSelf (entryvine.common.UuidValue) returns (entryvine.common.AckResponse);
-  rpc RevokeTicket (entryvine.common.UuidValue) returns (entryvine.common.AckResponse);
-  rpc ListMyTickets (entryvine.common.Empty) returns (ListTicketsResponse);
+  rpc GetTicket (ticketspan.common.UuidValue) returns (Ticket);
+  rpc ClaimTicket (ClaimTicketRequest) returns (ticketspan.common.AckResponse);
+  rpc InviteTicket (InviteTicketRequest) returns (ticketspan.common.AckResponse);
+  rpc ListTickets (ticketspan.common.UuidValue) returns (ListTicketsResponse);
+  rpc ClaimTicketSelf (ticketspan.common.UuidValue) returns (ticketspan.common.AckResponse);
+  rpc RevokeTicket (ticketspan.common.UuidValue) returns (ticketspan.common.AckResponse);
+  rpc ListMyTickets (ticketspan.common.Empty) returns (ListTicketsResponse);
 }
 
 service CheckInService {
   rpc Scan (ScanRequest) returns (ScanResponse);
-  rpc GetCheckInStats (entryvine.common.UuidValue) returns (CheckInStats);
-  rpc ListEventsForStaff (entryvine.common.Empty) returns (ListEventsForStaffResponse);
-  rpc GetGuestList (entryvine.common.UuidValue) returns (GetGuestListResponse);
+  rpc GetCheckInStats (ticketspan.common.UuidValue) returns (CheckInStats);
+  rpc ListEventsForStaff (ticketspan.common.Empty) returns (ListEventsForStaffResponse);
+  rpc GetGuestList (ticketspan.common.UuidValue) returns (GetGuestListResponse);
   rpc CheckInGuest (CheckInGuestRequest) returns (ScanResponse);
   rpc ListCheckInLogs (ListCheckInLogsRequest) returns (ListCheckInLogsResponse);
 }
@@ -117,7 +117,7 @@ message CartQuoteLine {
   string ref_id = 2;          // event_ticket_types_id (Ticket) or tables_id (Table)
   string label = 3;
   int32 seats = 4;
-  entryvine.pricing.PriceBreakdown breakdown = 5;
+  ticketspan.pricing.PriceBreakdown breakdown = 5;
 }
 
 // A non-reserving preview of an entire cart: per-line breakdowns + summed totals.
@@ -237,14 +237,14 @@ message ConfirmBookingRequest {
 }
 
 message ListBookingsRequest {
-  entryvine.common.PageRequest page = 1;
+  ticketspan.common.PageRequest page = 1;
   string events_id = 2;
   string status = 3;
 }
 
 message ListBookingsResponse {
   repeated Booking bookings = 1;
-  entryvine.common.PageMeta meta = 2;
+  ticketspan.common.PageMeta meta = 2;
 }
 
 message BookingStats {

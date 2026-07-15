@@ -1,22 +1,22 @@
 syntax = "proto3";
 
-package entryvine.fees;
+package ticketspan.fees;
 
-option csharp_namespace = "EntryVine.Protos.Fees";
+option csharp_namespace = "TicketSpan.Protos.Fees";
 
 import "common.proto";
 
 service FeeService {
   // Read: any authenticated user (tenants pick a formula; UIs display it).
-  rpc ListFeeFormulas (entryvine.common.Empty) returns (ListFeeFormulasResponse);
+  rpc ListFeeFormulas (ticketspan.common.Empty) returns (ListFeeFormulasResponse);
   // Write: developer only.
-  rpc CreateFeeFormula (FeeFormulaInput) returns (entryvine.common.UuidValue);
-  rpc UpdateFeeFormula (FeeFormula) returns (entryvine.common.AckResponse);
-  rpc DeleteFeeFormula (entryvine.common.UuidValue) returns (entryvine.common.AckResponse);
+  rpc CreateFeeFormula (FeeFormulaInput) returns (ticketspan.common.UuidValue);
+  rpc UpdateFeeFormula (FeeFormula) returns (ticketspan.common.AckResponse);
+  rpc DeleteFeeFormula (ticketspan.common.UuidValue) returns (ticketspan.common.AckResponse);
   // Developer cross-tenant overview of every event + its priced line items.
-  rpc ListAllEvents (entryvine.common.Empty) returns (DeveloperEventsResponse);
+  rpc ListAllEvents (ticketspan.common.Empty) returns (DeveloperEventsResponse);
   // Attach a formula to a ticket type / table (developer or own tenant).
-  rpc AssignFeeFormula (AssignFeeFormulaRequest) returns (entryvine.common.AckResponse);
+  rpc AssignFeeFormula (AssignFeeFormulaRequest) returns (ticketspan.common.AckResponse);
 }
 
 message FeeFormula {

@@ -1,5 +1,5 @@
 #!/usr/bin/env pwsh
-# EntryVine Event Backend — local startup.
+# TicketSpan Event Backend — local startup.
 # Loads .env into the process environment, then runs the API with
 # --no-launch-profile so Properties/launchSettings.json is ignored. This mirrors
 # production, where the host (Render) injects the same keys as real env vars.

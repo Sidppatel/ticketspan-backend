@@ -1,7 +1,7 @@
-using EntryVine.Api.Data;
-using EntryVine.Api.ErrorHandling;
+using TicketSpan.Api.Data;
+using TicketSpan.Api.ErrorHandling;
 
-namespace EntryVine.Api.Payments;
+namespace TicketSpan.Api.Payments;
 
 
 

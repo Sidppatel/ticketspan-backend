@@ -1,9 +1,9 @@
 using System.Text.Json;
 using Npgsql;
-using EntryVine.Api.Data;
-using EntryVine.Api.Email;
+using TicketSpan.Api.Data;
+using TicketSpan.Api.Email;
 
-namespace EntryVine.Api.ErrorHandling;
+namespace TicketSpan.Api.ErrorHandling;
 
 public enum ErrorSeverity
 {
