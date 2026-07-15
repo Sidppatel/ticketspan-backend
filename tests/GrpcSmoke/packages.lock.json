@@ -312,7 +312,7 @@
         "resolved": "9.0.0",
         "contentHash": "CJW+x/F6fmRQ7N6K8paasTw9PDZp4t7G76UjGNlSDgoHPF0h08vTzLYbLZpOLEJSg35d5wy2jCXGo84EN05DpQ=="
       },
-      "Svyne.Api": {
+      "TicketSpan.Api": {
         "type": "Project",
         "dependencies": {
           "AWSSDK.S3": "[4.0.23.3, )",
@@ -323,11 +323,11 @@
           "Microsoft.AspNetCore.Authentication.JwtBearer": "[10.0.8, )",
           "Npgsql": "[10.0.1, )",
           "Stripe.net": "[51.1.0, )",
-          "Svyne.Protos": "[1.0.0, )",
-          "System.IdentityModel.Tokens.Jwt": "[8.2.1, )"
+          "System.IdentityModel.Tokens.Jwt": "[8.2.1, )",
+          "TicketSpan.Protos": "[1.0.0, )"
         }
       },
-      "Svyne.Protos": {
+      "TicketSpan.Protos": {
         "type": "Project",
         "dependencies": {
           "Google.Protobuf": "[3.30.2, )",
