@@ -80,6 +80,7 @@ message Booking {
   string venue_state = 26;
   string payment_method_type = 27;
   string payment_method_last4 = 28;
+  string payment_method_brand = 29;
 }
 
 // One line of a booking, for display on checkout / booking detail. Carries the

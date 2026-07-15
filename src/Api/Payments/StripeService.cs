@@ -170,6 +170,9 @@ public sealed class StripeService
     public async Task<PaymentIntent> GetPaymentIntentAsync(string intentId, CancellationToken ct)
         => await new PaymentIntentService(client).GetAsync(intentId, cancellationToken: ct);
 
+    public async Task<PaymentIntent> GetPaymentIntentExpandedAsync(string intentId, CancellationToken ct)
+        => await new PaymentIntentService(client).GetAsync(intentId, new PaymentIntentGetOptions { Expand = new List<string> { "latest_charge", "payment_method" } }, cancellationToken: ct);
+
     public async Task<PaymentIntent> UpdatePaymentIntentAmountAsync(
         string intentId, long amountCents, long applicationFeeCents, CancellationToken ct)
         => await new PaymentIntentService(client).UpdateAsync(intentId, new PaymentIntentUpdateOptions

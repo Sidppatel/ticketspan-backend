@@ -26,4 +26,5 @@ public class StripeTransaction : BaseEntity
 
     public string? PaymentMethodType { get; set; }
     public string? PaymentMethodLast4 { get; set; }
+    public string? PaymentMethodBrand { get; set; }
 }

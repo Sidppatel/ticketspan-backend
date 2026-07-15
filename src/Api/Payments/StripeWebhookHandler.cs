@@ -20,19 +20,22 @@ public sealed class StripeWebhookHandler
     private readonly IEmailService emailService;
     private readonly EmailTemplateRenderer templates;
     private readonly AppSettingsProvider settings;
+    private readonly StripeService stripeService;
 
     public StripeWebhookHandler(
         Db db,
         ILogger<StripeWebhookHandler> logger,
         IEmailService emailService,
         EmailTemplateRenderer templates,
-        AppSettingsProvider settings)
+        AppSettingsProvider settings,
+        StripeService stripeService)
     {
         this.db = db;
         this.logger = logger;
         this.emailService = emailService;
         this.templates = templates;
         this.settings = settings;
+        this.stripeService = stripeService;
     }
 
     public async Task HandleAsync(Event stripeEvent, CancellationToken ct)
@@ -130,22 +133,25 @@ public sealed class StripeWebhookHandler
             confirmed = await cmd.ExecuteScalarAsync(ct) is true;
         }
 
-        var methodType = pi.LatestCharge?.PaymentMethodDetails?.Type;
+        var expandedPi = await stripeService.GetPaymentIntentExpandedAsync(pi.Id, ct);
+        var methodType = expandedPi.LatestCharge?.PaymentMethodDetails?.Type;
         var methodLast4 = methodType switch
         {
-            "card" => pi.LatestCharge?.PaymentMethodDetails?.Card?.Last4,
-            "us_bank_account" => pi.LatestCharge?.PaymentMethodDetails?.UsBankAccount?.Last4,
+            "card" => expandedPi.LatestCharge?.PaymentMethodDetails?.Card?.Last4,
+            "us_bank_account" => expandedPi.LatestCharge?.PaymentMethodDetails?.UsBankAccount?.Last4,
             _ => null
         };
+        var methodBrand = methodType == "card" ? expandedPi.LatestCharge?.PaymentMethodDetails?.Card?.Brand : null;
 
         await using (var enrich = new NpgsqlCommand(
-            "SELECT sp_enrich_stripe_transaction(@id, @total, @fees, @mtype, @mlast4)", conn))
+            "SELECT sp_enrich_stripe_transaction(@id, @total, @fees, @mtype, @mlast4, @mbrand)", conn))
         {
             enrich.Parameters.AddWithValue("id", pi.Id);
             enrich.Parameters.AddWithValue("total", (int)pi.AmountReceived);
             enrich.Parameters.AddWithValue("fees", DBNull.Value);
             enrich.Parameters.AddWithValue("mtype", (object?)methodType ?? DBNull.Value);
             enrich.Parameters.AddWithValue("mlast4", (object?)methodLast4 ?? DBNull.Value);
+            enrich.Parameters.AddWithValue("mbrand", (object?)methodBrand ?? DBNull.Value);
             await enrich.ExecuteNonQueryAsync(ct);
         }
 
