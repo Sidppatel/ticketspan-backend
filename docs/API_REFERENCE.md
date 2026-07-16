@@ -91,13 +91,31 @@ Tax is computed on the taxable amount (`selling_price + platform_fee + gateway_f
 
 - `GET /health/live`, `GET /health/ready` — liveness/readiness (Docker healthcheck).
 - `POST /webhooks/stripe` — Stripe webhook (Stripe-Signature verified when `STRIPE_WEBHOOK_SECRET` set). Anonymous.
-- `POST /uploads/images` (multipart/form-data, auth required) — fields: file, entityType, entityId. 10MB limit, MIME-validated (jpeg/png/webp/gif). Stores bytes to object storage (S3 via `S3_BUCKET`/`S3_SERVICE_URL`, local-disk fallback) then records metadata via `sp_create_image`. Returns `{ imagesId, storageKey }`.
+- `POST /uploads/images` (multipart/form-data, auth required) — fields: file, entityType, entityId. 10MB limit, MIME-validated (jpeg/png/webp/gif). Stores bytes to object storage (S3 via `S3_BUCKET`/`S3_SERVICE_URL`, local-disk fallback) then records metadata via `sp_create_image`. Returns `{ imagesId, storageKey }`. Rate-limited as a normal authenticated call; rejects with a real `429`.
+
+## Backups
+
+- `.github/workflows/backup.yml` — daily 03:00 UTC + manual. `pg_dump --format=custom --compress=9` → Cloudflare R2 (`ticketspan-database-backups`) at `backups/YYYY/MM/DD/ticketspan_backup_<stamp>.dump`. Verifies the dump lists table data before upload, checks the uploaded size matches and the object reads back, then prunes objects older than 14 days (refusing to prune if it would leave zero backups). Secrets: `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`, `R2_BUCKET_NAME`, plus the existing `DB_*` secrets.
+- `.github/workflows/backup-restore-test.yml` — manual only. Restores a chosen backup (or `latest`) into a throwaway `postgres:17` service container and asserts the restore produced `tenants`, `events`, and migration history. **Holds no production connection string** — it cannot restore over prod by construction. Recovering production is a deliberate manual operation.
 
 ## Config (env)
 
 `DATABASE_URL`, `JWT_SIGNING_KEY`, `JWT_ISSUER`, `JWT_AUDIENCE`, `JWT_LIFETIME_MINUTES`, `PASSWORD_PEPPER_V<n>`, `PASSWORD_PEPPER_CURRENT`, `STRIPE_WEBHOOK_SECRET`, `PUBLIC_BASE_URL`, `GRPC_HTTP2_ONLY` (local plaintext native-gRPC testing).
 
+`GOOGLE_CLIENT_ID` — required for Google sign-in; enforced as the `aud` of every Google id-token in `GoogleSignIn` and `LinkGoogle`. Must equal the frontend's `VITE_GOOGLE_CLIENT_ID`. Unset = Google sign-in rejects with `FailedPrecondition` (fail closed); without the audience check any Google app's id-token would be accepted. No client secret is needed — the frontend uses the id-token flow, not a code exchange.
+
 Error logging/alerting (all optional): `ERROR_LOGGING_DISABLED=true` turns persistence off; `ERROR_ALERTS_SLACK_WEBHOOK_URL` enables Slack notifications for Critical/High errors; `ERROR_ALERTS_EMAIL_TO` (+ `ERROR_ALERTS_EMAIL_FROM`) enables email notifications for Critical errors. Unset in development = log to DB only, no notifications.
+
+## Rate limiting
+
+- Central class: `src/Api/Security/RateLimitPolicy.cs` — sliding window (6 segments), in-process (`System.Threading.RateLimiting`), no external store. Wired as the `RateLimiter` global limiter; runs after authentication so JWT claims are available, and before `TenantResolutionMiddleware` so rejected anonymous traffic costs no database round-trip.
+- Buckets, by first match: auth service path → `auth:{client_ip}` 20/min; developer (role 99) → `dev:{sub}` 5000/hr; authenticated → `user:{sub}` 100/min **and** `tenant:{tenants_id}` 1000/hr (chained — both apply, tenant is the binding cap across all of a tenant's users); anonymous → `ip:{client_ip}` 100/min.
+- Exempt: `/health/*`, `/images/*`, `/webhooks/stripe` (Stripe retries on 429; limiting it would drop payment events).
+- Client IP resolution order: `CF-Connecting-IP` → left-most `X-Forwarded-For` → `X-Real-IP` → transport remote address. Behind Cloudflare only the first is trustworthy; the transport address is the Render proxy and would collapse every client into one bucket.
+- Rejection: REST returns `429` + `Retry-After`. **gRPC-Web returns HTTP 200 with `grpc-status: 8` (RESOURCE_EXHAUSTED)** — gRPC-Web has no 429. Clients must branch on the grpc-status, not the HTTP code.
+- Headers on every response: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` (unix seconds), reflecting whichever bucket is currently tighter. Exposed to browsers via the CORS policy alongside `Retry-After`.
+- Limits are compile-time constants; counters are per-process and reset on restart (single Render instance, so no shared store is needed — revisit if the backend is scaled out).
+- Check: `dotnet run --project tests/RateLimitCheck` — asserts every bucket boundary, tenant isolation, IP header precedence, and exemptions. No database required.
 
 ## Error handling architecture
 

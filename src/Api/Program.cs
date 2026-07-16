@@ -68,7 +68,14 @@ builder.Services.AddCors(options =>
         policy
             .AllowAnyHeader()
             .AllowAnyMethod()
-            .WithExposedHeaders("grpc-status", "grpc-message", "grpc-status-details-bin");
+            .WithExposedHeaders(
+                "grpc-status",
+                "grpc-message",
+                "grpc-status-details-bin",
+                RateLimitPolicy.LimitHeaderName,
+                RateLimitPolicy.RemainingHeaderName,
+                RateLimitPolicy.ResetHeaderName,
+                "Retry-After");
     }));
 
 builder.Services.AddGrpc(options =>
@@ -135,25 +142,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 builder.Services.AddAuthorization();
 
-builder.Services.AddRateLimiter(options =>
-{
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.GlobalLimiter = System.Threading.RateLimiting.PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
-    {
-        if (!HttpMethods.IsPost(httpContext.Request.Method)
-            || !httpContext.Request.Path.StartsWithSegments("/ticketspan.auth.AuthService"))
-        {
-            return System.Threading.RateLimiting.RateLimitPartition.GetNoLimiter("none");
-        }
-        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-        return System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter("auth:" + ip,
-            _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 30,
-                Window = TimeSpan.FromMinutes(1)
-            });
-    });
-});
+var rateLimitPolicy = new RateLimitPolicy();
+builder.Services.AddSingleton(rateLimitPolicy);
+builder.Services.AddRateLimiter(rateLimitPolicy.Configure);
 
 var app = builder.Build();
 
@@ -161,11 +152,12 @@ await app.Services.GetRequiredService<StartupSeeder>().SeedAsync(CancellationTok
 
 app.UseMiddleware<TicketSpan.Api.ErrorHandling.ErrorLoggingMiddleware>();
 app.UseRouting();
-app.UseRateLimiter();
 app.UseCors(CorsPolicy);
 app.UseGrpcWeb(new GrpcWebOptions { DefaultEnabled = true });
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<RateLimitHeaderMiddleware>();
+app.UseRateLimiter();
 app.UseMiddleware<TenantResolutionMiddleware>();
 
 app.MapGrpcService<AuthServiceImpl>();

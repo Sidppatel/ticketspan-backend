@@ -155,18 +155,30 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
         }
     }
 
-    public override async Task<AuthResponse> GoogleSignIn(GoogleSignInRequest request, ServerCallContext context)
+    private async Task<GoogleJsonWebSignature.Payload> ValidateGoogleTokenAsync(string googleToken)
     {
-        var ct = context.CancellationToken;
-        GoogleJsonWebSignature.Payload payload;
+        var googleClientId = configuration["GOOGLE_CLIENT_ID"];
+        if (string.IsNullOrWhiteSpace(googleClientId))
+        {
+            throw new RpcException(new Status(StatusCode.FailedPrecondition, "Google sign-in is not configured"));
+        }
         try
         {
-            payload = await GoogleJsonWebSignature.ValidateAsync(request.GoogleToken);
+            return await GoogleJsonWebSignature.ValidateAsync(googleToken, new GoogleJsonWebSignature.ValidationSettings
+            {
+                Audience = new[] { googleClientId }
+            });
         }
         catch (InvalidJwtException)
         {
             throw new RpcException(new Status(StatusCode.Unauthenticated, "Invalid Google token"));
         }
+    }
+
+    public override async Task<AuthResponse> GoogleSignIn(GoogleSignInRequest request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        var payload = await ValidateGoogleTokenAsync(request.GoogleToken);
 
         var tenantsId = await ResolveTenantAsync(request.TenantSlug, ct);
         if (tenantsId is null)
@@ -275,15 +287,7 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
         {
             throw new RpcException(new Status(StatusCode.Unauthenticated, "Not authenticated"));
         }
-        GoogleJsonWebSignature.Payload payload;
-        try
-        {
-            payload = await GoogleJsonWebSignature.ValidateAsync(request.GoogleToken);
-        }
-        catch (InvalidJwtException)
-        {
-            throw new RpcException(new Status(StatusCode.Unauthenticated, "Invalid Google token"));
-        }
+        var payload = await ValidateGoogleTokenAsync(request.GoogleToken);
         try
         {
             await using var connection = await db.OpenAsync(usersId, tc.TenantsId, ct);

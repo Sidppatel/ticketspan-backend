@@ -1,0 +1,149 @@
+name: Daily Database Backup
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: database-backup
+  cancel-in-progress: false
+
+jobs:
+  backup-to-r2:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+      R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+      R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+
+    steps:
+      - name: Verify required secrets are present
+        run: |
+          for required in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY R2_ENDPOINT R2_BUCKET_NAME; do
+            if [ -z "${!required}" ]; then
+              echo "::error::$required is not set"
+              exit 1
+            fi
+          done
+
+      - name: Install postgres client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+          /usr/lib/postgresql/17/bin/pg_dump --version
+
+      - name: Verify database accepts connections
+        env:
+          PGPASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          CONN="host=${{ secrets.DB_HOST }} port=${{ secrets.DB_PORT_SESSION }} dbname=${{ secrets.DB_NAME }} user=${{ secrets.DB_USER }} sslmode=require"
+          psql "$CONN" -v ON_ERROR_STOP=1 -tAc 'SELECT 1' > /dev/null
+          echo "Database reachable."
+
+      - name: Verify R2 credentials and bucket
+        run: |
+          aws s3 ls "s3://${R2_BUCKET_NAME}/" --endpoint-url "$R2_ENDPOINT" > /dev/null
+          echo "R2 bucket reachable."
+
+      - name: Create database dump
+        env:
+          PGPASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          STAMP=$(date -u +%Y%m%d_%H%M%S)
+          OBJECT_KEY="backups/$(date -u +%Y/%m/%d)/ticketspan_backup_${STAMP}.dump"
+          DUMP_FILE="ticketspan_backup_${STAMP}.dump"
+          echo "OBJECT_KEY=$OBJECT_KEY" >> "$GITHUB_ENV"
+          echo "DUMP_FILE=$DUMP_FILE" >> "$GITHUB_ENV"
+          START=$(date +%s)
+          pg_dump "host=${{ secrets.DB_HOST }} port=${{ secrets.DB_PORT_SESSION }} dbname=${{ secrets.DB_NAME }} user=${{ secrets.DB_USER }} sslmode=require" \
+            --format=custom --compress=9 --no-owner \
+            --file="$DUMP_FILE"
+          echo "DUMP_SECONDS=$(( $(date +%s) - START ))" >> "$GITHUB_ENV"
+
+      - name: Verify dump before upload
+        run: |
+          if [ ! -s "$DUMP_FILE" ]; then
+            echo "::error::Dump file is empty"
+            exit 1
+          fi
+          pg_restore --list "$DUMP_FILE" > /dev/null
+          TABLE_COUNT=$(pg_restore --list "$DUMP_FILE" | grep -c ' TABLE DATA ' || true)
+          if [ "$TABLE_COUNT" -lt 1 ]; then
+            echo "::error::Dump contains no table data"
+            exit 1
+          fi
+          echo "DUMP_BYTES=$(stat -c %s "$DUMP_FILE")" >> "$GITHUB_ENV"
+          echo "DUMP_TABLES=$TABLE_COUNT" >> "$GITHUB_ENV"
+
+      - name: Upload to R2
+        run: |
+          aws s3 cp "$DUMP_FILE" "s3://${R2_BUCKET_NAME}/${OBJECT_KEY}" \
+            --endpoint-url "$R2_ENDPOINT" \
+            --only-show-errors
+
+      - name: Verify uploaded object is readable
+        run: |
+          REMOTE_BYTES=$(aws s3api head-object \
+            --bucket "$R2_BUCKET_NAME" --key "$OBJECT_KEY" \
+            --endpoint-url "$R2_ENDPOINT" --query ContentLength --output text)
+          if [ "$REMOTE_BYTES" != "$DUMP_BYTES" ]; then
+            echo "::error::Uploaded size $REMOTE_BYTES does not match local size $DUMP_BYTES"
+            exit 1
+          fi
+          aws s3api get-object \
+            --bucket "$R2_BUCKET_NAME" --key "$OBJECT_KEY" \
+            --endpoint-url "$R2_ENDPOINT" --range bytes=0-4095 head-check.bin > /dev/null
+          if [ ! -s head-check.bin ]; then
+            echo "::error::Uploaded object could not be read back"
+            exit 1
+          fi
+          echo "Upload verified."
+
+      - name: Prune backups older than 14 days
+        run: |
+          CUTOFF=$(date -u -d '14 days ago' +%Y-%m-%dT%H:%M:%S)
+          STALE=$(aws s3api list-objects-v2 \
+            --bucket "$R2_BUCKET_NAME" --prefix backups/ \
+            --endpoint-url "$R2_ENDPOINT" \
+            --query "Contents[?LastModified<='${CUTOFF}'].Key" --output text)
+          if [ -z "$STALE" ] || [ "$STALE" = "None" ]; then
+            echo "Nothing to prune."
+            exit 0
+          fi
+          REMAINING=$(aws s3api list-objects-v2 \
+            --bucket "$R2_BUCKET_NAME" --prefix backups/ \
+            --endpoint-url "$R2_ENDPOINT" --query 'length(Contents)' --output text)
+          STALE_COUNT=$(echo "$STALE" | wc -w)
+          if [ "$(( REMAINING - STALE_COUNT ))" -lt 1 ]; then
+            echo "::error::Pruning would leave no backups — refusing"
+            exit 1
+          fi
+          for key in $STALE; do
+            echo "Pruning $key"
+            aws s3 rm "s3://${R2_BUCKET_NAME}/${key}" --endpoint-url "$R2_ENDPOINT" --only-show-errors
+          done
+
+      - name: Write job summary
+        if: always()
+        run: |
+          {
+            echo "### Daily database backup"
+            echo ""
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| Object | \`${OBJECT_KEY:-not created}\` |"
+            echo "| Size | ${DUMP_BYTES:-0} bytes |"
+            echo "| Tables | ${DUMP_TABLES:-0} |"
+            echo "| Duration | ${DUMP_SECONDS:-0}s |"
+            echo "| Retention | 14 days |"
+          } >> "$GITHUB_STEP_SUMMARY"

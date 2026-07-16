@@ -4,4 +4,5 @@
   <Project Path="database-scripts/Db/Db.csproj" />
   <Project Path="database-scripts/MigrationRunner/MigrationRunner.csproj" />
   <Project Path="tests/GrpcSmoke/GrpcSmoke.csproj" />
+  <Project Path="tests/RateLimitCheck/RateLimitCheck.csproj" />
 </Solution>
