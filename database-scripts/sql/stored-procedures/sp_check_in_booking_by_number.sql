@@ -20,9 +20,9 @@ AS $$
 DECLARE
     v_booking_id uuid;
 BEGIN
-    SELECT bookings_id INTO v_booking_id
-    FROM bookings
-    WHERE booking_number = p_booking_number AND events_id = p_event_id;
+    SELECT b.bookings_id INTO v_booking_id
+    FROM bookings b
+    WHERE b.booking_number = p_booking_number AND b.events_id = p_event_id;
 
     IF NOT FOUND THEN
         PERFORM sp_log_checkin_attempt(p_event_id, p_staff_user_id, NULL, NULL, p_method, 'failed', 'booking_not_found');

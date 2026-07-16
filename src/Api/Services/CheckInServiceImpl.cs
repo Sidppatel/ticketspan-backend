@@ -351,6 +351,128 @@ public sealed class CheckInServiceImpl : CheckInService.CheckInServiceBase
         };
     }
 
+    public override async Task<LookupBookingResponse> LookupBooking(CheckInGuestRequest request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        var eventId = Guid.Parse(request.EventsId);
+        await VerifyAccessAsync(eventId, ct);
+
+        await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+
+        Guid bookingId;
+        await using (var cmd = new NpgsqlCommand(
+            "SELECT bookings_id FROM sp_lookup_booking_for_checkin(@code, @ev)", connection))
+        {
+            cmd.Parameters.AddWithValue("code", request.CodeOrId);
+            cmd.Parameters.AddWithValue("ev", eventId);
+            var result = await cmd.ExecuteScalarAsync(ct);
+            if (result is not Guid found)
+            {
+                return new LookupBookingResponse { Found = false, Message = "Booking not found" };
+            }
+            bookingId = found;
+        }
+
+        GuestBooking? booking = null;
+        await using (var cmd = new NpgsqlCommand(
+            @"SELECT bookings_id, booking_number, buyer_first_name, buyer_last_name, status
+              FROM vw_event_guest_bookings WHERE events_id = @ev AND bookings_id = @b", connection))
+        {
+            cmd.Parameters.AddWithValue("ev", eventId);
+            cmd.Parameters.AddWithValue("b", bookingId);
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            if (await reader.ReadAsync(ct))
+            {
+                booking = new GuestBooking
+                {
+                    BookingsId = reader.GetGuid(0).ToString(),
+                    BookingNumber = reader.GetString(1),
+                    BuyerName = $"{reader.GetString(2)} {reader.GetString(3)}",
+                    Status = reader.GetString(4)
+                };
+            }
+        }
+
+        if (booking is null)
+        {
+            return new LookupBookingResponse { Found = false, Message = "Booking not found" };
+        }
+
+        await using (var cmd = new NpgsqlCommand(
+            @"SELECT booking_lines_id, ticket_code,
+                     guest_first_name, guest_last_name, buyer_first_name, buyer_last_name,
+                     status, seat_number, checked_in_time
+              FROM vw_event_guest_tickets WHERE events_id = @ev AND bookings_id = @b
+              ORDER BY seat_number", connection))
+        {
+            cmd.Parameters.AddWithValue("ev", eventId);
+            cmd.Parameters.AddWithValue("b", bookingId);
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                string guestName;
+                if (!reader.IsDBNull(2))
+                {
+                    guestName = $"{reader.GetString(2)} {reader.GetString(3)}";
+                }
+                else
+                {
+                    guestName = $"{reader.GetString(4)} {reader.GetString(5)}";
+                }
+
+                long checkedInAt = 0;
+                if (!reader.IsDBNull(8))
+                {
+                    checkedInAt = new DateTimeOffset(reader.GetDateTime(8), TimeSpan.Zero).ToUnixTimeSeconds();
+                }
+
+                booking.Tickets.Add(new GuestTicket
+                {
+                    TicketsId = reader.GetGuid(0).ToString(),
+                    TicketCode = reader.GetString(1),
+                    GuestName = guestName,
+                    Status = reader.GetString(6),
+                    SeatNumber = reader.GetInt32(7),
+                    CheckedInAt = checkedInAt
+                });
+            }
+        }
+
+        return new LookupBookingResponse { Found = true, Booking = booking };
+    }
+
+    public override async Task<ScanResponse> UncheckInTicket(UncheckInTicketRequest request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        var eventId = Guid.Parse(request.EventsId);
+        await VerifyAccessAsync(eventId, ct);
+
+        if (string.IsNullOrWhiteSpace(request.Reason))
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "A reason is required to undo a check-in"));
+        }
+
+        await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await using var cmd = new NpgsqlCommand(
+            "SELECT success, message, guest_name, status_str FROM sp_uncheck_in_ticket(@id, @ev, @staff, @reason)", connection);
+        cmd.Parameters.AddWithValue("id", Guid.Parse(request.TicketsId));
+        cmd.Parameters.AddWithValue("ev", eventId);
+        cmd.Parameters.AddWithValue("staff", tenantContext.UsersId!);
+        cmd.Parameters.AddWithValue("reason", request.Reason.Trim());
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct))
+        {
+            return new ScanResponse { Valid = false, Message = "Undo check-in failed" };
+        }
+        return new ScanResponse
+        {
+            Valid = reader.GetBoolean(0),
+            Message = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
+            HolderName = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+            Status = reader.IsDBNull(3) ? string.Empty : reader.GetString(3)
+        };
+    }
+
     public override async Task<ListCheckInLogsResponse> ListCheckInLogs(ListCheckInLogsRequest request, ServerCallContext context)
     {
         var ct = context.CancellationToken;

@@ -46,6 +46,8 @@ service CheckInService {
   rpc ListEventsForStaff (ticketspan.common.Empty) returns (ListEventsForStaffResponse);
   rpc GetGuestList (ticketspan.common.UuidValue) returns (GetGuestListResponse);
   rpc CheckInGuest (CheckInGuestRequest) returns (ScanResponse);
+  rpc LookupBooking (CheckInGuestRequest) returns (LookupBookingResponse);
+  rpc UncheckInTicket (UncheckInTicketRequest) returns (ScanResponse);
   rpc ListCheckInLogs (ListCheckInLogsRequest) returns (ListCheckInLogsResponse);
 }
 
@@ -369,4 +371,16 @@ message CheckInGuestRequest {
   string events_id = 1;
   string code_or_id = 2;
   string type = 3;
+}
+
+message LookupBookingResponse {
+  bool found = 1;
+  GuestBooking booking = 2;
+  string message = 3;
+}
+
+message UncheckInTicketRequest {
+  string events_id = 1;
+  string tickets_id = 2;
+  string reason = 3;
 }
