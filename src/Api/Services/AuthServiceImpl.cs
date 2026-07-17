@@ -199,7 +199,17 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
         cmd.Parameters.AddWithValue("last", payload.FamilyName ?? string.Empty);
         cmd.Parameters.AddWithValue("role", (short)Lookups.UserRoles.PublicViewer);
 
-        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        NpgsqlDataReader reader;
+        try
+        {
+            reader = await cmd.ExecuteReaderAsync(ct);
+        }
+        catch (PostgresException ex) when (ex.SqlState == "P0002")
+        {
+            throw new RpcException(new Status(StatusCode.FailedPrecondition, ex.MessageText));
+        }
+        await using (reader)
+        {
         if (!await reader.ReadAsync(ct))
         {
             throw new RpcException(new Status(StatusCode.Internal, "Sign-in failed"));
@@ -220,6 +230,7 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
         };
         EnsurePortalAllowsRole(request.Portal, role);
         return BuildAuth(usersId, profile.Email, rowTenant, role, request.TenantSlug, profile);
+        }
     }
 
     public override async Task<UserProfile> Me(TicketSpan.Protos.Common.Empty request, ServerCallContext context)
