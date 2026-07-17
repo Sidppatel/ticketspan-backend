@@ -1,6 +1,6 @@
 # Standalone image that runs MigrationRunner against MIGRATION_DATABASE_URL
 # (or DATABASE_URL fallback — both URL forms accepted by MigrationRunner only).
-# code829-backend never embeds this image; backend reads DB_* components and
+# ticketspan-backend never embeds this image; backend reads DB_* components and
 # verifies __EFMigrationsHistory at boot. Production migrations run via
 # .github/workflows/migrate.yml in this repo, which builds the URL string from
 # the DB_HOST / DB_PORT_SESSION / DB_USER / DB_NAME / DB_PASSWORD components

@@ -28,9 +28,8 @@ public sealed class Db
         connectionString = builder.ConnectionString;
 
         
-        
-        builder.Username = configuration["DB_BOOTSTRAP_USER"] ?? "ep_dev";
-        builder.Password = configuration["DB_BOOTSTRAP_PASSWORD"] ?? "ep_dev_password";
+        builder.Username = configuration["DB_BOOTSTRAP_USER"] ?? user;
+        builder.Password = configuration["DB_BOOTSTRAP_PASSWORD"] ?? password;
         bootstrapConnectionString = builder.ConnectionString;
     }
 
