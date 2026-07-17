@@ -14,10 +14,16 @@ RETURNS TABLE(
     is_primary boolean,
     sort_order int,
     created_at timestamptz
-) LANGUAGE sql STABLE
+) LANGUAGE plpgsql STABLE
     SET search_path = public, extensions, pg_catalog
 AS $$
-    SELECT * FROM vw_venue_images
-    WHERE venues_id = p_venue_id
-    ORDER BY sort_order ASC;
+BEGIN
+    RETURN QUERY
+    SELECT vi.venue_image_id, vi.venues_id, vi.images_id, vi.storage_key, vi.original_name,
+           vi.size_bytes, vi.width, vi.height, vi.content_type, vi.alt_text,
+           vi.caption, vi.is_primary, vi.sort_order, vi.created_at
+    FROM vw_venue_images vi
+    WHERE vi.venues_id = p_venue_id
+    ORDER BY vi.sort_order ASC;
+END;
 $$;

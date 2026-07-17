@@ -17,11 +17,17 @@ RETURNS TABLE(
     sort_order int,
     created_at timestamptz,
     type text
-) LANGUAGE sql STABLE
+) LANGUAGE plpgsql STABLE
     SET search_path = public, extensions, pg_catalog
 AS $$
-    SELECT * FROM vw_event_images
-    WHERE events_id = p_event_id
-      AND (p_type IS NULL OR type = p_type)
-    ORDER BY is_primary DESC, sort_order ASC;
+BEGIN
+    RETURN QUERY
+    SELECT ei.event_image_id, ei.events_id, ei.images_id, ei.storage_key, ei.original_name,
+           ei.size_bytes, ei.width, ei.height, ei.content_type, ei.alt_text,
+           ei.caption, ei.is_primary, ei.sort_order, ei.created_at, ei.type
+    FROM vw_event_images ei
+    WHERE ei.events_id = p_event_id
+      AND (p_type IS NULL OR ei.type = p_type)
+    ORDER BY ei.is_primary DESC, ei.sort_order ASC;
+END;
 $$;
