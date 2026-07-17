@@ -18,10 +18,13 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
     private readonly EmailTemplateRenderer templates;
     private readonly AppSettingsProvider settings;
     private readonly ILogger<AuthServiceImpl> logger;
+    private readonly TicketSpan.Api.Storage.ObjectStorage storage;
+    private readonly IHttpClientFactory httpFactory;
 
     public AuthServiceImpl(Db db, PasswordHasher passwordHasher, JwtTokenService jwt,
         IConfiguration configuration, IEmailService email, EmailTemplateRenderer templates,
-        AppSettingsProvider settings, ILogger<AuthServiceImpl> logger)
+        AppSettingsProvider settings, ILogger<AuthServiceImpl> logger,
+        TicketSpan.Api.Storage.ObjectStorage storage, IHttpClientFactory httpFactory)
     {
         this.db = db;
         this.passwordHasher = passwordHasher;
@@ -31,6 +34,8 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
         this.templates = templates;
         this.settings = settings;
         this.logger = logger;
+        this.storage = storage;
+        this.httpFactory = httpFactory;
     }
 
     public override async Task<AuthResponse> Login(LoginRequest request, ServerCallContext context)
@@ -189,7 +194,7 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
 
         await using var connection = await db.OpenAsync(null, null, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT users_id, tenants_id, role, email, first_name, last_name, email_verified "
+            "SELECT users_id, tenants_id, role, email, first_name, last_name, email_verified, images_id "
             + "FROM sp_signin_user_google(@t, @sub, @email, @h, @first, @last, @role)", connection);
         cmd.Parameters.AddWithValue("t", (object?)tenantsId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("sub", payload.Subject);
@@ -229,7 +234,65 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
             EmailVerified = reader.GetBoolean(6)
         };
         EnsurePortalAllowsRole(request.Portal, role);
+        var hasAvatar = !reader.IsDBNull(7);
+        if (!hasAvatar && !string.IsNullOrWhiteSpace(payload.Picture))
+        {
+            await TryStoreGoogleAvatarAsync(usersId, rowTenant, payload.Picture, ct);
+        }
         return BuildAuth(usersId, profile.Email, rowTenant, role, request.TenantSlug, profile);
+        }
+    }
+
+    private async Task TryStoreGoogleAvatarAsync(Guid usersId, Guid? tenantsId, string pictureUrl, CancellationToken ct)
+    {
+        try
+        {
+            var http = httpFactory.CreateClient();
+            using var response = await http.GetAsync(pictureUrl, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                return;
+            }
+            var contentType = response.Content.Headers.ContentType?.MediaType ?? "image/jpeg";
+            if (!contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+            var bytes = await response.Content.ReadAsByteArrayAsync(ct);
+            if (bytes.Length == 0)
+            {
+                return;
+            }
+            var storageKey = $"user/{Guid.NewGuid():N}.jpg";
+            await using (var blob = new MemoryStream(bytes))
+            {
+                await storage.PutAsync(storageKey, blob, contentType, ct);
+            }
+            await using var connection = await db.OpenAsync(usersId, tenantsId, ct);
+            await using (var img = new NpgsqlCommand(
+                "SELECT sp_create_image(@et, @eid, @key, @name, @size, 0, 0, 0, @uid, NULL, NULL, NULL, @ct, NULL, @t)", connection))
+            {
+                img.Parameters.AddWithValue("et", "user");
+                img.Parameters.AddWithValue("eid", usersId);
+                img.Parameters.AddWithValue("key", storageKey);
+                img.Parameters.AddWithValue("name", "google-avatar.jpg");
+                img.Parameters.AddWithValue("size", bytes.Length);
+                img.Parameters.AddWithValue("uid", usersId);
+                img.Parameters.AddWithValue("ct", contentType);
+                img.Parameters.AddWithValue("t", (object?)tenantsId ?? DBNull.Value);
+                var imageId = await img.ExecuteScalarAsync(ct);
+                if (imageId is Guid imgGuid)
+                {
+                    await using var link = new NpgsqlCommand("SELECT sp_set_user_image(@u, @img)", connection);
+                    link.Parameters.AddWithValue("u", usersId);
+                    link.Parameters.AddWithValue("img", imgGuid);
+                    await link.ExecuteNonQueryAsync(ct);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to store Google avatar for user {UsersId}", usersId);
         }
     }
 

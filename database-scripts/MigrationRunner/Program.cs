@@ -85,33 +85,12 @@ for (var attempt = 1; attempt <= maxRetries; attempt++)
 
         var conn = ctx.Database.GetDbConnection();
         if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync();
-        await using (var cmd = conn.CreateCommand())
-        {
-            cmd.CommandText = @"
-                INSERT INTO users (users_id, tenants_id, email, email_hash, first_name, last_name, role, is_active, password_hash, pepper_version, created_at, updated_at)
-                VALUES (
-                    '20000000-0000-0000-0000-000000000099', 
-                    NULL, 
-                    'developer@ticketspan.com', 
-                    encode(sha256('developer@ticketspan.com'::bytea), 'hex'), 
-                    'Dev', 
-                    'Eloper', 
-                    99, 
-                    true, 
-                    '$2a$12$u.Lwn6CQuSH.fwm/dS4H8u0n.Qgzn4Uu3x3kuOKvXEV43Fw31tQ6e', 
-                    1, 
-                    now(), 
-                    now()
-                )
-                ON CONFLICT (users_id) DO NOTHING;";
-            await cmd.ExecuteNonQueryAsync();
-            Console.WriteLine("[migrate] seeded default developer user.");
-        }
 
         var pending = (await ctx.Database.GetPendingMigrationsAsync()).ToList();
         if (pending.Count == 0)
         {
             Console.WriteLine("[migrate] up to date; nothing to apply");
+            await SeedDeveloperUserAsync(conn);
             return 0;
         }
 
@@ -134,12 +113,14 @@ for (var attempt = 1; attempt <= maxRetries; attempt++)
         if (pending.Count == 0)
         {
             Console.WriteLine("[migrate] up to date after bootstrap");
+            await SeedDeveloperUserAsync(conn);
             return 0;
         }
 
         Console.WriteLine($"[migrate] applying {pending.Count} pending: {string.Join(", ", pending)}");
         await ctx.Database.MigrateAsync();
         Console.WriteLine("[migrate] done");
+        await SeedDeveloperUserAsync(conn);
         return 0;
     }
     catch (Exception ex) when (IsTransient(ex) && attempt < maxRetries)
@@ -157,6 +138,31 @@ for (var attempt = 1; attempt <= maxRetries; attempt++)
 
 Console.Error.WriteLine("[migrate] exhausted retries");
 return 1;
+
+static async Task SeedDeveloperUserAsync(System.Data.Common.DbConnection conn)
+{
+    if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync();
+    await using var cmd = conn.CreateCommand();
+    cmd.CommandText = @"
+        INSERT INTO users (users_id, tenants_id, email, email_hash, first_name, last_name, role, is_active, password_hash, pepper_version, created_at, updated_at)
+        VALUES (
+            '20000000-0000-0000-0000-000000000099',
+            NULL,
+            'developer@ticketspan.com',
+            encode(sha256('developer@ticketspan.com'::bytea), 'hex'),
+            'Dev',
+            'Eloper',
+            99,
+            true,
+            '$2a$12$u.Lwn6CQuSH.fwm/dS4H8u0n.Qgzn4Uu3x3kuOKvXEV43Fw31tQ6e',
+            1,
+            now(),
+            now()
+        )
+        ON CONFLICT (users_id) DO NOTHING;";
+    await cmd.ExecuteNonQueryAsync();
+    Console.WriteLine("[migrate] seeded default developer user.");
+}
 
 static async Task<bool> TableExistsAsync(EventPlatformDbContext ctx, string tableName)
 {
