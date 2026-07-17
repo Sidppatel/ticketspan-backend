@@ -204,7 +204,7 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
         {
             reader = await cmd.ExecuteReaderAsync(ct);
         }
-        catch (PostgresException ex) when (ex.SqlState == "P0002")
+        catch (PostgresException ex) when (ex.SqlState is "P0001" or "P0002")
         {
             throw new RpcException(new Status(StatusCode.FailedPrecondition, ex.MessageText));
         }
