@@ -380,7 +380,7 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
         try
         {
             await using var connection = await db.OpenAsync(usersId, tc.TenantsId, ct);
-            await using var cmd = new NpgsqlCommand("SELECT sp_link_google(@u, @sub)", connection);
+            await using var cmd = new NpgsqlCommand("SELECT users_id FROM sp_link_google(@u, @sub)", connection);
             cmd.Parameters.AddWithValue("u", usersId);
             cmd.Parameters.AddWithValue("sub", payload.Subject);
             await cmd.ExecuteScalarAsync(ct);
@@ -403,7 +403,7 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
         try
         {
             await using var connection = await db.OpenAsync(usersId, tc.TenantsId, ct);
-            await using var cmd = new NpgsqlCommand("SELECT sp_unlink_google(@u)", connection);
+            await using var cmd = new NpgsqlCommand("SELECT users_id FROM sp_unlink_google(@u)", connection);
             cmd.Parameters.AddWithValue("u", usersId);
             await cmd.ExecuteScalarAsync(ct);
         }
