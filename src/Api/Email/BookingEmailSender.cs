@@ -25,7 +25,7 @@ public static class BookingEmailSender
             
             await using var cmd = new NpgsqlCommand(
                 "SELECT booking_number, subtotal_cents, fee_cents, total_cents, user_email, " +
-                "event_title, event_start_date, venue_name, fees_included " +
+                "event_title, event_start_date, venue_name, fees_included, tax_cents, service_fee_cents " +
                 "FROM vw_bookings WHERE bookings_id = @id", conn);
             cmd.Parameters.AddWithValue("id", bookingId);
 
@@ -38,6 +38,8 @@ public static class BookingEmailSender
             DateTime eventStartDate = DateTime.MinValue;
             string venueName = "";
             bool feesIncluded = false;
+            int taxCents = 0;
+            int serviceFeeCents = 0;
 
             await using (var reader = await cmd.ExecuteReaderAsync(ct))
             {
@@ -52,6 +54,8 @@ public static class BookingEmailSender
                     eventStartDate = reader.GetDateTime(6);
                     venueName = reader.GetString(7);
                     feesIncluded = reader.GetBoolean(8);
+                    taxCents = reader.GetInt32(9);
+                    serviceFeeCents = reader.GetInt32(10);
                 }
             }
 
@@ -81,13 +85,15 @@ public static class BookingEmailSender
             if (feesIncluded)
             {
                 
+                receiptBuilder.Append($"<tr><td style=\"font-size:15px;color:#374151;padding:4px 0;\">Tax:</td><td align=\"right\" style=\"font-size:15px;color:#374151;padding:4px 0;\">${taxCents / 100.0:F2}</td></tr>");
                 receiptBuilder.Append($"<tr><td style=\"font-size:15px;color:#374151;padding:4px 0;\"><strong>Total:</strong></td><td align=\"right\" style=\"font-size:15px;color:#374151;padding:4px 0;\"><strong>${totalCents / 100.0:F2}</strong></td></tr>");
             }
             else
             {
                 
                 receiptBuilder.Append($"<tr><td style=\"font-size:15px;color:#374151;padding:4px 0;\">Subtotal:</td><td align=\"right\" style=\"font-size:15px;color:#374151;padding:4px 0;\">${subtotalCents / 100.0:F2}</td></tr>");
-                receiptBuilder.Append($"<tr><td style=\"font-size:15px;color:#374151;padding:4px 0;\">Fees:</td><td align=\"right\" style=\"font-size:15px;color:#374151;padding:4px 0;\">${feeCents / 100.0:F2}</td></tr>");
+                receiptBuilder.Append($"<tr><td style=\"font-size:15px;color:#374151;padding:4px 0;\">Service fee:</td><td align=\"right\" style=\"font-size:15px;color:#374151;padding:4px 0;\">${serviceFeeCents / 100.0:F2}</td></tr>");
+                receiptBuilder.Append($"<tr><td style=\"font-size:15px;color:#374151;padding:4px 0;\">Tax:</td><td align=\"right\" style=\"font-size:15px;color:#374151;padding:4px 0;\">${taxCents / 100.0:F2}</td></tr>");
                 receiptBuilder.Append($"<tr><td style=\"font-size:15px;color:#374151;padding:4px 0;\"><strong>Total:</strong></td><td align=\"right\" style=\"font-size:15px;color:#374151;padding:4px 0;\"><strong>${totalCents / 100.0:F2}</strong></td></tr>");
             }
             receiptBuilder.Append("</table>");
