@@ -5,6 +5,10 @@ using TicketSpan.Api.Data;
 using TicketSpan.Api.Security;
 using TicketSpan.Protos.Common;
 using TicketSpan.Protos.Event;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
 
 namespace TicketSpan.Api.Services;
 
@@ -12,11 +16,13 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
 {
     private readonly Db db;
     private readonly TenantContext tenantContext;
+    private readonly IConfiguration configuration;
 
-    public EventServiceImpl(Db db, TenantContext tenantContext)
+    public EventServiceImpl(Db db, TenantContext tenantContext, IConfiguration configuration)
     {
         this.db = db;
         this.tenantContext = tenantContext;
+        this.configuration = configuration;
     }
 
     public override async Task<CreateEventResponse> CreateEvent(CreateEventRequest request, ServerCallContext context)
@@ -526,6 +532,99 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         "23514" => new RpcException(new Status(StatusCode.FailedPrecondition, ex.MessageText)),
         _ => new RpcException(new Status(StatusCode.Internal, ex.MessageText))
     };
+
+    public override async Task<GenerateEventInfoResponse> GenerateEventInfo(GenerateEventInfoRequest request, ServerCallContext context)
+    {
+        var apiKey = configuration["LLM_API_KEY"];
+        if (string.IsNullOrEmpty(apiKey))
+        {
+            throw new RpcException(new Status(StatusCode.FailedPrecondition, "LLM_API_KEY is not configured."));
+        }
+
+        var baseUrl = configuration["LLM_BASE_URL"] ?? "https://integrate.api.nvidia.com/v1";
+        var model = configuration["LLM_MODEL"] ?? "meta/llama3-70b-instruct";
+
+        using var httpClient = new HttpClient();
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+        httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        var systemPrompt = @"You are an event planning assistant for our application.
+The user will provide a casual description of an event they want to create.
+Your job is to extract the relevant details and format them into a valid JSON object.
+
+Extract the following fields if present:
+- ""title"": A catchy event title (generate one if not explicitly stated).
+- ""description"": A professional description of the event.
+- ""category"": The event category (must be one of: ""Music"", ""Business"", ""Social"", ""Dining"", ""Tech"", ""Arts"", ""Family"", ""Sports"").
+- ""date_suggestion"": Any mentioned date or time information as a string.
+
+If any information is missing, leave the field as null.
+Respond ONLY with the JSON object, without any markdown formatting or extra text.";
+
+        var payload = new
+        {
+            model = model,
+            messages = new[]
+            {
+                new { role = "system", content = systemPrompt },
+                new { role = "user", content = request.Prompt }
+            },
+            temperature = 0.2,
+            max_tokens = 500
+        };
+
+        var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+        var response = await httpClient.PostAsync($"{baseUrl}/chat/completions", content, context.CancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            throw new RpcException(new Status(StatusCode.Internal, $"LLM API failed: {response.StatusCode} {errorContent}"));
+        }
+
+        var jsonResponse = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(jsonResponse);
+        
+        var messageContent = document.RootElement
+            .GetProperty("choices")[0]
+            .GetProperty("message")
+            .GetProperty("content")
+            .GetString() ?? "{}";
+
+        messageContent = messageContent.Trim();
+        if (messageContent.StartsWith("```json"))
+        {
+            messageContent = messageContent.Substring(7);
+            if (messageContent.EndsWith("```"))
+            {
+                messageContent = messageContent.Substring(0, messageContent.Length - 3);
+            }
+        }
+
+        using var resultDoc = JsonDocument.Parse(messageContent);
+        var root = resultDoc.RootElement;
+
+        var result = new GenerateEventInfoResponse();
+        
+        if (root.TryGetProperty("title", out var titleProp) && titleProp.ValueKind == JsonValueKind.String)
+        {
+            result.Title = titleProp.GetString() ?? "";
+        }
+        if (root.TryGetProperty("description", out var descProp) && descProp.ValueKind == JsonValueKind.String)
+        {
+            result.Description = descProp.GetString() ?? "";
+        }
+        if (root.TryGetProperty("category", out var catProp) && catProp.ValueKind == JsonValueKind.String)
+        {
+            result.Category = catProp.GetString() ?? "";
+        }
+        if (root.TryGetProperty("date_suggestion", out var dateProp) && dateProp.ValueKind == JsonValueKind.String)
+        {
+            result.DateSuggestion = dateProp.GetString() ?? "";
+        }
+
+        return result;
+    }
 
     private const string EventSelect =
         "SELECT events_id, title, slug, description, status, category, start_date, end_date, image_path, "
