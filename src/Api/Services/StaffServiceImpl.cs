@@ -84,9 +84,8 @@ public sealed class StaffServiceImpl : StaffService.StaffServiceBase
         RequireTenant();
         var response = new ListStaffResponse();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
-        await using var cmd = new NpgsqlCommand("SELECT users_id, email, display_name FROM sp_get_tenant_members(@t) WHERE role = @staffRole", connection);
+        await using var cmd = new NpgsqlCommand("SELECT users_id, email, display_name, role FROM sp_get_tenant_members(@t)", connection);
         cmd.Parameters.AddWithValue("t", tenantContext.TenantsId!);
-        cmd.Parameters.AddWithValue("staffRole", Lookups.UserRoles.Staff);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
         {
@@ -99,7 +98,8 @@ public sealed class StaffServiceImpl : StaffService.StaffServiceBase
                 UsersId = reader.GetGuid(0).ToString(),
                 FirstName = first,
                 LastName = last,
-                Email = reader.GetString(1)
+                Email = reader.GetString(1),
+                Role = reader.GetInt16(3)
             });
         }
         return response;
