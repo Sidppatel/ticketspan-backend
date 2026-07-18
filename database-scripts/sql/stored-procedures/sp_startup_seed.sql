@@ -35,4 +35,6 @@ BEGIN
     INSERT INTO tax_rate_cache (zip_code, state, county, city, state_rate, county_rate, city_rate, local_rate, combined_rate, api_response_id, fetched_at, updated_at)
     VALUES ('36611', 'AL', 'Mobile', 'Mobile', 0.04, 0.06, 0.00, 0.00, 0.10, 'manual_injection', '2099-01-01 00:00:00+00', now())
     ON CONFLICT (zip_code) DO NOTHING;
+
+    PERFORM sp_seed_app_setting('ai_prompt_max_length', '200', 'Maximum characters allowed for the AI event generator prompt');
 END; $$;

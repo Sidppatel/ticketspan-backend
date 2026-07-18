@@ -17,12 +17,14 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
     private readonly Db db;
     private readonly TenantContext tenantContext;
     private readonly IConfiguration configuration;
+    private readonly AppSettingsProvider appSettings;
 
-    public EventServiceImpl(Db db, TenantContext tenantContext, IConfiguration configuration)
+    public EventServiceImpl(Db db, TenantContext tenantContext, IConfiguration configuration, AppSettingsProvider appSettings)
     {
         this.db = db;
         this.tenantContext = tenantContext;
         this.configuration = configuration;
+        this.appSettings = appSettings;
     }
 
     public override async Task<CreateEventResponse> CreateEvent(CreateEventRequest request, ServerCallContext context)
@@ -533,8 +535,22 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         _ => new RpcException(new Status(StatusCode.Internal, ex.MessageText))
     };
 
+    public override async Task<AiSettingsResponse> GetAiSettings(Empty request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        var limit = await appSettings.GetIntAsync("ai_prompt_max_length", 200, ct);
+        return new AiSettingsResponse { PromptMaxLength = limit };
+    }
+
     public override async Task<GenerateEventInfoResponse> GenerateEventInfo(GenerateEventInfoRequest request, ServerCallContext context)
     {
+        var ct = context.CancellationToken;
+        var limit = await appSettings.GetIntAsync("ai_prompt_max_length", 200, ct);
+        if (request.Prompt.Length > limit)
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument, $"Prompt exceeds maximum allowed length of {limit} characters."));
+        }
+
         var apiKey = configuration["LLM_API_KEY"];
         if (string.IsNullOrEmpty(apiKey))
         {
@@ -542,24 +558,35 @@ public sealed class EventServiceImpl : EventService.EventServiceBase
         }
 
         var baseUrl = configuration["LLM_BASE_URL"] ?? "https://integrate.api.nvidia.com/v1";
-        var model = configuration["LLM_MODEL"] ?? "meta/llama3-70b-instruct";
+        var model = configuration["LLM_MODEL"] ?? "meta/llama-3.1-8b-instruct";
 
         using var httpClient = new HttpClient();
         httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-        var systemPrompt = @"You are an event planning assistant for our application.
+        var currentTime = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+        var systemPrompt = @$"You are an event planning assistant for our application.
 The user will provide a casual description of an event they want to create.
 Your job is to extract the relevant details and format them into a valid JSON object.
+The current date and time is {currentTime}.
+
+SAFETY RULES:
+- Reject any prompts that are not related to event planning or are inappropriate. If rejected, return a JSON object with only the 'title' field set to 'Error: Invalid prompt'.
 
 Extract the following fields if present:
 - ""title"": A catchy event title (generate one if not explicitly stated).
 - ""description"": A professional description of the event.
 - ""category"": The event category (must be one of: ""Music"", ""Business"", ""Social"", ""Dining"", ""Tech"", ""Arts"", ""Family"", ""Sports"").
-- ""date_suggestion"": Any mentioned date or time information as a string.
+- ""start_date"": The event start date and time in format ""YYYY-MM-DDTHH:mm"". Ensure it is not in the past.
+- ""end_date"": The event end date and time in format ""YYYY-MM-DDTHH:mm"". Ensure it is always after the start_date. If no end date is explicitly mentioned but a start_date is generated, infer a reasonable end_date based on the event type (e.g., a few hours later for a meetup, or the next day for a hackathon).
 
-If any information is missing, leave the field as null.
+If any information cannot be reasonably inferred, leave the field as null.
 Respond ONLY with the JSON object, without any markdown formatting or extra text.";
+
+        if (request.HasTargetField && !string.IsNullOrEmpty(request.TargetField))
+        {
+            systemPrompt += $"\n\nCRITICAL INSTRUCTION: The user has requested to REGENERATE ONLY the '{request.TargetField}' field based on the prompt. You must return a JSON object containing ONLY the '{request.TargetField}' field, leaving all other fields null or omitting them.";
+        }
 
         var payload = new
         {
@@ -618,9 +645,13 @@ Respond ONLY with the JSON object, without any markdown formatting or extra text
         {
             result.Category = catProp.GetString() ?? "";
         }
-        if (root.TryGetProperty("date_suggestion", out var dateProp) && dateProp.ValueKind == JsonValueKind.String)
+        if (root.TryGetProperty("start_date", out var startDateProp) && startDateProp.ValueKind == JsonValueKind.String)
         {
-            result.DateSuggestion = dateProp.GetString() ?? "";
+            result.StartDate = startDateProp.GetString() ?? "";
+        }
+        if (root.TryGetProperty("end_date", out var endDateProp) && endDateProp.ValueKind == JsonValueKind.String)
+        {
+            result.EndDate = endDateProp.GetString() ?? "";
         }
 
         return result;

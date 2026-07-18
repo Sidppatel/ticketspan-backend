@@ -30,6 +30,7 @@ service EventService {
   rpc ReorderEventImages (ReorderEventImagesRequest) returns (ticketspan.common.AckResponse);
   rpc GetMediaSettings (ticketspan.common.Empty) returns (MediaSettings);
   rpc GenerateEventInfo (GenerateEventInfoRequest) returns (GenerateEventInfoResponse);
+  rpc GetAiSettings (ticketspan.common.Empty) returns (AiSettingsResponse);
 }
 
 message EventImage {
@@ -201,11 +202,27 @@ message EventStats {
 
 message GenerateEventInfoRequest {
   string prompt = 1;
+  optional string target_field = 2;
 }
 
 message GenerateEventInfoResponse {
   string title = 1;
   string description = 2;
   string category = 3;
-  string date_suggestion = 4;
+  string start_date = 4;
+  string end_date = 5;
+  string venues_id = 6;
+  VenueSuggestion venue_suggestion = 7;
+}
+
+message VenueSuggestion {
+  string name = 1;
+  string line1 = 2;
+  string city = 3;
+  string zip = 4;
+  string state = 5;
+}
+
+message AiSettingsResponse {
+  int32 prompt_max_length = 1;
 }
