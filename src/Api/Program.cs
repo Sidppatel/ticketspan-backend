@@ -216,19 +216,15 @@ app.MapPost("/webhooks/stripe", async (
     var secrets = (config["STRIPE_WEBHOOK_SECRET"] ?? string.Empty)
         .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-    Console.WriteLine($"[StripeWebhook] Received webhook. Payload length: {payload.Length} bytes. Signature header: {signature}");
-
     Stripe.Event? stripeEvent = null;
     if (secrets.Length == 0)
     {
         try
         {
             stripeEvent = Stripe.EventUtility.ParseEvent(payload);
-            Console.WriteLine("[StripeWebhook] Parsed event without signature check (no secrets configured).");
         }
-        catch (Stripe.StripeException ex)
+        catch (Stripe.StripeException)
         {
-            Console.WriteLine($"[StripeWebhook] Failed parsing event: {ex.Message}");
             return Results.BadRequest("Invalid signature");
         }
     }
@@ -236,21 +232,18 @@ app.MapPost("/webhooks/stripe", async (
     {
         foreach (var sec in secrets)
         {
-            var maskedSecret = sec.Length > 12 ? $"{sec.Substring(0, 8)}...{sec.Substring(sec.Length - 4)}" : "short-secret";
             try
             {
                 stripeEvent = Stripe.EventUtility.ConstructEvent(payload, signature, sec, throwOnApiVersionMismatch: false);
-                Console.WriteLine($"[StripeWebhook] Successfully verified signature using secret {maskedSecret}");
                 break;
             }
-            catch (Stripe.StripeException ex)
+            catch (Stripe.StripeException)
             {
-                Console.WriteLine($"[StripeWebhook] Failed verifying signature using secret {maskedSecret}: {ex.Message}");
+                // Continue trying other secrets
             }
         }
         if (stripeEvent == null)
         {
-            Console.WriteLine("[StripeWebhook] Event signature verification failed for all configured secrets.");
             return Results.BadRequest("Invalid signature");
         }
     }
