@@ -194,12 +194,13 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
         {
             throw new RpcException(new Status(StatusCode.InvalidArgument, "Unknown tenant"));
         }
+        var portal = request.Portal ?? string.Empty;
         var emailHash = EmailHasher.Hash(payload.Email);
 
         await using var connection = await db.OpenAsync(null, null, ct);
         await using var cmd = new NpgsqlCommand(
             "SELECT users_id, tenants_id, role, email, first_name, last_name, email_verified, images_id "
-            + "FROM sp_signin_user_google(@t, @sub, @email, @h, @first, @last, @role)", connection);
+            + "FROM sp_signin_user_google(@t, @sub, @email, @h, @first, @last, @role, @allowed)", connection);
         cmd.Parameters.AddWithValue("t", (object?)tenantsId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("sub", payload.Subject);
         cmd.Parameters.AddWithValue("email", payload.Email);
@@ -207,6 +208,7 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
         cmd.Parameters.AddWithValue("first", payload.GivenName ?? string.Empty);
         cmd.Parameters.AddWithValue("last", payload.FamilyName ?? string.Empty);
         cmd.Parameters.AddWithValue("role", (short)Lookups.UserRoles.PublicViewer);
+        cmd.Parameters.AddWithValue("allowed", GoogleSignInRolesForPortal(portal));
 
         NpgsqlDataReader reader;
         try
@@ -220,6 +222,11 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
         catch (PostgresException ex) when (ex.SqlState == "P0003")
         {
             throw new RpcException(new Status(StatusCode.PermissionDenied, "Account disabled"));
+        }
+        catch (PostgresException ex) when (ex.SqlState == "P0004")
+        {
+            throw new RpcException(new Status(StatusCode.NotFound,
+                "No account found for this Google account on this portal. Ask your administrator for an invitation."));
         }
         await using (reader)
         {
@@ -241,7 +248,7 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
             TenantSlug = request.TenantSlug,
             EmailVerified = reader.GetBoolean(6)
         };
-        EnsurePortalAllowsRole(request.Portal, role);
+        EnsurePortalAllowsRole(portal, role);
         var hasAvatar = !reader.IsDBNull(7);
         if (!hasAvatar && !string.IsNullOrWhiteSpace(payload.Picture))
         {
@@ -531,6 +538,14 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
             reader.GetString(4),
             reader.GetBoolean(5));
     }
+
+    private static short[] GoogleSignInRolesForPortal(string portal) => portal switch
+    {
+        "admin" => [Lookups.UserRoles.Admin, Lookups.UserRoles.SubTenant, Lookups.UserRoles.Developer],
+        "staff" => [Lookups.UserRoles.Staff, Lookups.UserRoles.Admin, Lookups.UserRoles.SubTenant, Lookups.UserRoles.Developer],
+        "developer" => [Lookups.UserRoles.Developer],
+        _ => [Lookups.UserRoles.PublicViewer]
+    };
 
     private static bool PortalAllowsRole(string portal, int role)
     {

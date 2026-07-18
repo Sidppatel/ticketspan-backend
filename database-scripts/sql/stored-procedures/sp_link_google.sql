@@ -7,10 +7,13 @@ AS $$
 DECLARE
     v_other uuid;
 BEGIN
-    SELECT users_id INTO v_other
-      FROM users
-      WHERE google_subject = p_google_subject
-        AND users_id <> p_users_id;
+    SELECT o.users_id INTO v_other
+      FROM users o
+      JOIN users me ON me.users_id = p_users_id
+      WHERE o.google_subject = p_google_subject
+        AND o.users_id <> p_users_id
+        AND o.role = me.role
+        AND o.tenants_id IS NOT DISTINCT FROM me.tenants_id;
 
     IF v_other IS NOT NULL THEN
         RAISE EXCEPTION 'Google account already linked to a different identity'

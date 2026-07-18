@@ -1,3 +1,5 @@
+DROP FUNCTION IF EXISTS sp_signin_user_google(uuid, text, text, text, text, text, smallint);
+
 CREATE OR REPLACE FUNCTION sp_signin_user_google(
     p_tenants_id uuid,
     p_google_subject text,
@@ -5,7 +7,8 @@ CREATE OR REPLACE FUNCTION sp_signin_user_google(
     p_email_hash text,
     p_first_name text,
     p_last_name text,
-    p_role smallint DEFAULT 0
+    p_role smallint DEFAULT 0,
+    p_allowed_roles smallint[] DEFAULT ARRAY[0]::smallint[]
 ) RETURNS SETOF users LANGUAGE plpgsql SECURITY DEFINER
     SET search_path = public, extensions, pg_catalog
 AS $$
@@ -15,7 +18,12 @@ DECLARE
     v_existing_google_subject text;
 BEGIN
     SELECT users_id, is_active INTO v_id, v_is_active
-      FROM users WHERE google_subject = p_google_subject;
+      FROM users
+      WHERE google_subject = p_google_subject
+        AND role = ANY(p_allowed_roles)
+        AND (tenants_id IS NOT DISTINCT FROM p_tenants_id OR role = 99)
+      ORDER BY role DESC
+      LIMIT 1;
 
     IF v_id IS NOT NULL THEN
         IF NOT v_is_active THEN
@@ -33,9 +41,16 @@ BEGIN
       INTO v_id, v_is_active, v_existing_google_subject
       FROM users
       WHERE email_hash = p_email_hash
-        AND tenants_id IS NOT DISTINCT FROM p_tenants_id;
+        AND role = ANY(p_allowed_roles)
+        AND (tenants_id IS NOT DISTINCT FROM p_tenants_id OR role = 99)
+      ORDER BY role DESC
+      LIMIT 1;
 
     IF v_id IS NULL THEN
+        IF NOT (p_role = ANY(p_allowed_roles)) THEN
+            RAISE EXCEPTION 'No account found for this Google account'
+                USING ERRCODE = 'P0004';
+        END IF;
         INSERT INTO users (
             tenants_id, email, email_hash, first_name, last_name,
             password_hash, role, email_verified, email_verified_at,
@@ -63,9 +78,6 @@ BEGIN
         RAISE EXCEPTION 'Account disabled' USING ERRCODE = 'P0003';
     END IF;
 
-    -- Email match on a password account auto-links Google: caller has verified
-    -- the Google token and that Google reports the email as verified, so the
-    -- caller owns this email. Password sign-in keeps working alongside.
     UPDATE users
     SET google_subject = p_google_subject,
         email_verified = true,

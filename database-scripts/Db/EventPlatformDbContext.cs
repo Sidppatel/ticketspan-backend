@@ -143,8 +143,9 @@ public class EventPlatformDbContext(
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => new { e.TenantsId, e.Email, e.Role }).IsUnique();
             entity.HasIndex(e => e.EmailHash);
-            entity.HasIndex(e => e.GoogleSubject)
+            entity.HasIndex(e => new { e.GoogleSubject, e.TenantsId, e.Role })
                 .IsUnique()
+                .AreNullsDistinct(false)
                 .HasFilter("google_subject IS NOT NULL");
             entity.Property(e => e.Email).HasMaxLength(256);
             entity.Property(e => e.EmailHash).HasMaxLength(128);
