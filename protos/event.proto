@@ -29,6 +29,7 @@ service EventService {
   rpc SetPrimaryEventImage (RemoveEventImageRequest) returns (ticketspan.common.AckResponse);
   rpc ReorderEventImages (ReorderEventImagesRequest) returns (ticketspan.common.AckResponse);
   rpc GetMediaSettings (ticketspan.common.Empty) returns (MediaSettings);
+  rpc GenerateEventInfo (GenerateEventInfoRequest) returns (GenerateEventInfoResponse);
 }
 
 message EventImage {
@@ -196,4 +197,15 @@ message EventStats {
   int32 tickets_sold = 3;
   int64 revenue_cents = 4;
   int32 checked_in = 5;
+}
+
+message GenerateEventInfoRequest {
+  string prompt = 1;
+}
+
+message GenerateEventInfoResponse {
+  string title = 1;
+  string description = 2;
+  string category = 3;
+  string date_suggestion = 4;
 }
