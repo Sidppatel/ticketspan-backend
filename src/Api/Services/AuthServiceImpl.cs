@@ -189,12 +189,13 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
             throw new RpcException(new Status(StatusCode.FailedPrecondition, "Google account email is not verified"));
         }
 
-        var tenantsId = await ResolveTenantAsync(request.TenantSlug, ct);
-        if (tenantsId is null)
+        var portal = request.Portal ?? string.Empty;
+        var slugScoped = portal.Length == 0 || portal == "public";
+        var tenantsId = slugScoped ? await ResolveTenantAsync(request.TenantSlug, ct) : null;
+        if (slugScoped && tenantsId is null)
         {
             throw new RpcException(new Status(StatusCode.InvalidArgument, "Unknown tenant"));
         }
-        var portal = request.Portal ?? string.Empty;
         var emailHash = EmailHasher.Hash(payload.Email);
 
         await using var connection = await db.OpenAsync(null, null, ct);
@@ -237,24 +238,34 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
         var usersId = reader.GetGuid(0);
         var rowTenant = reader.IsDBNull(1) ? (Guid?)null : reader.GetGuid(1);
         var role = reader.GetInt16(2);
+        var email = reader.GetString(3);
+        var firstName = reader.GetString(4);
+        var lastName = reader.GetString(5);
+        var emailVerified = reader.GetBoolean(6);
+        var hasAvatar = !reader.IsDBNull(7);
+        EnsurePortalAllowsRole(portal, role);
+        await reader.CloseAsync();
+        var tenantSlug = request.TenantSlug;
+        if (string.IsNullOrEmpty(tenantSlug) && rowTenant is { } rt)
+        {
+            tenantSlug = await ResolveSlugAsync(rt, ct) ?? string.Empty;
+        }
         var profile = new UserProfile
         {
             UsersId = usersId.ToString(),
             TenantsId = rowTenant?.ToString() ?? string.Empty,
-            Email = reader.GetString(3),
-            FirstName = reader.GetString(4),
-            LastName = reader.GetString(5),
+            Email = email,
+            FirstName = firstName,
+            LastName = lastName,
             Role = role,
-            TenantSlug = request.TenantSlug,
-            EmailVerified = reader.GetBoolean(6)
+            TenantSlug = tenantSlug,
+            EmailVerified = emailVerified
         };
-        EnsurePortalAllowsRole(portal, role);
-        var hasAvatar = !reader.IsDBNull(7);
         if (!hasAvatar && !string.IsNullOrWhiteSpace(payload.Picture))
         {
             await TryStoreGoogleAvatarAsync(usersId, rowTenant, payload.Picture, ct);
         }
-        return BuildAuth(usersId, profile.Email, rowTenant, role, request.TenantSlug, profile);
+        return BuildAuth(usersId, profile.Email, rowTenant, role, tenantSlug, profile);
         }
     }
 

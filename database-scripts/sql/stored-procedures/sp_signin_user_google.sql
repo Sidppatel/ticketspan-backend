@@ -21,7 +21,7 @@ BEGIN
       FROM users
       WHERE google_subject = p_google_subject
         AND role = ANY(p_allowed_roles)
-        AND (tenants_id IS NOT DISTINCT FROM p_tenants_id OR role = 99)
+        AND (p_tenants_id IS NULL OR tenants_id IS NOT DISTINCT FROM p_tenants_id OR role = 99)
       ORDER BY role DESC
       LIMIT 1;
 
@@ -47,7 +47,7 @@ BEGIN
       FROM users
       WHERE email_hash = p_email_hash
         AND role = ANY(p_allowed_roles)
-        AND (tenants_id IS NOT DISTINCT FROM p_tenants_id OR role = 99)
+        AND (p_tenants_id IS NULL OR tenants_id IS NOT DISTINCT FROM p_tenants_id OR role = 99)
       ORDER BY role DESC
       LIMIT 1;
 
