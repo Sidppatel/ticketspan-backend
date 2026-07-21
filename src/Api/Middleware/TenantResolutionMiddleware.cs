@@ -31,6 +31,13 @@ public sealed class TenantResolutionMiddleware
             {
                 tenantContext.TenantsId = tenantsId;
             }
+            if (tenantContext.Role == Lookups.UserRoles.Developer
+                && Guid.TryParse(httpContext.Request.Headers["x-acting-tenant"], out var actingTenantsId))
+            {
+                tenantContext.TenantsId = actingTenantsId;
+                tenantContext.IsActingForTenant = true;
+                tenantContext.NotifyTenant = httpContext.Request.Headers["x-notify-tenant"] == "1";
+            }
             if (tenantContext.TenantsId is null && tenantContext.Role != Lookups.UserRoles.Developer)
             {
                 httpContext.Response.StatusCode = StatusCodes.Status403Forbidden;

@@ -88,6 +88,7 @@ builder.Services.AddGrpc(options =>
 {
     options.Interceptors.Add<TicketSpan.Api.ErrorHandling.ErrorLoggingInterceptor>();
     options.Interceptors.Add<TicketSpan.Api.Security.EventManagerAuthorizationInterceptor>();
+    options.Interceptors.Add<TicketSpan.Api.Security.DeveloperAuditInterceptor>();
 });
 builder.Services.AddSingleton<TicketSpan.Api.ErrorHandling.ErrorLogger>();
 builder.Services.AddSingleton<TicketSpan.Api.ErrorHandling.ErrorLoggingInterceptor>();
