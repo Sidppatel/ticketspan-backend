@@ -10,7 +10,7 @@ SELECT
     al.metadata_json ->> 'request_method'                         AS request_method,
     NULLIF(al.metadata_json ->> 'status_code', '')::int           AS status_code,
     al.actor_id                                                   AS users_id,
-    al.ip                                                         AS ip_address,
+    al.ip::text                                                   AS ip_address,
     al.correlation_id::text                                       AS correlation_id,
     al.metadata_json::text                                        AS metadata_json,
     al.tenants_id                                                 AS tenants_id,

@@ -14,7 +14,7 @@ SELECT
     al.subject_id                            AS entity_id,
     NULLIF(al.metadata_json ->> 'description', '') AS description,
     al.metadata_json::text                   AS metadata_json,
-    al.ip                                   AS ip_address,
+    al.ip::text                             AS ip_address,
     al.events_id                             AS events_id
 FROM audit_logs al
 LEFT JOIN users au ON au.users_id = al.actor_id

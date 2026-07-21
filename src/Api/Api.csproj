@@ -31,6 +31,7 @@
 
   <ItemGroup>
     <Content Include="Email\Templates\**\*.html" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="..\..\database-scripts\sql\**\*.sql" LinkBase="Sql" />
   </ItemGroup>
 
 </Project>

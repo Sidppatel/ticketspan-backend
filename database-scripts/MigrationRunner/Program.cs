@@ -45,6 +45,19 @@ if (args.Contains("--reload-sql"))
     await using var tx = await conn.BeginTransactionAsync();
     try
     {
+        await using (var dropViews = conn.CreateCommand())
+        {
+            dropViews.Transaction = tx;
+            dropViews.CommandText = @"
+                DO $$
+                DECLARE r RECORD;
+                BEGIN
+                    FOR r IN (SELECT viewname FROM pg_views WHERE schemaname = 'public' AND viewname LIKE 'vw_%') LOOP
+                        EXECUTE 'DROP VIEW IF EXISTS ' || quote_ident(r.viewname) || ' CASCADE';
+                    END LOOP;
+                END $$;";
+            await dropViews.ExecuteNonQueryAsync();
+        }
         foreach (var folder in new[] { "functions", "views", "stored-procedures", "policies", "security" })
         {
             var dir = Path.Combine(sqlRoot, folder);

@@ -192,6 +192,7 @@ app.MapGrpcService<FloorPlanServiceImpl>();
 app.MapGrpcService<ReportingServiceImpl>();
 app.MapGrpcService<TenantTierServiceImpl>();
 app.MapGrpcService<DeveloperBillingServiceImpl>();
+app.MapGrpcService<MaintenanceServiceImpl>();
 app.MapGet("/", () => "TicketSpan gRPC API");
 app.MapGet("/health/live", () => Results.Ok("live"));
 app.MapGet("/health/ready", async (Db db, CancellationToken ct) =>

@@ -59,6 +59,10 @@ service HealthService {
   rpc Check (ticketspan.common.Empty) returns (HealthStatus);
 }
 
+service MaintenanceService {
+  rpc ReloadSqlObjects (ticketspan.common.Empty) returns (ReloadSqlResult);
+}
+
 message AdminDashboard {
   int32 total_events = 1;
   int32 active_events = 2;
@@ -300,6 +304,11 @@ message PlatformLead {
 message ListPlatformLeadsResponse {
   repeated PlatformLead leads = 1;
   ticketspan.common.PageMeta meta = 2;
+}
+
+message ReloadSqlResult {
+  int32 files_applied = 1;
+  repeated string files = 2;
 }
 
 message HealthStatus {
