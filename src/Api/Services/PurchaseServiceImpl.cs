@@ -1,3 +1,4 @@
+using System.Text;
 using Grpc.Core;
 using Npgsql;
 using Stripe;
@@ -442,16 +443,35 @@ public sealed partial class BookingServiceImpl : BookingService.BookingServiceBa
         var page = request.Page ?? new PageRequest();
         var response = new ListBookingsResponse { Meta = new PageMeta { Offset = page.Offset, Limit = page.Limit } };
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
-        await using var cmd = new NpgsqlCommand(
-            BookingSelect + " WHERE (@ev = '00000000-0000-0000-0000-000000000000' OR b.events_id = @ev) "
-            + "AND b.status = 'Paid' "
-            + "AND (@q = '' OR b.booking_number ILIKE @q OR b.event_title ILIKE @q OR b.guest_search ILIKE @q) "
-            + "ORDER BY b.created_at DESC LIMIT @lim OFFSET @off", connection);
-        cmd.Parameters.AddWithValue("ev", string.IsNullOrEmpty(request.EventsId) ? Guid.Empty : Guid.Parse(request.EventsId));
-        var search = page.Search ?? string.Empty;
-        cmd.Parameters.AddWithValue("q", search.Length == 0 ? string.Empty : "%" + search + "%");
+
+        var hasEvent = Guid.TryParse(request.EventsId, out var eventId) && eventId != Guid.Empty;
+        var search = (page.Search ?? string.Empty).Trim();
+        var hasSearch = search.Length > 0;
+
+        var sqlBuilder = new StringBuilder(BookingSelect);
+        sqlBuilder.Append(" WHERE b.status = 'Paid'");
+        if (hasEvent)
+        {
+            sqlBuilder.Append(" AND b.events_id = @ev");
+        }
+        if (hasSearch)
+        {
+            sqlBuilder.Append(" AND (b.booking_number ILIKE @q OR b.event_title ILIKE @q OR b.guest_search ILIKE @q)");
+        }
+        sqlBuilder.Append(" ORDER BY b.created_at DESC LIMIT @lim OFFSET @off");
+
+        await using var cmd = new NpgsqlCommand(sqlBuilder.ToString(), connection);
+        if (hasEvent)
+        {
+            cmd.Parameters.AddWithValue("ev", eventId);
+        }
+        if (hasSearch)
+        {
+            cmd.Parameters.AddWithValue("q", "%" + search + "%");
+        }
         cmd.Parameters.AddWithValue("lim", page.Limit <= 0 ? 25 : page.Limit);
         cmd.Parameters.AddWithValue("off", page.Offset);
+
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
         {

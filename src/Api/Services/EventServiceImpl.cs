@@ -1,3 +1,4 @@
+using System.Text;
 using Grpc.Core;
 using Npgsql;
 using NpgsqlTypes;
@@ -275,17 +276,28 @@ public sealed partial class EventServiceImpl : EventService.EventServiceBase
         }
         var isPublicViewer = tenantContext.UsersId is null || tenantContext.Role == Lookups.UserRoles.PublicViewer;
         var effectiveStatus = isPublicViewer ? "Published" : (request.Status ?? string.Empty);
+        var hasStatus = effectiveStatus.Length > 0;
+
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
-        await using var cmd = new NpgsqlCommand(
-            EventSelect
-            + " WHERE tenants_id = @tenant"
-            + " AND (@status = '' OR status = @status)"
-            + EventScopeFilter
-            + " ORDER BY start_date DESC LIMIT @lim OFFSET @off", connection);
+        
+        var sqlBuilder = new StringBuilder(EventSelect);
+        sqlBuilder.Append(" WHERE tenants_id = @tenant");
+        if (hasStatus)
+        {
+            sqlBuilder.Append(" AND status = @status");
+        }
+        sqlBuilder.Append(EventScopeFilter);
+        sqlBuilder.Append(" ORDER BY start_date DESC LIMIT @lim OFFSET @off");
+
+        await using var cmd = new NpgsqlCommand(sqlBuilder.ToString(), connection);
         cmd.Parameters.AddWithValue("tenant", tenantsId);
-        cmd.Parameters.AddWithValue("status", effectiveStatus);
+        if (hasStatus)
+        {
+            cmd.Parameters.AddWithValue("status", effectiveStatus);
+        }
         cmd.Parameters.AddWithValue("lim", page.Limit <= 0 ? 25 : page.Limit);
         cmd.Parameters.AddWithValue("off", page.Offset);
+
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
         {
