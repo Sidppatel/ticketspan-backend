@@ -7,6 +7,7 @@ public sealed class PasswordHasher
 {
     private readonly IReadOnlyDictionary<short, byte[]> peppers;
     private readonly short currentVersion;
+    private readonly int workFactor;
 
     public PasswordHasher(IConfiguration configuration)
     {
@@ -31,6 +32,11 @@ public sealed class PasswordHasher
         currentVersion = configuration["PASSWORD_PEPPER_CURRENT"] is { Length: > 0 } c
             ? short.Parse(c)
             : highest;
+
+        var wfConfig = configuration["BCRYPT_WORK_FACTOR"];
+        workFactor = int.TryParse(wfConfig, out var parsedWf) && parsedWf >= 4 && parsedWf <= 31
+            ? parsedWf
+            : 10;
     }
 
     public short CurrentVersion => currentVersion;
@@ -48,7 +54,7 @@ public sealed class PasswordHasher
     public string Hash(string password, short pepperVersion)
     {
         var peppered = ApplyPepper(password, pepperVersion);
-        return BCrypt.Net.BCrypt.EnhancedHashPassword(peppered, 12);
+        return BCrypt.Net.BCrypt.EnhancedHashPassword(peppered, workFactor);
     }
 
     public Task<string> HashAsync(string password, short pepperVersion)

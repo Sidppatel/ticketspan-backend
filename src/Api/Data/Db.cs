@@ -2,10 +2,10 @@ using Npgsql;
 
 namespace TicketSpan.Api.Data;
 
-public sealed class Db
+public sealed class Db : IAsyncDisposable, IDisposable
 {
-    private readonly string connectionString;
-    private readonly string bootstrapConnectionString;
+    private readonly NpgsqlDataSource dataSource;
+    private readonly NpgsqlDataSource bootstrapDataSource;
 
     public Db(IConfiguration configuration)
     {
@@ -25,26 +25,23 @@ public sealed class Db
             Password = password,
             SslMode = Enum.Parse<SslMode>(sslMode, ignoreCase: true)
         };
-        connectionString = builder.ConnectionString;
 
-        
+        dataSource = new NpgsqlDataSourceBuilder(builder.ConnectionString).Build();
+
         builder.Username = configuration["DB_BOOTSTRAP_USER"] ?? user;
         builder.Password = configuration["DB_BOOTSTRAP_PASSWORD"] ?? password;
-        bootstrapConnectionString = builder.ConnectionString;
+        bootstrapDataSource = new NpgsqlDataSourceBuilder(builder.ConnectionString).Build();
     }
 
-    
     public async Task<NpgsqlConnection> OpenBootstrapAsync(CancellationToken ct)
     {
-        var connection = new NpgsqlConnection(bootstrapConnectionString);
-        await connection.OpenAsync(ct);
+        var connection = await bootstrapDataSource.OpenConnectionAsync(ct);
         return connection;
     }
 
     public async Task<NpgsqlConnection> OpenAsync(Guid? usersId, Guid? tenantsId, CancellationToken ct)
     {
-        var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync(ct);
+        var connection = await dataSource.OpenConnectionAsync(ct);
         if (usersId is { } u)
         {
             await SetConfigAsync(connection, "app.current_user_id", u.ToString(), ct);
@@ -62,5 +59,17 @@ public sealed class Db
         cmd.Parameters.AddWithValue("k", key);
         cmd.Parameters.AddWithValue("v", value);
         await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        bootstrapDataSource.Dispose();
+        return dataSource.DisposeAsync();
+    }
+
+    public void Dispose()
+    {
+        bootstrapDataSource.Dispose();
+        dataSource.Dispose();
     }
 }
