@@ -1,9 +1,5 @@
 DROP FUNCTION IF EXISTS sp_group_discount_hint(uuid, jsonb);
 
-
--- Everything the buyer-facing group-discount banner needs, computed server-side so
--- the client renders numbers rather than deriving them. Savings come from the same
--- sp_quote_cart the checkout uses, so the banner can never disagree with the total.
 CREATE OR REPLACE FUNCTION sp_group_discount_hint(p_event_id uuid, p_lines jsonb)
 RETURNS TABLE(
     applied_rule_name text,

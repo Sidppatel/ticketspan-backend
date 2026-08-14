@@ -4,10 +4,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Db.Migrations
 {
-    /// <inheritdoc />
+
     public partial class RemoveEventCategoryConstraint : Migration
     {
-        /// <inheritdoc />
+
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropCheckConstraint(
@@ -17,7 +17,6 @@ namespace Db.Migrations
             migrationBuilder.Sql("DELETE FROM enum_definitions WHERE enum_type = 'EventCategory';");
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddCheckConstraint(

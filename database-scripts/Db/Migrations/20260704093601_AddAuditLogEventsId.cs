@@ -5,10 +5,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Db.Migrations
 {
-    
+
     public partial class AddAuditLogEventsId : Migration
     {
-        
+
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<Guid>(
@@ -32,7 +32,6 @@ namespace Db.Migrations
                 WHERE a.subject_type = 'price_rules' AND a.subject_id = pr.price_rules_id AND a.events_id IS NULL;");
         }
 
-        
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropIndex(

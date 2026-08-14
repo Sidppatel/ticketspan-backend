@@ -17,7 +17,7 @@ service EventService {
   rpc ChangeEventStatus (ChangeEventStatusRequest) returns (ticketspan.common.AckResponse);
   rpc GetEventStats (ticketspan.common.UuidValue) returns (EventStats);
   rpc SetEventFeesIncluded (SetEventFeesIncludedRequest) returns (ticketspan.common.AckResponse);
-  // Admin opt-in to offering ACH at checkout (only sticks if the tenant is ACH-enabled).
+
   rpc SetEventAch (SetEventAchRequest) returns (ticketspan.common.AckResponse);
   rpc ListScheduleItems (ticketspan.common.UuidValue) returns (ListScheduleItemsResponse);
   rpc CreateScheduleItem (CreateScheduleItemRequest) returns (ticketspan.common.UuidValue);
@@ -122,15 +122,15 @@ message Event {
   string image_path = 10;
   bool is_featured = 11;
   string layout_mode = 12;
-  int32 total_capacity = 13;          // calculated: sum of ticket-type / table capacity (read-only)
+  int32 total_capacity = 13;
   string venues_id = 14;
   string performers_json = 15;
   string sponsors_json = 16;
   bool fees_included = 17;
-  string event_type = 18;            // Open | Table | Both
-  string primary_image_id = 19;      // images_id of primary thumbnail (fallback event image)
-  string extra_info_json = 20;       // JSON array [{key,value,isPublic,sortOrder}]
-  bool ach_enabled = 21;             // admin opted this event in to ACH (tenant-gated)
+  string event_type = 18;
+  string primary_image_id = 19;
+  string extra_info_json = 20;
+  bool ach_enabled = 21;
   double venue_state_tax_rate = 22;
   double venue_county_tax_rate = 23;
   double venue_city_tax_rate = 24;
@@ -153,7 +153,7 @@ message CreateEventRequest {
   string layout_mode = 10;
   string venues_id = 14;
   int64 scheduled_publish_at = 15;
-  string event_type = 16;            // Open | Table | Both; default Open
+  string event_type = 16;
 }
 
 message CreateEventResponse { string events_id = 1; }
@@ -168,8 +168,8 @@ message UpdateEventRequest {
   string image_path = 7;
   bool is_featured = 8;
   string venues_id = 10;
-  string event_type = 11;            // Open | Table | Both; empty = unchanged
-  string extra_info_json = 12;       // JSON array [{key,value,isPublic,sortOrder}]; empty = unchanged
+  string event_type = 11;
+  string extra_info_json = 12;
 }
 
 message ChangeEventStatusRequest {

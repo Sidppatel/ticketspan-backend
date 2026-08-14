@@ -4,10 +4,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Db.Migrations
 {
-    /// <inheritdoc />
+
     public partial class AddSigninViews : Migration
     {
-        /// <inheritdoc />
+
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql(db.Migrations.MigrationSqlLoader.Load("0150_v_signin_public.sql"));
@@ -16,7 +16,6 @@ namespace Db.Migrations
             migrationBuilder.Sql(db.Migrations.MigrationSqlLoader.Load("0153_v_signin_developer.sql"));
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql("DROP VIEW IF EXISTS vw_signin_public;");

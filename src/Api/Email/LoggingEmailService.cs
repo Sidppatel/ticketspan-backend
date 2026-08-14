@@ -38,7 +38,7 @@ public sealed class LoggingEmailService : IEmailService
             try
             {
                 Guid? tenantId = null;
-                // Try to resolve TenantContext if in HttpContext scope
+
                 using (var scope = serviceProvider.CreateScope())
                 {
                     var httpContextAccessor = scope.ServiceProvider.GetService<Microsoft.AspNetCore.Http.IHttpContextAccessor>();
@@ -61,7 +61,7 @@ public sealed class LoggingEmailService : IEmailService
             }
             catch (Exception ex)
             {
-                // Log but don't fail the mail send if db log fails
+
                 Console.WriteLine($"Failed to write email log to database: {ex}");
             }
         }

@@ -4,17 +4,16 @@
 
 namespace Db.Migrations
 {
-    /// <inheritdoc />
+
     public partial class PerOrderServiceFee : Migration
     {
-        /// <inheritdoc />
+
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             db.Migrations.MigrationSqlLoader.LoadAll(migrationBuilder, "Sql.functions");
             db.Migrations.MigrationSqlLoader.LoadAll(migrationBuilder, "Sql.stored_procedures");
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
 

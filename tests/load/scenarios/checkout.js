@@ -1,18 +1,3 @@
-// k6 scenario: booking creation + Stripe test-mode PaymentIntent confirm.
-// 20 VUs for 5 min. Requires Stripe test-mode secret on backend and a seeded
-// test user with magic-link login flow bypass (E2E_TEST_USER / E2E_TEST_TOKEN).
-//
-// Run:  k6 run scenarios/checkout.js
-// Env:
-//   BASE_URL            (default http://localhost:8000)
-//   E2E_TEST_USER       email of seeded load-test user (required)
-//   E2E_TEST_TOKEN      dev-login token or magic-link token for that user (required)
-//   EVENT_ID            UUID of a seeded event with open capacity (required)
-//   TICKET_TYPE_ID      UUID of a ticket type on that event (required)
-//
-// NOTE: this scenario is expected to be run against a staging environment
-// seeded with test fixtures. Against local dev it will likely 401/404 unless
-// you prepare the same fixtures. Do NOT point this at production.
 
 import http from 'k6/http';
 import { check, sleep, fail } from 'k6';
@@ -49,12 +34,12 @@ export function setup() {
     if (!TEST_USER || !TEST_TOKEN || !EVENT_ID || !TICKET_TYPE_ID) {
         fail('Missing required env: E2E_TEST_USER, E2E_TEST_TOKEN, EVENT_ID, TICKET_TYPE_ID');
     }
-    // Exchange token for session cookie via dev-login endpoint.
+
     const loginRes = http.post(`${BASE_URL}/api/v1/auth/dev-login`,
         JSON.stringify({ email: TEST_USER, token: TEST_TOKEN }),
         { headers: { 'Content-Type': 'application/json', 'X-Portal': 'user' } });
     check(loginRes, { 'login 200': (r) => r.status === 200 }) || fail('login failed');
-    // k6 automatically manages cookies per-VU via the default cookie jar.
+
     const setCookie = loginRes.headers['Set-Cookie'] || loginRes.headers['set-cookie'];
     return { cookie: setCookie };
 }
@@ -96,10 +81,6 @@ export default function (data) {
         return;
     }
 
-    // In a real staging run, the client-side would use Stripe.js confirmCardPayment
-    // with test card 4242... and then call /bookings/{id}/confirm. k6 can't drive the
-    // Stripe.js SDK, so this is a server-confirm call with an assumed-succeeded intent
-    // (requires backend configured with STRIPE_AUTO_CONFIRM_TEST=true in the target env).
     if (bookingId) {
         const confirmRes = http.post(`${BASE_URL}/api/v1/bookings/${bookingId}/confirm`,
             JSON.stringify({ clientSecret }),

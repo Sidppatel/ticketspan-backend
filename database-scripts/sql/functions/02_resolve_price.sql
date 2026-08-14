@@ -1,6 +1,4 @@
 
--- The pricing view is rebuilt in views/ right after this file; dropping it here
--- is what lets these functions be replaced when their signatures change.
 DROP VIEW IF EXISTS vw_event_ticket_types_pricing CASCADE;
 
 DROP FUNCTION IF EXISTS app.price_breakdown_for_method(uuid, timestamptz, int, int, text);
@@ -50,13 +48,6 @@ AS $$
     SELECT ach_fee_formulas_id FROM tenants WHERE tenants_id = p_tenant;
 $$;
 
-
--- Resolves the winning group tier for a cart quantity. Price-scope rules are
--- matched against that ticket type's own quantity; Event-scope rules against the
--- cart's whole eligible ticket quantity. The highest qualifying min_qty wins, so
--- admins do not have to hand-tune priority to order their tiers.
--- AmountOffOrder is excluded here: it is an order-level discount, resolved by
--- app.group_order_discount after every line has been priced.
 CREATE OR REPLACE FUNCTION app.resolve_group_rule(
     p_prices_id uuid, p_event uuid, p_qty_price int, p_qty_event int, p_at timestamptz
 )
@@ -90,8 +81,6 @@ AS $$
      LIMIT 1;
 $$;
 
--- Order-level "amount off the whole order" tier. Never per-unit, so it is applied
--- once against the summed subtotal and then allocated across lines by the caller.
 CREATE OR REPLACE FUNCTION app.group_order_discount(
     p_event uuid, p_qty_event int, p_subtotal_cents int, p_at timestamptz
 )
@@ -203,8 +192,6 @@ BEGIN
     v_base_unit := v_base;
     v_sell_unit := COALESCE(v_rule_price, v_base);
 
-    -- Group tiers never stack with a time/inventory rule: whichever gives the
-    -- buyer the lower unit price wins, and only that rule is reported as applied.
     IF v_type <> 'Table' THEN
         SELECT * INTO v_grp FROM app.resolve_group_rule(p_prices_id, v_event, p_qty_price, p_qty_event, p_at);
         IF v_grp.price_rules_id IS NOT NULL THEN
@@ -231,8 +218,7 @@ BEGIN
         v_platform := app.compute_fee(v_sell_sub, v_formula);
     ELSE
         v_base_sub := v_base_unit * v_seats;
-        -- Blended when capacity caps the tier: the first v_disc_seats seats bill at
-        -- the group unit price, the remainder at the standard unit price.
+
         v_sell_sub := v_group_unit * v_disc_seats + v_sell_unit * (v_seats - v_disc_seats);
         IF v_disc_seats > 0 THEN
             v_rule_id := v_grp.price_rules_id;
@@ -283,8 +269,7 @@ BEGIN
         v_formula := app.resolve_ach_formula(v_tenant);
         v_gw_formula := NULL;
     ELSE
-        -- ponytail: per-order fee uses the event/tenant formula; per-ticket-type
-        -- fee overrides (prices.fee_formulas_id) no longer apply to the charge
+
         v_formula := app.resolve_fee_formula(NULL, p_event_id, v_tenant);
         v_gw_formula := app.resolve_gateway_formula(v_tenant);
     END IF;

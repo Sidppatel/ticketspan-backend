@@ -4,10 +4,10 @@
 
 namespace Db.Migrations
 {
-    /// <inheritdoc />
+
     public partial class ScopeGoogleIdentityByPortalRole : Migration
     {
-        /// <inheritdoc />
+
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropIndex(
@@ -25,7 +25,6 @@ namespace Db.Migrations
             db.Migrations.MigrationSqlLoader.LoadAll(migrationBuilder, "Sql.stored_procedures");
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropIndex(

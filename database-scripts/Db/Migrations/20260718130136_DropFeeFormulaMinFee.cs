@@ -4,15 +4,13 @@
 
 namespace Db.Migrations
 {
-    /// <inheritdoc />
+
     public partial class DropFeeFormulaMinFee : Migration
     {
-        /// <inheritdoc />
+
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // Reload functions + views that referenced min_fee_cents. Views must be
-            // recreated (they DROP + CREATE without the column) before the column can
-            // be dropped, since a view column depends on it.
+
             migrationBuilder.Sql(db.Migrations.MigrationSqlLoader.Load("01_compute_fee.sql"));
             migrationBuilder.Sql(db.Migrations.MigrationSqlLoader.Load("03_tier_pricing.sql"));
             migrationBuilder.Sql(db.Migrations.MigrationSqlLoader.Load("sp_fee_formulas.sql"));
@@ -27,7 +25,6 @@ namespace Db.Migrations
                 table: "fee_formulas");
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<int>(

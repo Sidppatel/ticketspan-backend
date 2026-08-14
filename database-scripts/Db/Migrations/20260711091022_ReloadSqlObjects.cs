@@ -4,10 +4,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Db.Migrations
 {
-    /// <inheritdoc />
+
     public partial class ReloadSqlObjects : Migration
     {
-        /// <inheritdoc />
+
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql(@"
@@ -29,7 +29,6 @@ namespace Db.Migrations
             db.Migrations.MigrationSqlLoader.LoadAll(migrationBuilder, "Sql.security");
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
 

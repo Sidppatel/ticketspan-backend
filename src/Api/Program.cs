@@ -221,7 +221,7 @@ app.MapPost("/webhooks/stripe", async (
     using var reader = new StreamReader(request.Body);
     var payload = await reader.ReadToEndAsync(ct);
     var signature = request.Headers["Stripe-Signature"].ToString();
-    
+
     var secrets = (config["STRIPE_WEBHOOK_SECRET"] ?? string.Empty)
         .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
@@ -248,7 +248,7 @@ app.MapPost("/webhooks/stripe", async (
             }
             catch (Stripe.StripeException)
             {
-                // Continue trying other secrets
+
             }
         }
         if (stripeEvent == null)
@@ -400,7 +400,6 @@ app.MapGet("/stripe/onboard/return", (string? tenant, IConfiguration config) =>
 
 app.MapGet("/stripe/onboard/refresh", (string? tenant, IConfiguration config) =>
     Results.Redirect($"{AdminFrontend(config)}/financial?stripe=refresh")).AllowAnonymous();
-
 
 var lifecycleLogger = app.Services.GetRequiredService<TicketSpan.Api.ErrorHandling.ErrorLogger>();
 app.Lifetime.ApplicationStarted.Register(() =>

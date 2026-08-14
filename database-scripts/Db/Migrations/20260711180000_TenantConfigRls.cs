@@ -4,10 +4,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Db.Migrations
 {
-    /// <inheritdoc />
+
     public partial class TenantConfigRls : Migration
     {
-        /// <inheritdoc />
+
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql("DROP VIEW IF EXISTS vw_tenant_identity;");
@@ -20,7 +20,6 @@ namespace Db.Migrations
             migrationBuilder.Sql("GRANT EXECUTE ON FUNCTION sp_public_tenant_identity() TO ep_app;");
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
         }

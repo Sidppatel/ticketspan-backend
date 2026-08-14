@@ -13,8 +13,7 @@ service ReportingService {
   rpc GetEventPerformance (ReportRangeRequest) returns (EventPerformanceList);
   rpc GetTicketTypeBreakdown (ReportRangeRequest) returns (TicketTypeBreakdownList);
   rpc GetSalesByChannel (ReportRangeRequest) returns (SalesByChannelList);
-  // Only available when the tenant's tax_collection_mode is 'self' (tenant
-  // remits their own sales tax); monthly totals with per-event drill-down.
+
   rpc GetTaxReport (ReportRangeRequest) returns (TaxReport);
 }
 
@@ -22,12 +21,9 @@ service TenantTierService {
   rpc ListTenantReportingAccess (ticketspan.common.PageRequest) returns (TenantReportingAccessList);
   rpc SetTenantTier (SetTenantTierRequest) returns (ticketspan.common.AckResponse);
   rpc SetTenantAdvancedReporting (SetTenantAdvancedReportingRequest) returns (ticketspan.common.AckResponse);
-  // Developer gate for ACH: enable/disable ACH for a tenant and set the fee formula
-  // that replaces the service fee when a buyer pays by ACH.
+
   rpc SetTenantAch (SetTenantAchRequest) returns (ticketspan.common.AckResponse);
-  // Developer gate for tax routing: 'platform' = TicketSpan collects and remits sales
-  // tax on the tenant's behalf (default); 'self' = tax flows to the tenant payout
-  // and the tenant remits it themselves.
+
   rpc SetTenantTaxMode (SetTenantTaxModeRequest) returns (ticketspan.common.AckResponse);
 }
 
@@ -35,7 +31,7 @@ message ReportingAccess {
   string tier = 1;
   bool has_advanced_reporting = 2;
   bool advanced_reporting_override = 3;
-  string tax_collection_mode = 4;  // 'platform' | 'self'
+  string tax_collection_mode = 4;
 }
 
 message TaxEventRow {
@@ -67,7 +63,7 @@ message ReportRangeRequest {
 message TimeseriesRequest {
   int64 from_epoch_seconds = 1;
   int64 to_epoch_seconds = 2;
-  // "day" | "week" | "month"; "year" requires advanced reporting.
+
   string bucket = 3;
 }
 
@@ -105,7 +101,7 @@ message EventPerformanceRow {
   int32 tickets_sold = 7;
   int32 checked_in = 8;
   int32 attendance_rate_bps = 9;
-  // Advanced-only fields; zeroed for basic-tier tenants.
+
   int32 capacity = 10;
   int32 capacity_used_bps = 11;
   int64 revenue_per_attendee_cents = 12;
@@ -127,7 +123,7 @@ message TicketTypeBreakdownRow {
   int64 price_cents = 5;
   int32 quantity_sold = 6;
   int64 revenue_cents = 7;
-  // Advanced-only fields; zeroed for basic-tier tenants.
+
   int32 refunded_quantity = 8;
   int64 refunded_cents = 9;
 }
@@ -158,8 +154,8 @@ message TenantReportingAccessRow {
   bool has_advanced_reporting = 6;
   bool archived = 7;
   bool ach_enabled = 8;
-  string ach_fee_formulas_id = 9;   // empty = none assigned
-  string tax_collection_mode = 10;  // 'platform' | 'self'
+  string ach_fee_formulas_id = 9;
+  string tax_collection_mode = 10;
 }
 
 message TenantReportingAccessList {
@@ -180,12 +176,12 @@ message SetTenantAdvancedReportingRequest {
 message SetTenantAchRequest {
   string tenants_id = 1;
   bool enabled = 2;
-  string fee_formulas_id = 3;   // required when enabling
+  string fee_formulas_id = 3;
   string reason = 4;
 }
 
 message SetTenantTaxModeRequest {
   string tenants_id = 1;
-  string mode = 2;              // 'platform' | 'self'
+  string mode = 2;
   string reason = 3;
 }

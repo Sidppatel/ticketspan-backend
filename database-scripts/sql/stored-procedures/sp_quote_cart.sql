@@ -1,10 +1,5 @@
 DROP FUNCTION IF EXISTS sp_quote_cart(uuid, jsonb);
 
-
--- Cart preview. Two passes: price every line with the cart's group quantities in
--- hand, then apply any order-level group discount and allocate it across lines
--- pro-rata. sp_create_multi_booking mirrors this exactly; the client never
--- computes or supplies a discount.
 CREATE OR REPLACE FUNCTION sp_quote_cart(p_event_id uuid, p_lines jsonb)
 RETURNS TABLE(
     kind text, ref_id uuid, label text, seats int,
@@ -116,8 +111,6 @@ BEGIN
             'std_unit', v_bd.standard_unit_cents);
     END LOOP;
 
-    -- Group tiers never stack with each other: an order-level amount-off tier is
-    -- skipped when a per-unit tier already discounted a line.
     IF NOT v_has_unit_group THEN
         SELECT * INTO v_order FROM app.group_order_discount(p_event_id, v_qty_event, v_ticket_subtotal, now());
         v_order_amount := COALESCE(v_order.amount_cents, 0);

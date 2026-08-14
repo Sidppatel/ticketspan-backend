@@ -4,10 +4,10 @@
 
 namespace Db.Migrations
 {
-    
+
     public partial class AllowEventManagerRoleInUsersCheck : Migration
     {
-        
+
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropCheckConstraint(
@@ -20,7 +20,6 @@ namespace Db.Migrations
                 sql: "role IN (0, 1, 2, 3, 4, 99)");
         }
 
-        
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropCheckConstraint(

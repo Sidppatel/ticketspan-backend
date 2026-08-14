@@ -6,9 +6,6 @@ option csharp_namespace = "TicketSpan.Protos.FloorPlan";
 
 import "common.proto";
 
-// Reusable whole-floor-plan templates (grid + tables + objects). Distinct from
-// per-table table_templates. Layout objects and per-table overrides are saved
-// through TableBookingService.SaveEventLayout.
 service FloorPlanService {
   rpc SaveAsTemplate (SaveAsTemplateRequest) returns (ticketspan.common.UuidValue);
   rpc ListFloorPlanTemplates (ticketspan.common.Empty) returns (ListFloorPlanTemplatesResponse);

@@ -18,13 +18,11 @@ service TableBookingService {
   rpc CreateEventTicketType (CreateEventTicketTypeRequest) returns (ticketspan.common.UuidValue);
   rpc UpdateEventTicketType (UpdateEventTicketTypeRequest) returns (ticketspan.common.AckResponse);
   rpc DeleteEventTicketType (ticketspan.common.UuidValue) returns (ticketspan.common.AckResponse);
-  // Catalog table-type price rules: reusable presale/last-minute rules attached to
-  // a table template and snapshotted onto event prices when a table type is created
-  // from that template.
+
   rpc CreateTableTemplatePriceRule (CreateTableTemplatePriceRuleRequest) returns (ticketspan.common.UuidValue);
   rpc ListTableTemplatePriceRules (ticketspan.common.UuidValue) returns (ListTableTemplatePriceRulesResponse);
   rpc DeleteTableTemplatePriceRule (ticketspan.common.UuidValue) returns (ticketspan.common.AckResponse);
-  // Catalog table-type templates (tenant-scoped, reusable across events).
+
   rpc ListTableTemplates (ticketspan.common.Empty) returns (ListTableTemplatesResponse);
   rpc CreateTableTemplate (CreateTableTemplateRequest) returns (ticketspan.common.UuidValue);
   rpc UpdateTableTemplate (UpdateTableTemplateRequest) returns (ticketspan.common.AckResponse);
@@ -43,15 +41,14 @@ message Table {
   int32 price_cents = 9;
   int32 platform_fee_cents = 10;
   string fee_formulas_id = 11;
-  // Per-individual-table overrides of the parent event_table type (empty/0 = inherit).
+
   string shape_override = 12;
   string color_override = 13;
   int32 capacity_override = 14;
-  // Linked Pricing Module price (authoritative). Empty = legacy cached price.
+
   string prices_id = 15;
 }
 
-// A non-table object placed on the floor-plan canvas (Entry/Exit/Stage).
 message LayoutObject {
   string layout_objects_id = 1;
   string object_type = 2;
@@ -74,7 +71,7 @@ message SaveEventLayoutRequest {
   string events_id = 1;
   string tables_json = 4;
   repeated string locked_ids = 5;
-  // JSON array of layout objects (Entry/Exit/Stage) to upsert/delete.
+
   string objects_json = 6;
 }
 
@@ -86,7 +83,6 @@ message ListTablesResponse {
   repeated Table tables = 1;
 }
 
-// A table TYPE (event_tables) used as a palette item in the floor-plan builder.
 message EventTableType {
   string event_tables_id = 1;
   string label = 2;
@@ -95,7 +91,7 @@ message EventTableType {
   string color = 5;
   int32 price_cents = 6;
   string prices_id = 7;
-  // Default pixel footprint used when placing this type on the floor plan.
+
   double default_width = 8;
   double default_height = 9;
   int32 platform_fee_cents = 10;
@@ -114,12 +110,10 @@ message CreateEventTableRequest {
   int32 price_cents = 6;
   string fee_formulas_id = 7;
   string table_templates_id = 8;
-  // Table pricing mode for the linked Price. Default (is_all_inclusive=true):
-  // the price_cents covers the whole table. When false, price_cents is the table
-  // base and per_attendee_cents is added per reserved seat.
+
   bool is_all_inclusive = 9;
   int32 per_attendee_cents = 10;
-  // Pixel footprint override (0 = inherit the catalog template default).
+
   double width = 11;
   double height = 12;
 }
@@ -132,7 +126,7 @@ message CreateEventTicketTypeRequest {
   int32 max_quantity = 5;
   int32 sort_order = 6;
   string description = 7;
-  int32 capacity = 8;                 // seats this tier contributes to event capacity (0 = uncapped)
+  int32 capacity = 8;
 }
 
 message UpdateEventTicketTypeRequest {
@@ -144,22 +138,20 @@ message UpdateEventTicketTypeRequest {
   int32 sort_order = 6;
   string description = 7;
   bool is_active = 8;
-  int32 capacity = 9;                 // seats this tier contributes to event capacity (0 = uncapped)
+  int32 capacity = 9;
 }
 
-// A catalog price rule on a table template (mirrors pricing.PriceRule, keyed by
-// table_templates_id instead of prices_id).
 message TableTemplatePriceRule {
   string table_template_price_rules_id = 1;
   string table_templates_id = 2;
   string name = 3;
-  string rule_type = 4;       // Presale | LastMinute | TimeWindow | Dynamic
-  int32 priority = 5;         // higher wins
+  string rule_type = 4;
+  int32 priority = 5;
   int32 price_cents = 6;
-  int64 active_from = 7;      // unix seconds; 0 = unset
-  int64 active_until = 8;     // unix seconds; 0 = unset
-  int32 min_remaining = 9;    // -1 = unset
-  int32 max_remaining = 10;   // -1 = unset
+  int64 active_from = 7;
+  int64 active_until = 8;
+  int32 min_remaining = 9;
+  int32 max_remaining = 10;
   bool is_active = 11;
 }
 
@@ -189,8 +181,7 @@ message TableTemplate {
   bool is_active = 7;
   double default_width = 8;
   double default_height = 9;
-  // When true the price covers everyone at the table; when false it is the
-  // per-attendee price. Snapshotted onto event prices at table-create time.
+
   bool default_is_all_inclusive = 10;
 }
 
@@ -205,8 +196,6 @@ message CreateTableTemplateRequest {
   bool default_is_all_inclusive = 8;
 }
 
-// Edit a catalog table type. Name is intentionally absent: it is locked after
-// creation. is_active drives the enable/disable toggle.
 message UpdateTableTemplateRequest {
   string table_templates_id = 1;
   int32 default_capacity = 2;

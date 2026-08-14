@@ -4,10 +4,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Db.Migrations
 {
-    /// <inheritdoc />
+
     public partial class AddTenantTaxCollectionMode : Migration
     {
-        /// <inheritdoc />
+
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS tax_collection_mode varchar(16) DEFAULT 'platform';");
@@ -29,7 +29,6 @@ namespace Db.Migrations
                 sql: "collected_by IN ('platform','self')");
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropCheckConstraint(

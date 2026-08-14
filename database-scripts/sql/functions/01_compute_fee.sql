@@ -1,9 +1,4 @@
 
-
-
-
-
-
 CREATE OR REPLACE FUNCTION app.compute_fee(p_price_cents int, p_formula uuid)
 RETURNS int
 LANGUAGE plpgsql STABLE
@@ -13,7 +8,7 @@ DECLARE
     v_pct int; v_flat int; v_max int; v_active bool;
     v_fee int;
 BEGIN
-    -- Free entry (price 0) is never charged a service fee; tax follows (0 base = 0 tax).
+
     IF p_formula IS NULL OR p_price_cents IS NULL OR p_price_cents = 0 THEN
         RETURN 0;
     END IF;

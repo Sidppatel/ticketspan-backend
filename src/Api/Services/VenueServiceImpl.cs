@@ -50,7 +50,7 @@ public sealed class VenueServiceImpl : VenueService.VenueServiceBase
             }
             catch
             {
-                // Silently ignore so venue creation doesn't fail if tax API is down
+
             }
         }
 
@@ -94,7 +94,7 @@ public sealed class VenueServiceImpl : VenueService.VenueServiceBase
             }
             catch
             {
-                // Ignore
+
             }
         }
 

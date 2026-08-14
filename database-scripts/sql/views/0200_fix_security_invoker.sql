@@ -1,6 +1,4 @@
--- Fix Supabase linter: security_definer_view (0010)
--- Postgres views default to definer semantics; switch all public views to
--- security_invoker so RLS of the querying user applies.
+
 DO $$
 DECLARE
     v text;

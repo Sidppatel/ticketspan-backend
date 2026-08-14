@@ -61,7 +61,7 @@ public sealed class ErrorLogger
         environmentName = hostEnvironment.EnvironmentName;
         slackWebhookUrl = configuration["ERROR_ALERTS_SLACK_WEBHOOK_URL"];
         alertEmailTo = configuration["ERROR_ALERTS_EMAIL_TO"];
-        alertEmailFrom = configuration["ERROR_ALERTS_EMAIL_FROM"] ?? "noreply@localhost";
+        alertEmailFrom = configuration["ERROR_ALERTS_EMAIL_FROM"] ?? "noreply@ticketspan.com";
         loggingEnabled = configuration["ERROR_LOGGING_DISABLED"] != "true";
     }
 

@@ -4,10 +4,10 @@
 
 namespace Db.Migrations
 {
-    /// <inheritdoc />
+
     public partial class AddGroupDiscountPriceRules : Migration
     {
-        /// <inheritdoc />
+
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropCheckConstraint(
@@ -70,7 +70,6 @@ namespace Db.Migrations
                 sql: "rule_type IN ('Presale','LastMinute','TimeWindow','Dynamic','Group')");
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropCheckConstraint(

@@ -53,8 +53,7 @@ message Tenant {
   int32 event_count = 7;
   int64 total_revenue_cents = 8;
   bool archived = 9;
-  // Tenant default service-fee formula. Auto-applied to every new event price;
-  // empty = no default set. Developer-only (set via PricingService).
+
   string default_fee_formulas_id = 10;
   string phone = 11;
   string address_line1 = 12;
@@ -70,11 +69,11 @@ message Tenant {
   string brand_text = 22;
   string brand_button = 23;
   string brand_highlight = 24;
-  // Whether this tenant may offer ACH bank-transfer payments (developer-managed).
+
   bool ach_enabled = 25;
-  // JSON object of advanced theme-token overrides, e.g. {"stage":"#101010"}.
+
   string brand_tokens_json = 26;
-  // ACH fee formula assigned to this tenant; empty = none (developer-managed).
+
   string ach_fee_formulas_id = 27;
 }
 
@@ -125,12 +124,11 @@ message CreateTenantRequest {
   string admin_last_name = 5;
   string legal_name = 6;
   string country_code = 7;
-  // Stripe Connect onboarding prefill (all optional). Used to pre-create the
-  // connected account so the Express onboarding form is pre-filled.
-  string business_type = 8;        // "individual" | "company"
+
+  string business_type = 8;
   string business_url = 9;
   string product_description = 10;
-  string mcc = 11;                 // 4-digit Stripe merchant category code
+  string mcc = 11;
   string support_email = 12;
 }
 

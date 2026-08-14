@@ -173,8 +173,6 @@ BEGIN
         END IF;
     END LOOP;
 
-    -- Mirrors sp_quote_cart: order-level group discount, allocated pro-rata across
-    -- ticket lines with the rounding remainder landing on the largest line.
     IF NOT v_has_unit_group THEN
         SELECT * INTO v_order FROM app.group_order_discount(p_event_id, v_qty_event, v_ticket_subtotal, now());
         v_order_amount := COALESCE(v_order.amount_cents, 0);

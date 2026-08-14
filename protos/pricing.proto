@@ -6,8 +6,6 @@ option csharp_namespace = "TicketSpan.Protos.Pricing";
 
 import "common.proto";
 
-// The Pricing Module: the single source of truth for all pricing. Floor plan and
-// checkout consume CalculatePrice; they never compute prices themselves.
 service PricingService {
   rpc CreatePrice (CreatePriceRequest) returns (ticketspan.common.UuidValue);
   rpc UpdatePrice (UpdatePriceRequest) returns (ticketspan.common.AckResponse);
@@ -29,13 +27,13 @@ message Price {
   string prices_id = 1;
   string events_id = 2;
   string name = 3;
-  string pricing_type = 4;          // TicketTier | Table
+  string pricing_type = 4;
   int32 base_price_cents = 5;
   int32 per_attendee_cents = 6;
   bool is_all_inclusive = 7;
-  string fee_formulas_id = 8;        // developer-only override; empty = tenant default
-  reserved 9;                        // was parent_prices_id (add-ons removed)
-  int32 max_quantity = 10;           // 0 = unlimited
+  string fee_formulas_id = 8;
+  reserved 9;
+  int32 max_quantity = 10;
   bool is_active = 11;
 }
 
@@ -46,8 +44,8 @@ message CreatePriceRequest {
   int32 base_price_cents = 4;
   int32 per_attendee_cents = 5;
   bool is_all_inclusive = 6;
-  string fee_formulas_id = 7;        // honored only for developers
-  reserved 8;                        // was parent_prices_id (add-ons removed)
+  string fee_formulas_id = 7;
+  reserved 8;
   int32 max_quantity = 9;
 }
 
@@ -59,7 +57,7 @@ message UpdatePriceRequest {
   bool is_all_inclusive = 5;
   int32 max_quantity = 6;
   bool is_active = 7;
-  string fee_formulas_id = 8;        // applied only for developers
+  string fee_formulas_id = 8;
 }
 
 message ListPricesResponse {
@@ -68,31 +66,28 @@ message ListPricesResponse {
 
 message PriceRule {
   string price_rules_id = 1;
-  string prices_id = 2;              // set when scope = Price; empty for event-wide
+  string prices_id = 2;
   string name = 3;
-  string rule_type = 4;              // Presale | LastMinute | TimeWindow | Dynamic | Group
-  int32 priority = 5;                // higher wins
+  string rule_type = 4;
+  int32 priority = 5;
   int32 price_cents = 6;
-  int64 active_from = 7;             // unix seconds; 0 = unset
-  int64 active_until = 8;            // unix seconds; 0 = unset
-  int32 min_remaining = 9;           // -1 = unset
-  int32 max_remaining = 10;          // -1 = unset
+  int64 active_from = 7;
+  int64 active_until = 8;
+  int32 min_remaining = 9;
+  int32 max_remaining = 10;
   bool is_active = 11;
-  string scope = 12;                 // Price | Event
-  string events_id = 13;             // set when scope = Event; empty otherwise
-  int32 capacity = 14;               // discount applies only to this many people/seats (0 = no cap)
-  // Group tier fields; only meaningful when rule_type = Group. min_qty is the
-  // cart quantity that triggers the tier, max_qty its upper bound (0 = open).
-  // Among qualifying tiers the highest min_qty wins.
-  int32 min_qty = 15;                // 0 = unset
-  int32 max_qty = 16;                // 0 = unset
-  string discount_kind = 17;         // FixedUnitPrice | PercentOff | AmountOffOrder; empty = unset
-  int32 discount_bps = 18;           // basis points for PercentOff (1500 = 15%)
+  string scope = 12;
+  string events_id = 13;
+  int32 capacity = 14;
+
+  int32 min_qty = 15;
+  int32 max_qty = 16;
+  string discount_kind = 17;
+  int32 discount_bps = 18;
 }
 
 message CreatePriceRuleRequest {
-  // owner_id is the prices_id when scope = Price, or the events_id when scope =
-  // Event. Defaults to a per-price rule when scope is empty.
+
   string owner_id = 1;
   string name = 2;
   string rule_type = 3;
@@ -102,12 +97,12 @@ message CreatePriceRuleRequest {
   int64 active_until = 7;
   int32 min_remaining = 8;
   int32 max_remaining = 9;
-  string scope = 10;                 // Price | Event; empty = Price
-  int32 capacity = 11;               // discount applies only to this many people/seats (0 = no cap)
-  int32 min_qty = 12;                // 0 = unset
-  int32 max_qty = 13;                // 0 = unset
-  string discount_kind = 14;         // FixedUnitPrice | PercentOff | AmountOffOrder
-  int32 discount_bps = 15;           // basis points for PercentOff (1500 = 15%)
+  string scope = 10;
+  int32 capacity = 11;
+  int32 min_qty = 12;
+  int32 max_qty = 13;
+  string discount_kind = 14;
+  int32 discount_bps = 15;
 }
 
 message UpdatePriceRuleRequest {
@@ -121,11 +116,11 @@ message UpdatePriceRuleRequest {
   int32 min_remaining = 8;
   int32 max_remaining = 9;
   bool is_active = 10;
-  int32 capacity = 11;               // discount applies only to this many people/seats (0 = no cap)
-  int32 min_qty = 12;                // 0 = unset
-  int32 max_qty = 13;                // 0 = unset
-  string discount_kind = 14;         // FixedUnitPrice | PercentOff | AmountOffOrder
-  int32 discount_bps = 15;           // basis points for PercentOff (1500 = 15%)
+  int32 capacity = 11;
+  int32 min_qty = 12;
+  int32 max_qty = 13;
+  string discount_kind = 14;
+  int32 discount_bps = 15;
 }
 
 message ListPriceRulesResponse {
@@ -135,35 +130,28 @@ message ListPriceRulesResponse {
 message CalculatePriceRequest {
   string prices_id = 1;
   int32 seats = 2;
-  int64 at = 3;                      // unix seconds; 0 = now
-  int32 remaining = 4;               // -1 = unknown
-  // Cart quantity used to evaluate Group tiers. 0 = use seats (admin preview).
+  int64 at = 3;
+  int32 remaining = 4;
+
   int32 group_qty = 5;
 }
 
-// Full server-authoritative breakdown for one priced line. Every surface (admin
-// preview, customer checkout, persisted booking snapshot) renders these numbers;
-// pricing math lives only in the backend engine (app.price_breakdown).
-//   subtotal_cents/fee_cents/total_cents are retained as convenience aggregates:
-//   subtotal = selling, fee = platform + gateway + tax, total = final.
 message PriceBreakdown {
   int32 subtotal_cents = 1;
   int32 fee_cents = 2;
   int32 total_cents = 3;
-  int32 base_price_cents = 4;        // original price before any rule
-  int32 selling_price_cents = 5;     // price after the active rule
-  int32 discount_cents = 6;          // base - selling (>= 0)
-  string applied_price_rules_id = 7; // empty = no rule active
-  string applied_rule_name = 8;      // empty = no rule active
+  int32 base_price_cents = 4;
+  int32 selling_price_cents = 5;
+  int32 discount_cents = 6;
+  string applied_price_rules_id = 7;
+  string applied_rule_name = 8;
   int32 platform_fee_cents = 9;
   int32 gateway_fee_cents = 10;
   int32 tax_cents = 11;
-  int32 final_price_cents = 12;      // what the customer pays
-  int32 organizer_net_cents = 13;    // what the organizer receives (= selling)
+  int32 final_price_cents = 12;
+  int32 organizer_net_cents = 13;
   string currency = 14;
-  // Group tier outcome for this line. When a capacity cap applies, only
-  // group_discounted_seats of the line's seats bill at group_unit_cents and the
-  // remainder bill at standard_unit_cents, so selling is a blended figure.
+
   int32 group_discounted_seats = 15;
   int32 group_unit_cents = 16;
   int32 standard_unit_cents = 17;
@@ -171,6 +159,6 @@ message PriceBreakdown {
 
 message SetTenantDefaultFeeFormulaRequest {
   string tenants_id = 1;
-  string fee_formulas_id = 2;        // empty = clear default
-  string reason = 3;                 // required audit note
+  string fee_formulas_id = 2;
+  string reason = 3;
 }

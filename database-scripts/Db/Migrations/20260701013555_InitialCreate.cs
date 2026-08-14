@@ -6,10 +6,10 @@ using NpgsqlTypes;
 
 namespace Db.Migrations
 {
-    
+
     public partial class InitialCreate : Migration
     {
-        
+
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql("CREATE EXTENSION IF NOT EXISTS pgcrypto;");
@@ -2377,10 +2377,8 @@ namespace Db.Migrations
                 table: "venues",
                 column: "tenants_id");
 
-            // SQL objects loading deferred to the final migration (AddSalesTax)
         }
 
-        
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(

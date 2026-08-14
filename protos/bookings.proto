@@ -11,19 +11,15 @@ service BookingService {
   rpc ListEventTicketTypes (ticketspan.common.UuidValue) returns (ListEventTicketTypesResponse);
   rpc CreateBooking (CreateBookingRequest) returns (CreateBookingResponse);
   rpc ReserveOpenCapacity (ReserveOpenCapacityRequest) returns (CreateBookingResponse);
-  // Cart checkout: one booking aggregating many ticket/table lines, one payment.
+
   rpc CreateMultiBooking (CreateMultiBookingRequest) returns (CreateBookingResponse);
-  // Preview a cart's full pricing breakdown WITHOUT reserving anything. Same engine
-  // as checkout (app.price_breakdown), so the customer checkout page and admin
-  // multi-item preview render identical numbers.
+
   rpc QuoteCart (CreateMultiBookingRequest) returns (CartQuote);
   rpc CreatePaymentIntent (PaymentIntentRequest) returns (PaymentIntentResponse);
-  // Re-price the booking for the chosen method (card/ach) and update the Stripe
-  // intent amount server-side. Returns the new total + ACH savings.
+
   rpc UpdatePaymentIntentForMethod (UpdatePaymentMethodRequest) returns (UpdatePaymentMethodResponse);
   rpc GetPaymentStatus (ticketspan.common.UuidValue) returns (PaymentStatusResponse);
-  // Free events (order total = 0): issue the ticket directly with no Stripe payment.
-  // Server re-checks the booking total is 0 before confirming.
+
   rpc ConfirmFreeBooking (ticketspan.common.UuidValue) returns (PaymentStatusResponse);
   rpc ConfirmBooking (ConfirmBookingRequest) returns (ticketspan.common.AckResponse);
   rpc CancelBooking (ticketspan.common.UuidValue) returns (ticketspan.common.AckResponse);
@@ -65,13 +61,13 @@ message Booking {
   int32 fee_cents = 8;
   int32 total_cents = 9;
   int32 seats_reserved = 10;
-  // Cart lines (empty for single-line legacy bookings).
+
   repeated BookingLine lines = 11;
   string event_title = 12;
   string event_slug = 13;
   int64 event_start_date = 14;
   int32 tickets_total = 15;
-  // Tickets on this booking with status Claimed or CheckedIn.
+
   int32 tickets_claimed = 16;
   string payment_transaction_id = 17;
   bool fees_included = 18;
@@ -88,23 +84,20 @@ message Booking {
   string payment_method_brand = 29;
 }
 
-// One line of a booking, for display on checkout / booking detail. Carries the
-// immutable pricing snapshot captured at purchase so historical bookings always
-// show the original price even after rules/prices change.
 message BookingLine {
   string booking_lines_id = 1;
-  string kind = 2;            // Ticket | Table
-  string label = 3;          // tier label or table label
+  string kind = 2;
+  string label = 3;
   string event_ticket_types_id = 4;
   string tables_id = 5;
   int32 seats = 6;
-  int32 subtotal_cents = 7;   // = selling
-  int32 fee_cents = 8;        // = platform + gateway + tax
-  int32 total_cents = 9;      // = final
+  int32 subtotal_cents = 7;
+  int32 fee_cents = 8;
+  int32 total_cents = 9;
   int32 base_price_cents = 10;
   int32 selling_price_cents = 11;
   int32 discount_cents = 12;
-  string applied_rule_name = 13;   // empty = no rule
+  string applied_rule_name = 13;
   int32 platform_fee_cents = 14;
   int32 gateway_fee_cents = 15;
   int32 tax_cents = 16;
@@ -117,61 +110,55 @@ message CreateMultiBookingRequest {
   repeated BookingLineInput lines = 2;
 }
 
-// One previewed cart line: the sellable identity + its full breakdown.
 message CartQuoteLine {
-  string kind = 1;            // Ticket | Table
-  string ref_id = 2;          // event_ticket_types_id (Ticket) or tables_id (Table)
+  string kind = 1;
+  string ref_id = 2;
   string label = 3;
   int32 seats = 4;
   ticketspan.pricing.PriceBreakdown breakdown = 5;
 }
 
-// A non-reserving preview of an entire cart: per-line breakdowns + summed totals.
 message CartQuote {
   repeated CartQuoteLine lines = 1;
-  int32 base_total_cents = 2;        // sum of line base prices (pre-discount)
-  int32 subtotal_cents = 3;          // sum of selling prices
-  int32 discount_cents = 4;          // base_total - subtotal
+  int32 base_total_cents = 2;
+  int32 subtotal_cents = 3;
+  int32 discount_cents = 4;
   int32 platform_fee_cents = 5;
   int32 gateway_fee_cents = 6;
   int32 tax_cents = 7;
-  int32 fee_cents = 8;               // platform + gateway + tax
-  int32 total_cents = 9;             // final amount the customer pays
+  int32 fee_cents = 8;
+  int32 total_cents = 9;
   int32 organizer_net_cents = 10;
   string currency = 11;
-  // Cart hold window in seconds, from app_settings.booking_hold_seconds.
+
   int32 hold_seconds = 12;
-  // ACH (bank) checkout: offered for this event, the discounted bank total, and
-  // what the buyer saves vs the card total. ach_available=false → the other two are 0.
+
   bool ach_available = 13;
   int32 ach_total_cents = 14;
   int32 ach_savings_cents = 15;
-  // Everything the group-discount banner renders, computed server-side. Always
-  // present; applied_min_qty = 0 means no tier is active for this cart.
+
   GroupDiscountHint group_discount = 16;
 }
 
-// Server-computed group-discount state for a cart. The client renders these
-// values verbatim and never derives savings itself.
 message GroupDiscountHint {
-  string applied_rule_name = 1;      // empty = no tier applied
-  int32 applied_min_qty = 2;         // 0 = no tier applied
-  int32 group_discount_cents = 3;    // what the group tier saved on this cart
-  int32 discounted_seats = 4;        // seats that actually received the tier price
-  bool capped = 5;                   // true = a capacity cap left some seats at full price
-  int32 eligible_qty = 6;            // ticket seats counted toward the threshold
-  // The next tier up, if any. next_tier_min_qty = 0 means there is none.
+  string applied_rule_name = 1;
+  int32 applied_min_qty = 2;
+  int32 group_discount_cents = 3;
+  int32 discounted_seats = 4;
+  bool capped = 5;
+  int32 eligible_qty = 6;
+
   int32 next_tier_min_qty = 7;
   int32 next_tier_seats_away = 8;
-  string next_tier_kind = 9;         // FixedUnitPrice | PercentOff | AmountOffOrder
+  string next_tier_kind = 9;
   int32 next_tier_bps = 10;
   int32 next_tier_price_cents = 11;
 }
 
 message BookingLineInput {
-  string kind = 1;            // Ticket | Table
-  string ref_id = 2;         // event_ticket_types_id (Ticket) or tables_id (Table)
-  int32 seats = 3;           // ticket quantity; ignored for tables (= capacity)
+  string kind = 1;
+  string ref_id = 2;
+  int32 seats = 3;
 }
 
 message CreateBookingRequest {
@@ -206,9 +193,8 @@ message EventTicketType {
   int32 max_quantity = 5;
   string description = 6;
   string fee_formulas_id = 7;
-  int32 capacity = 8;                 // seats this tier contributes to event capacity (0 = uncapped)
-  // Current selling price after active price rules (equals price_cents when no
-  // discount applies). Display hint; QuoteCart is authoritative at booking time.
+  int32 capacity = 8;
+
   int32 selling_price_cents = 9;
   int32 sold_count = 10;
   int32 service_fee_cents = 11;
@@ -222,8 +208,7 @@ message ListEventTicketTypesResponse {
 
 message PaymentIntentRequest {
   string bookings_id = 1;
-  // "ach" opens a bank-only intent priced at the ACH fee; anything else (default)
-  // = the normal card/wallets intent. Ignored when the event isn't ACH-enabled.
+
   string preferred_method = 2;
 }
 
@@ -233,27 +218,26 @@ message PaymentIntentResponse {
   string payment_intent_id = 3;
   string status = 4;
   int64 amount_cents = 5;
-  // Unix seconds when the seat hold expires (0 = no hold).
+
   int64 hold_expires_at = 6;
-  // True when this booking's event offers ACH — the UI may show the bank option
-  // and re-price via UpdatePaymentIntentForMethod when the buyer picks it.
+
   bool ach_allowed = 7;
 }
 
 message UpdatePaymentMethodRequest {
   string bookings_id = 1;
-  string method = 2;          // "card" | "ach"
+  string method = 2;
 }
 
 message UpdatePaymentMethodResponse {
-  int32 total_cents = 1;      // new amount the buyer will be charged
-  int32 savings_cents = 2;    // card total - this total (0 for card)
+  int32 total_cents = 1;
+  int32 savings_cents = 2;
 }
 
 message PaymentStatusResponse {
-  // Booking lifecycle: Pending|Paid|Cancelled|Refunded|Expired.
+
   string booking_status = 1;
-  // Stripe payment: RequiresConfirmation|Succeeded|Failed|Refunded.
+
   string payment_status = 2;
 }
 

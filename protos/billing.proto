@@ -6,9 +6,6 @@ option csharp_namespace = "TicketSpan.Protos.Billing";
 
 import "common.proto";
 
-// Developer-only pricing controls: subscriptions & trials, Pay Per Event,
-// add-ons, fee overrides, and platform revenue reports. Every mutation is
-// audit-logged (who/when/from/to/why) by the service.
 service DeveloperBillingService {
   rpc ListTenantBilling (ticketspan.common.PageRequest) returns (TenantBillingList);
 
@@ -32,9 +29,7 @@ service DeveloperBillingService {
   rpc GetRevenueReport (RevenueReportRequest) returns (RevenueReport);
   rpc GetTenantActivity (TenantActivityRequest) returns (TenantActivityList);
   rpc GetTaxReport (RevenueReportRequest) returns (TaxReport);
-  // Monthly remittance view split by who collected the tax: 'platform' months
-  // are what TicketSpan owes the tax authorities; 'self' months are informational
-  // (tenants remit those themselves). Tenant breakdown inside each month.
+
   rpc GetTaxRemittanceReport (RevenueReportRequest) returns (TaxRemittanceReport);
   rpc GetTenantDashboard (TenantRequest) returns (TenantDashboard);
 
@@ -58,7 +53,7 @@ message TenantBillingRow {
   string name = 3;
   string tier = 4;
   bool archived = 5;
-  string subscription_status = 6;      // empty = none
+  string subscription_status = 6;
   string subscription_tier = 7;
   int32 monthly_price_cents = 8;
   int64 current_period_end_epoch_seconds = 9;
@@ -79,8 +74,8 @@ message TenantBillingList {
 
 message SubscriptionRequest {
   string tenants_id = 1;
-  string tier = 2;                     // starter|professional|business|enterprise
-  string reason = 3;                   // audit note
+  string tier = 2;
+  string reason = 3;
 }
 
 message CancelSubscriptionRequest {
@@ -113,13 +108,13 @@ message EventUpgradeList {
 
 message EventUpgradeRequest {
   string events_id = 1;
-  string tier = 2;                     // starter_event|pro_event|business_event|enterprise_event
+  string tier = 2;
   string reason = 3;
 }
 
 message CancelEventUpgradeRequest {
   string events_id = 1;
-  int32 refund_cents = 2;              // 0 = no refund
+  int32 refund_cents = 2;
   string reason = 3;
 }
 
@@ -143,8 +138,8 @@ message TenantAddonList {
 
 message ProvisionAddonRequest {
   string tenants_id = 1;
-  string type = 2;                     // custom_domain|advanced_analytics|sms|extra_manager
-  string billing_period = 3;           // monthly|annual
+  string type = 2;
+  string billing_period = 3;
   int32 quantity = 4;
   string reason = 5;
 }
@@ -156,11 +151,11 @@ message CancelAddonRequest {
 }
 
 message FeeOverrideRow {
-  string scope = 1;                    // tenant | event
+  string scope = 1;
   string tenants_id = 2;
   string tenant_name = 3;
   string tenant_slug = 4;
-  string events_id = 5;                // empty for tenant scope
+  string events_id = 5;
   string event_title = 6;
   reserved 9;
   reserved "min_fee_cents";
@@ -169,7 +164,7 @@ message FeeOverrideRow {
   int32 max_fee_cents = 10;
   int32 standard_percent_bps = 11;
   int32 standard_flat_cents = 12;
-  int64 expires_at_epoch_seconds = 13; // 0 = never
+  int64 expires_at_epoch_seconds = 13;
   int64 updated_at_epoch_seconds = 14;
 }
 
@@ -183,14 +178,14 @@ message SetEventFeeOverrideRequest {
   string events_id = 1;
   int32 percent_bps = 2;
   int32 flat_cents = 3;
-  int32 max_fee_cents = 5;             // 0 = none
-  int64 expires_at_epoch_seconds = 6;  // 0 = never
-  string reason = 7;                   // required
+  int32 max_fee_cents = 5;
+  int64 expires_at_epoch_seconds = 6;
+  string reason = 7;
 }
 
 message ClearEventFeeOverrideRequest {
   string events_id = 1;
-  string reason = 2;                   // required
+  string reason = 2;
 }
 
 message TaxOverrideRow {
@@ -198,7 +193,7 @@ message TaxOverrideRow {
   string event_title = 2;
   string tenant_name = 3;
   bool tax_exempt = 4;
-  int32 rate_bps = 5;                  // manual combined rate; 0 when exempt
+  int32 rate_bps = 5;
   int64 updated_at_epoch_seconds = 6;
 }
 
@@ -208,9 +203,9 @@ message TaxOverrideList {
 
 message SetEventTaxOverrideRequest {
   string events_id = 1;
-  bool tax_exempt = 2;                 // true wins over rate_bps
-  int32 rate_bps = 3;                  // e.g. 1000 = 10%
-  string reason = 4;                   // required
+  bool tax_exempt = 2;
+  int32 rate_bps = 3;
+  string reason = 4;
 }
 
 message TaxRateRow {
@@ -223,7 +218,7 @@ message TaxRateRow {
   double county_rate = 7;
   double city_rate = 8;
   double local_rate = 9;
-  string source_ref = 10;              // API last_updated echo
+  string source_ref = 10;
   int64 fetched_at_epoch_seconds = 11;
 }
 
@@ -232,7 +227,7 @@ message TaxRateList {
 }
 
 message TaxRateLookupRequest {
-  string zip = 1;                      // 5-digit US zip; forces API refresh
+  string zip = 1;
 }
 
 message VenueTaxSummaryRow {
@@ -247,7 +242,7 @@ message VenueTaxSummaryRow {
   double county_rate = 9;
   double city_rate = 10;
   double local_rate = 11;
-  int64 fetched_at_epoch_seconds = 12; // 0 = never fetched
+  int64 fetched_at_epoch_seconds = 12;
 }
 
 message VenueTaxSummaryList {
@@ -260,7 +255,7 @@ message RevenueReportRequest {
 }
 
 message RevenueSourceRow {
-  string source = 1;                   // service_fees|subscription|proration|pay_per_event|addon|setup_fee|refund
+  string source = 1;
   int64 revenue_cents = 2;
   int32 item_count = 3;
 }
@@ -406,7 +401,7 @@ message TenantActivityRequest {
   int64 from_epoch_seconds = 1;
   int64 to_epoch_seconds = 2;
   string search = 3;
-  string tier = 4;                     // empty = all
+  string tier = 4;
   int32 offset = 5;
   int32 limit = 6;
 }

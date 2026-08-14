@@ -4,10 +4,10 @@
 
 namespace Db.Migrations
 {
-    
+
     public partial class AddTenantBrandColorRoles : Migration
     {
-        
+
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string>(
@@ -35,7 +35,6 @@ namespace Db.Migrations
                 nullable: true);
         }
 
-        
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
