@@ -14,30 +14,9 @@ public sealed class LocalFileEmailService : IEmailService
 
         if (string.IsNullOrEmpty(outputDir))
         {
-            
             var current = Directory.GetCurrentDirectory();
-            var candidates = new[]
-            {
-                @"D:\ticketspan-event-system\local_emails",
-                Path.Combine(current, "local_emails"),
-                Path.Combine(current, "..", "local_emails"),
-                Path.Combine(current, "..", "..", "local_emails")
-            };
-
-            foreach (var candidate in candidates)
-            {
-                if (Directory.Exists(candidate))
-                {
-                    outputDir = Path.GetFullPath(candidate);
-                    break;
-                }
-            }
-
-            
-            if (string.IsNullOrEmpty(outputDir))
-            {
-                outputDir = @"D:\ticketspan-event-system\local_emails";
-            }
+            outputDir = Path.Combine(current, "local_emails");
+            logger.LogWarning("LOCAL_EMAIL_DIR not set in configuration. Defaulting to {OutputDir}", outputDir);
         }
     }
 
