@@ -342,9 +342,9 @@ public sealed partial class AuthServiceImpl
         return await cmd.ExecuteScalarAsync(ct) as string;
     }
 
-    private async Task MaybeRehashAsync(Guid usersId, string password, short pepperVersion, NpgsqlConnection connection, CancellationToken ct)
+    private async Task MaybeRehashAsync(Guid usersId, string password, string storedHash, short pepperVersion, NpgsqlConnection connection, CancellationToken ct)
     {
-        if (!passwordHasher.NeedsRehash(pepperVersion))
+        if (!passwordHasher.NeedsRehash(storedHash, pepperVersion))
         {
             return;
         }

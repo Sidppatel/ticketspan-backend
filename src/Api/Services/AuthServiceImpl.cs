@@ -115,6 +115,7 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
             };
 
             var pwd = request.Password;
+            var hashToRehash = storedHash;
             _ = Task.Run(async () =>
             {
                 try
@@ -122,7 +123,7 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
                     await using var scope = scopeFactory.CreateAsyncScope();
                     var backgroundDb = scope.ServiceProvider.GetRequiredService<Db>();
                     await using var bgConnection = await backgroundDb.OpenAsync(null, null, CancellationToken.None);
-                    await MaybeRehashAsync(usersId, pwd, pepperVersion, bgConnection, CancellationToken.None);
+                    await MaybeRehashAsync(usersId, pwd, hashToRehash, pepperVersion, bgConnection, CancellationToken.None);
                     await UpdateLastLoginAsync(usersId, bgConnection, CancellationToken.None);
                 }
                 catch (Exception ex)

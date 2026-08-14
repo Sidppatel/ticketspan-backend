@@ -79,6 +79,26 @@ public sealed class PasswordHasher
 
     public bool NeedsRehash(short pepperVersion) => pepperVersion != currentVersion;
 
+    public bool NeedsRehash(string hash, short pepperVersion)
+    {
+        if (pepperVersion != currentVersion)
+        {
+            return true;
+        }
+        if (!string.IsNullOrEmpty(hash) && hash.StartsWith("$2") && hash.Length >= 7)
+        {
+            var parts = hash.Split('$', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 2 && int.TryParse(parts[1], out var hashWf))
+            {
+                if (hashWf > workFactor)
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     private string ApplyPepper(string password, short pepperVersion)
     {
         var key = peppers[pepperVersion];
