@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Db;
 
@@ -18,7 +19,10 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<EventPlatf
         }
 
         var optionsBuilder = new DbContextOptionsBuilder<EventPlatformDbContext>();
-        optionsBuilder.UseNpgsql(connStr).UseSnakeCaseNamingConvention();
+        optionsBuilder
+            .UseNpgsql(connStr)
+            .UseSnakeCaseNamingConvention()
+            .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
 
         return new EventPlatformDbContext(optionsBuilder.Options);
     }

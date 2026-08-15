@@ -61,6 +61,9 @@ public sealed class StartupSeeder
         ("booking_hold_seconds", "600", "Hard seat/table hold window in seconds while a booking awaits payment (10 minutes)."),
         ("event_image_aspect_ratio", "16:9", "Crop and display aspect ratio for event page images."),
         ("event_thumbnail_aspect_ratio", "4:3", "Crop and display aspect ratio for event list thumbnails."),
+        ("sponsor_image_aspect_ratio", "1:1", "Crop and display aspect ratio for sponsor logos."),
+        ("performer_image_aspect_ratio", "1:1", "Crop and display aspect ratio for performer photos."),
+        ("venue_image_aspect_ratio", "16:9", "Crop and display aspect ratio for venue photos."),
     };
 
     public async Task SeedAsync(CancellationToken ct)

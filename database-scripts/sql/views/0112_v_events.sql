@@ -51,7 +51,16 @@ SELECT
     ettp.min_price::int AS min_ticket_type_price_cents,
     ts.min_total_price::int AS display_min_table_price_cents,
     ettp.min_total_price::int AS display_min_ticket_type_price_cents,
+    COALESCE(perf.performers, '[]'::jsonb) AS performers,
+    COALESCE(spon.sponsors, '[]'::jsonb) AS sponsors,
+    COALESCE(e.meta, '[]'::jsonb) AS extra_info,
     prim.images_id AS primary_image_id,
+    e.short_description AS short_description,
+    e.story_description AS story_description,
+    e.hero_backdrop_image_id AS hero_backdrop_image_id,
+    e.poster_image_id AS poster_image_id,
+    COALESCE(e.is_verified_organizer, true) AS is_verified_organizer,
+    e.urgency_badge_text AS urgency_badge_text,
     COALESCE(tr.state_rate, 0) AS venue_state_tax_rate,
     COALESCE(tr.county_rate, 0) AS venue_county_tax_rate,
     COALESCE(tr.city_rate, 0) AS venue_city_tax_rate,
@@ -88,6 +97,40 @@ LEFT JOIN LATERAL (
     JOIN event_tables et ON t.event_tables_id = et.event_tables_id
     WHERE t.events_id = e.events_id AND t.is_active = true
 ) table_cap ON true
+LEFT JOIN LATERAL (
+    SELECT jsonb_agg(
+        jsonb_build_object(
+            'eventId', e.events_id,
+            'performerId', p.performers_id,
+            'name', p.name,
+            'slug', p.slug,
+            'primaryImagePath', p.primary_image_path,
+            'sortOrder', ep.sort_order,
+            'effectiveMeta', fn_merge_performer_meta(p.meta, ep.event_meta)
+        )
+        ORDER BY ep.sort_order, p.name
+    ) AS performers
+    FROM event_performers ep
+    JOIN performers p ON p.performers_id = ep.performers_id
+    WHERE ep.events_id = e.events_id
+) perf ON true
+LEFT JOIN LATERAL (
+    SELECT jsonb_agg(
+        jsonb_build_object(
+            'eventId', e.events_id,
+            'sponsorId', s.sponsors_id,
+            'name', s.name,
+            'slug', s.slug,
+            'primaryImagePath', s.primary_image_path,
+            'sortOrder', es.sort_order,
+            'effectiveMeta', fn_merge_sponsor_meta(s.meta, es.event_meta)
+        )
+        ORDER BY es.sort_order, s.name
+    ) AS sponsors
+    FROM event_sponsors es
+    JOIN sponsors s ON s.sponsors_id = es.sponsors_id
+    WHERE es.events_id = e.events_id
+) spon ON true
 LEFT JOIN LATERAL (
     SELECT ei.images_id
     FROM event_images ei

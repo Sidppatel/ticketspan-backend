@@ -700,9 +700,13 @@ public class EventPlatformDbContext(
             entity.Property(e => e.Title).HasMaxLength(256);
             entity.Property(e => e.Slug).HasMaxLength(300);
             entity.Property(e => e.Description).HasMaxLength(8192);
+            entity.Property(e => e.ShortDescription).HasMaxLength(1024);
+            entity.Property(e => e.StoryDescription).HasMaxLength(16384);
             entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.Category).HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.ImagePath).HasMaxLength(512);
+            entity.Property(e => e.IsVerifiedOrganizer).HasDefaultValue(true);
+            entity.Property(e => e.UrgencyBadgeText).HasMaxLength(100);
             entity.Property(e => e.LayoutMode).HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.EventType).HasConversion<string>().HasMaxLength(20)
                 .HasDefaultValue(Db.Enums.EventType.Open);
@@ -715,6 +719,10 @@ public class EventPlatformDbContext(
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.CreatedByUser).WithMany().HasForeignKey(e => e.CreatedByUsersId)
                 .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.HeroBackdropImage).WithMany().HasForeignKey(e => e.HeroBackdropImageId)
+                .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.PosterImage).WithMany().HasForeignKey(e => e.PosterImageId)
+                .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
             entity.HasOne(e => e.FeeFormula).WithMany().HasForeignKey(e => e.FeeFormulasId)
                 .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
 #pragma warning disable CS8603

@@ -326,23 +326,13 @@ app.MapPost("/uploads/images", async (HttpRequest request, Db db, TenantContext 
     var storageKey = $"{entityType}/{Guid.NewGuid():N}{safeExtension}";
     try
     {
-        await using (var blob = file.OpenReadStream())
-        {
-            await storage.PutAsync(storageKey, blob, file.ContentType, ct);
-        }
-        await using var connection = await db.OpenAsync(tenant.UsersId, tenant.TenantsId, ct);
-        await using var cmd = new Npgsql.NpgsqlCommand(
-            "SELECT sp_create_image(@et, @eid, @key, @name, @size, 0, 0, 0, @uid, NULL, NULL, NULL, @ct, NULL, @t)", connection);
-        cmd.Parameters.AddWithValue("et", string.IsNullOrEmpty(entityType) ? "generic" : entityType);
-        cmd.Parameters.AddWithValue("eid", Guid.TryParse(entityId, out var eid) ? eid : Guid.Empty);
-        cmd.Parameters.AddWithValue("key", storageKey);
-        cmd.Parameters.AddWithValue("name", file.FileName);
-        cmd.Parameters.AddWithValue("size", (int)file.Length);
-        cmd.Parameters.AddWithValue("uid", (object?)tenant.UsersId ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("ct", file.ContentType);
-        cmd.Parameters.AddWithValue("t", (object?)tenant.TenantsId ?? DBNull.Value);
-        var imageId = await cmd.ExecuteScalarAsync(ct);
-        return Results.Ok(new { imagesId = imageId?.ToString(), storageKey });
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms, ct);
+        ms.Position = 0;
+        await storage.PutAsync(storageKey, ms, file.ContentType, ct);
+        var imageId = await storage.CreateImageRecordAsync(
+            db, tenant.UsersId, tenant.TenantsId, entityType, entityId, storageKey, file.FileName, file.Length, file.ContentType, ct);
+        return Results.Ok(new { imagesId = imageId, storageKey });
     }
     catch (Exception ex)
     {
@@ -374,22 +364,13 @@ app.MapGet("/images/{imagesId}", async (string imagesId, Db db, TicketSpan.Api.S
     {
         return Results.BadRequest("invalid id");
     }
-    string storageKey;
-    string contentType;
-    await using (var connection = await db.OpenBootstrapAsync(ct))
-    await using (var cmd = new Npgsql.NpgsqlCommand("SELECT storage_key, content_type FROM vw_images WHERE images_id = @id", connection))
+    var record = await storage.GetImageRecordAsync(db, id, ct);
+    if (record is null)
     {
-        cmd.Parameters.AddWithValue("id", id);
-        await using var reader = await cmd.ExecuteReaderAsync(ct);
-        if (!await reader.ReadAsync(ct))
-        {
-            return Results.NotFound();
-        }
-        storageKey = reader.GetString(0);
-        contentType = reader.IsDBNull(1) ? "application/octet-stream" : reader.GetString(1);
+        return Results.NotFound();
     }
-    var stream = await storage.OpenReadAsync(storageKey, ct);
-    return stream is null ? Results.NotFound() : Results.File(stream, contentType);
+    var stream = await storage.OpenReadAsync(record.Value.storageKey, ct);
+    return stream is null ? Results.NotFound() : Results.File(stream, record.Value.contentType);
 }).AllowAnonymous();
 
 static string AdminFrontend(IConfiguration config) =>

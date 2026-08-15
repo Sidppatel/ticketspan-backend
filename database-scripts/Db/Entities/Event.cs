@@ -8,50 +8,36 @@ public class Event : BaseEntity
     public required string Title { get; set; }
     public required string Slug { get; set; }
     public string? Description { get; set; }
+    public string? ShortDescription { get; set; }
+    public string? StoryDescription { get; set; }
     public EventStatus Status { get; set; } = EventStatus.Draft;
     public string? Category { get; set; }
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
     public string? ImagePath { get; set; }
+    public Guid? HeroBackdropImageId { get; set; }
+    public Image? HeroBackdropImage { get; set; }
+    public Guid? PosterImageId { get; set; }
+    public Image? PosterImage { get; set; }
     public bool IsFeatured { get; set; }
+    public bool IsVerifiedOrganizer { get; set; } = true;
+    public string? UrgencyBadgeText { get; set; }
     public LayoutMode LayoutMode { get; set; }
 
-    
-    
-    
-    
-    
-    
     public EventType EventType { get; set; } = EventType.Open;
 
     public DateTime? PublishedAt { get; set; }
     public DateTime? ScheduledPublishAt { get; set; }
 
-    
-    
-    
-    
-    
     public bool FeesIncluded { get; set; }
 
     public string Meta { get; set; } = "[]";
 
-    
-    
-    
-    
-    
     public Guid? FeeFormulasId { get; set; }
     public FeeFormula? FeeFormula { get; set; }
 
-    
     public DateTime? FeeOverrideExpiresAt { get; set; }
 
-    
-    
-    
-    
-    
     public bool AchEnabled { get; set; }
 
     public bool TaxExempt { get; set; }

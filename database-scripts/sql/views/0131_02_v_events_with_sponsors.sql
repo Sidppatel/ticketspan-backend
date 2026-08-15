@@ -1,3 +1,10 @@
+ALTER TABLE events ADD COLUMN IF NOT EXISTS short_description TEXT;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS story_description TEXT;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS hero_backdrop_image_id UUID REFERENCES images(images_id);
+ALTER TABLE events ADD COLUMN IF NOT EXISTS poster_image_id UUID REFERENCES images(images_id);
+ALTER TABLE events ADD COLUMN IF NOT EXISTS is_verified_organizer BOOLEAN DEFAULT TRUE;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS urgency_badge_text VARCHAR(100);
+
 DROP VIEW IF EXISTS vw_events CASCADE;
 CREATE OR REPLACE VIEW vw_events AS
 SELECT
@@ -55,6 +62,12 @@ SELECT
     COALESCE(spon.sponsors, '[]'::jsonb) AS sponsors,
     COALESCE(e.meta, '[]'::jsonb) AS extra_info,
     prim.images_id AS primary_image_id,
+    e.short_description AS short_description,
+    e.story_description AS story_description,
+    e.hero_backdrop_image_id AS hero_backdrop_image_id,
+    e.poster_image_id AS poster_image_id,
+    COALESCE(e.is_verified_organizer, true) AS is_verified_organizer,
+    e.urgency_badge_text AS urgency_badge_text,
     COALESCE(tr.state_rate, 0) AS venue_state_tax_rate,
     COALESCE(tr.county_rate, 0) AS venue_county_tax_rate,
     COALESCE(tr.city_rate, 0) AS venue_city_tax_rate,

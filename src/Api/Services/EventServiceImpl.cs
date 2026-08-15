@@ -38,7 +38,7 @@ public sealed partial class EventServiceImpl : EventService.EventServiceBase
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
             "SELECT sp_create_event(@t, @title, @slug, @desc, @status, @cat, @start, @end, @img, @feat, @layout, "
-            + "NULL, NULL, NULL, @venue, @creator, @sched, @etype)", connection);
+            + "NULL, NULL, NULL, @venue, @creator, @sched, @etype, @short_desc, @story_desc, @hero_img, @poster_img, @verified, @urgency)", connection);
         cmd.Parameters.AddWithValue("t", tenantContext.TenantsId!.Value);
         cmd.Parameters.AddWithValue("title", request.Title);
         cmd.Parameters.AddWithValue("slug", request.Slug);
@@ -56,6 +56,12 @@ public sealed partial class EventServiceImpl : EventService.EventServiceBase
         cmd.Parameters.AddWithValue("sched", request.ScheduledPublishAt == 0
             ? DBNull.Value
             : DateTimeOffset.FromUnixTimeSeconds(request.ScheduledPublishAt).UtcDateTime);
+        cmd.Parameters.AddWithValue("short_desc", (object?)NullIfEmpty(request.ShortDescription) ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("story_desc", (object?)NullIfEmpty(request.StoryDescription) ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("hero_img", string.IsNullOrEmpty(request.HeroBackdropImageId) ? DBNull.Value : Guid.Parse(request.HeroBackdropImageId));
+        cmd.Parameters.AddWithValue("poster_img", string.IsNullOrEmpty(request.PosterImageId) ? DBNull.Value : Guid.Parse(request.PosterImageId));
+        cmd.Parameters.AddWithValue("verified", request.IsVerifiedOrganizer);
+        cmd.Parameters.AddWithValue("urgency", (object?)NullIfEmpty(request.UrgencyBadgeText) ?? DBNull.Value);
 
         try
         {
@@ -151,7 +157,7 @@ public sealed partial class EventServiceImpl : EventService.EventServiceBase
         }
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT sp_update_event(@id, @title, NULL, @desc, @cat, @start, @end, @img, @feat, NULL, NULL, NULL, NULL, @venue, NULL, @etype, @meta)", connection);
+            "SELECT sp_update_event(@id, @title, NULL, @desc, @cat, @start, @end, @img, @feat, NULL, NULL, NULL, NULL, @venue, NULL, @etype, @meta, @short_desc, @story_desc, @hero_img, @poster_img, @verified, @urgency)", connection);
         cmd.Parameters.AddWithValue("id", Guid.Parse(request.EventsId));
         cmd.Parameters.AddWithValue("title", (object?)NullIfEmpty(request.Title) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("desc", (object?)NullIfEmpty(request.Description) ?? DBNull.Value);
@@ -166,6 +172,12 @@ public sealed partial class EventServiceImpl : EventService.EventServiceBase
         {
             Value = string.IsNullOrEmpty(request.ExtraInfoJson) ? DBNull.Value : request.ExtraInfoJson
         });
+        cmd.Parameters.AddWithValue("short_desc", (object?)NullIfEmpty(request.ShortDescription) ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("story_desc", (object?)NullIfEmpty(request.StoryDescription) ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("hero_img", string.IsNullOrEmpty(request.HeroBackdropImageId) ? DBNull.Value : Guid.Parse(request.HeroBackdropImageId));
+        cmd.Parameters.AddWithValue("poster_img", string.IsNullOrEmpty(request.PosterImageId) ? DBNull.Value : Guid.Parse(request.PosterImageId));
+        cmd.Parameters.AddWithValue("verified", request.IsVerifiedOrganizer);
+        cmd.Parameters.AddWithValue("urgency", (object?)NullIfEmpty(request.UrgencyBadgeText) ?? DBNull.Value);
         try
         {
             await cmd.ExecuteNonQueryAsync(ct);
