@@ -11,6 +11,17 @@ namespace Db.Migrations
             migrationBuilder.Sql("ALTER TABLE staff_event_access ADD COLUMN IF NOT EXISTS access_start timestamp with time zone;");
             migrationBuilder.Sql("ALTER TABLE staff_event_access ADD COLUMN IF NOT EXISTS access_end timestamp with time zone;");
 
+            migrationBuilder.Sql(@"
+                DO $$
+                DECLARE
+                    r RECORD;
+                BEGIN
+                    FOR r IN (SELECT viewname FROM pg_views WHERE schemaname = 'public' AND viewname LIKE 'vw_%') LOOP
+                        EXECUTE 'DROP VIEW IF EXISTS ' || quote_ident(r.viewname) || ' CASCADE';
+                    END LOOP;
+                END $$;
+            ");
+
             db.Migrations.MigrationSqlLoader.LoadAll(migrationBuilder, "Sql.functions");
             db.Migrations.MigrationSqlLoader.LoadAll(migrationBuilder, "Sql.views");
             db.Migrations.MigrationSqlLoader.LoadAll(migrationBuilder, "Sql.stored_procedures");
