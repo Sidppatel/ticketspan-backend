@@ -42,7 +42,8 @@ public sealed class ReportingServiceImpl : ReportingService.ReportingServiceBase
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantsId, ct);
         var access = await accessProvider.GetAsync(connection, tenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT revenue_cents, orders, tickets_sold, average_order_cents, visits, conversion_bps, refunded_cents, refunded_orders "
+            "SELECT revenue_cents, orders, tickets_sold, average_order_cents, visits, conversion_bps, refunded_cents, refunded_orders, "
+            + "service_fee_cents, tax_cents, net_revenue_cents "
             + "FROM sp_report_summary(@f, @t)", connection);
         AddRange(cmd, request.FromEpochSeconds, request.ToEpochSeconds);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -57,6 +58,9 @@ public sealed class ReportingServiceImpl : ReportingService.ReportingServiceBase
             summary.ConversionBps = reader.GetInt32(5);
             summary.RefundedCents = access.HasAdvanced ? reader.GetInt64(6) : 0;
             summary.RefundedOrders = access.HasAdvanced ? reader.GetInt32(7) : 0;
+            summary.ServiceFeeCents = access.HasAdvanced ? reader.GetInt64(8) : 0;
+            summary.TaxCents = access.HasAdvanced ? reader.GetInt64(9) : 0;
+            summary.NetRevenueCents = access.HasAdvanced ? reader.GetInt64(10) : reader.GetInt64(0);
         }
         return summary;
     }
@@ -135,7 +139,7 @@ public sealed class ReportingServiceImpl : ReportingService.ReportingServiceBase
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantsId, ct);
         var access = await accessProvider.GetAsync(connection, tenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT event_ticket_types_id, label, events_id, event_title, price_cents, quantity_sold, revenue_cents, refunded_quantity, refunded_cents "
+            "SELECT event_ticket_types_id, label, events_id, event_title, price_cents, quantity_sold, revenue_cents, refunded_quantity, refunded_cents, item_kind "
             + "FROM sp_report_ticket_type_breakdown(@f, @t)", connection);
         AddRange(cmd, request.FromEpochSeconds, request.ToEpochSeconds);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -144,7 +148,7 @@ public sealed class ReportingServiceImpl : ReportingService.ReportingServiceBase
         {
             response.Rows.Add(new TicketTypeBreakdownRow
             {
-                EventTicketTypesId = reader.IsDBNull(0) ? string.Empty : reader.GetGuid(0).ToString(),
+                EventTicketTypesId = reader.IsDBNull(0) ? string.Empty : reader.GetString(0),
                 Label = reader.GetString(1),
                 EventsId = reader.GetGuid(2).ToString(),
                 EventTitle = reader.GetString(3),
@@ -152,7 +156,8 @@ public sealed class ReportingServiceImpl : ReportingService.ReportingServiceBase
                 QuantitySold = reader.GetInt32(5),
                 RevenueCents = reader.GetInt64(6),
                 RefundedQuantity = access.HasAdvanced ? reader.GetInt32(7) : 0,
-                RefundedCents = access.HasAdvanced ? reader.GetInt64(8) : 0
+                RefundedCents = access.HasAdvanced ? reader.GetInt64(8) : 0,
+                ItemKind = reader.GetString(9)
             });
         }
         return response;

@@ -82,6 +82,8 @@ message Booking {
   string payment_method_type = 27;
   string payment_method_last4 = 28;
   string payment_method_brand = 29;
+  string user_email = 30;
+  string user_name = 31;
 }
 
 message BookingLine {

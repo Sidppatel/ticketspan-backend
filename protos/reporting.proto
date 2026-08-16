@@ -77,6 +77,9 @@ message ReportSummary {
   int64 refunded_cents = 7;
   int32 refunded_orders = 8;
   int64 generated_at_epoch_seconds = 9;
+  int64 service_fee_cents = 10;
+  int64 tax_cents = 11;
+  int64 net_revenue_cents = 12;
 }
 
 message RevenueTimeseriesPoint {
@@ -126,6 +129,7 @@ message TicketTypeBreakdownRow {
 
   int32 refunded_quantity = 8;
   int64 refunded_cents = 9;
+  string item_kind = 10;
 }
 
 message TicketTypeBreakdownList {
