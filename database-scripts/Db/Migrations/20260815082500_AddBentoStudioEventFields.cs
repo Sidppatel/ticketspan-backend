@@ -16,6 +16,9 @@ namespace Db.Migrations
                 ALTER TABLE events ADD COLUMN IF NOT EXISTS is_verified_organizer BOOLEAN DEFAULT TRUE;
                 ALTER TABLE events ADD COLUMN IF NOT EXISTS urgency_badge_text VARCHAR(100);
 
+                ALTER TABLE staff_event_access ADD COLUMN IF NOT EXISTS access_start timestamp with time zone;
+                ALTER TABLE staff_event_access ADD COLUMN IF NOT EXISTS access_end timestamp with time zone;
+
                 DROP FUNCTION IF EXISTS sp_create_event CASCADE;
                 DROP FUNCTION IF EXISTS sp_update_event CASCADE;
                 DROP FUNCTION IF EXISTS sp_list_event_images(uuid);
