@@ -20,9 +20,18 @@ namespace Db.Migrations
                 DROP FUNCTION IF EXISTS sp_update_event CASCADE;
                 DROP FUNCTION IF EXISTS sp_list_event_images(uuid);
                 DROP FUNCTION IF EXISTS sp_list_event_images(uuid, text);
+
+                DO $$
+                DECLARE
+                    r RECORD;
+                BEGIN
+                    FOR r IN (SELECT viewname FROM pg_views WHERE schemaname = 'public' AND viewname LIKE 'vw_%') LOOP
+                        EXECUTE 'DROP VIEW IF EXISTS ' || quote_ident(r.viewname) || ' CASCADE';
+                    END LOOP;
+                END $$;
             ");
             db.Migrations.MigrationSqlLoader.LoadAll(migrationBuilder, "Sql.views");
-            db.Migrations.MigrationSqlLoader.LoadAll(migrationBuilder, "Sql.stored-procedures");
+            db.Migrations.MigrationSqlLoader.LoadAll(migrationBuilder, "Sql.stored_procedures");
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
