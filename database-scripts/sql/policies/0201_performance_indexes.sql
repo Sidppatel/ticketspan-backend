@@ -1,4 +1,3 @@
--- Composite performance indexes for ListEvents and ListBookings
 CREATE INDEX IF NOT EXISTS ix_events_tenant_status_start 
 ON events (tenants_id, status, start_date DESC);
 

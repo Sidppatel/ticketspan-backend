@@ -27,25 +27,10 @@ public class Booking : BaseEntity
     public DateTime? TaxCalculatedAt { get; set; }
 
     public string? QrToken { get; set; }
-
-    
-    
-    
-    
     public string SalesChannel { get; set; } = "direct";
-
-    
-    
-    
-    
     public DateTime? HoldExpiresAt { get; set; }
-
-    
-    
     public int? SeatsReserved { get; set; }
 
     public StripeTransaction? StripeTransaction { get; set; }
-
-    
     public ICollection<BookingLine> Lines { get; set; } = [];
 }

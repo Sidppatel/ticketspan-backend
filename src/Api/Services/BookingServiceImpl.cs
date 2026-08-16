@@ -8,7 +8,6 @@ using TicketSpan.Api.Security;
 using TicketSpan.Protos.Common;
 using TicketSpan.Protos.Booking;
 using TicketSpan.Protos.Pricing;
-
 using TicketSpan.Api.Email;
 
 namespace TicketSpan.Api.Services;
