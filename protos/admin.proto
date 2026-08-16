@@ -21,6 +21,7 @@ service StaffService {
   rpc ListStaffForEvent (ticketspan.common.UuidValue) returns (ListStaffResponse);
   rpc AssignStaff (AssignStaffRequest) returns (ticketspan.common.AckResponse);
   rpc UnassignStaff (AssignStaffRequest) returns (ticketspan.common.AckResponse);
+  rpc UpdateStaffAccessWindow (UpdateStaffAccessWindowRequest) returns (ticketspan.common.AckResponse);
   rpc ListAllStaff (ticketspan.common.Empty) returns (ListStaffResponse);
   rpc AssignStaffByEmail (AssignStaffByEmailRequest) returns (AssignStaffByEmailResponse);
   rpc AddOrInviteStaff (AddOrInviteStaffRequest) returns (AddOrInviteStaffResponse);
@@ -104,6 +105,8 @@ message StaffMember {
   string last_name = 3;
   string email = 4;
   int32 role = 5;
+  int64 access_start = 6;
+  int64 access_end = 7;
 }
 
 message ListStaffResponse { repeated StaffMember staff = 1; }
@@ -111,6 +114,15 @@ message ListStaffResponse { repeated StaffMember staff = 1; }
 message AssignStaffRequest {
   string users_id = 1;
   string events_id = 2;
+  int64 access_start = 3;
+  int64 access_end = 4;
+}
+
+message UpdateStaffAccessWindowRequest {
+  string users_id = 1;
+  string events_id = 2;
+  int64 access_start = 3;
+  int64 access_end = 4;
 }
 
 message CreateInvitationRequest {

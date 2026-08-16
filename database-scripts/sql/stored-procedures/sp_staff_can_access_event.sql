@@ -11,7 +11,7 @@ AS $$
         WHERE aue.staff_user_id = p_business_user_id
           AND aue.event_id = p_event_id
           AND au.is_active = true
-          AND now() >= e.start_date - make_interval(hours => p_grace_hours)
-          AND now() <= e.end_date + make_interval(hours => p_grace_hours)
+          AND now() >= COALESCE(aue.access_start, e.start_date - make_interval(hours => p_grace_hours))
+          AND now() <= COALESCE(aue.access_end, e.end_date + make_interval(hours => p_grace_hours))
     );
 $$;

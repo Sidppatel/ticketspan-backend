@@ -21,30 +21,38 @@
               <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">
                 Hello,
               </p>
-              <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#374151;">
-                You have been invited to join TicketSpan as <strong>{{RoleName}}</strong> for <strong>{{TenantName}}</strong>.
-                Click the button below to set your password and activate your account.
+              <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#374151;">
+                You have been assigned as <strong>{{RoleName}}</strong> for the upcoming event:
               </p>
-              <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 0 24px;">
+              
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;margin:0 0 24px;">
                 <tr>
-                  <td style="border-radius:8px;background-color:#4f46e5;">
-                    <a href="{{InviteLink}}" style="display:inline-block;padding:12px 28px;font-size:15px;color:#ffffff;text-decoration:none;font-weight:bold;">Accept invitation</a>
+                  <td style="padding:16px 20px;">
+                    <p style="margin:0 0 8px;font-size:17px;font-weight:bold;color:#111827;">{{EventTitle}}</p>
+                    <p style="margin:0 0 4px;font-size:14px;color:#4b5563;"><strong>Organization:</strong> {{TenantName}}</p>
+                    <p style="margin:0 0 4px;font-size:14px;color:#4b5563;"><strong>Date & Time:</strong> {{EventDate}}</p>
+                    <p style="margin:0;font-size:14px;color:#4b5563;"><strong>Venue:</strong> {{VenueName}}</p>
                   </td>
                 </tr>
               </table>
-              <p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#6b7280;">
-                This invitation is valid for {{ExpiryHours}} hours and was sent to {{Email}}.
-              </p>
+
+              <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 0 24px;">
+                <tr>
+                  <td style="border-radius:8px;background-color:#4f46e5;">
+                    <a href="{{PortalLink}}" style="display:inline-block;padding:12px 28px;font-size:15px;color:#ffffff;text-decoration:none;font-weight:bold;">Open Staff Portal</a>
+                  </td>
+                </tr>
+              </table>
               <p style="margin:0;font-size:13px;line-height:1.6;color:#6b7280;">
                 If the button does not work, copy this link into your browser:<br />
-                <a href="{{InviteLink}}" style="color:#4f46e5;word-break:break-all;">{{InviteLink}}</a>
+                <a href="{{PortalLink}}" style="color:#4f46e5;word-break:break-all;">{{PortalLink}}</a>
               </p>
             </td>
           </tr>
           <tr>
             <td style="padding:20px 32px;background-color:#f9fafb;border-top:1px solid #e5e7eb;">
               <p style="margin:0;font-size:12px;color:#9ca3af;">
-                If you did not expect this invitation you can safely ignore this email.
+                TicketSpan Event Management Platform
               </p>
             </td>
           </tr>

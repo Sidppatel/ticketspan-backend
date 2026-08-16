@@ -132,11 +132,13 @@ public sealed class InvitationServiceImpl : InvitationService.InvitationServiceB
         if (eventId.HasValue)
         {
             await using (var assign = new NpgsqlCommand(
-                "SELECT sp_assign_user_event(@user, @event, @by)", connection))
+                "SELECT sp_assign_user_event(@user, @event, @by, @astart::timestamptz, @aend::timestamptz)", connection))
             {
                 assign.Parameters.AddWithValue("user", userId);
                 assign.Parameters.AddWithValue("event", eventId.Value);
                 assign.Parameters.AddWithValue("by", DBNull.Value);
+                assign.Parameters.Add(new NpgsqlParameter("astart", NpgsqlTypes.NpgsqlDbType.TimestampTz) { Value = DBNull.Value });
+                assign.Parameters.Add(new NpgsqlParameter("aend", NpgsqlTypes.NpgsqlDbType.TimestampTz) { Value = DBNull.Value });
                 await assign.ExecuteNonQueryAsync(ct);
             }
         }

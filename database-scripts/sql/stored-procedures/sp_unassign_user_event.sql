@@ -6,4 +6,7 @@ AS $$
 BEGIN
     DELETE FROM staff_event_access
     WHERE staff_user_id = p_users_id AND event_id = p_events_id;
+
+    DELETE FROM invitations
+    WHERE invitations_id = p_users_id AND event_id = p_events_id AND status = 'Pending';
 END; $$;

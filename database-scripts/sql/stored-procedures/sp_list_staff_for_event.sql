@@ -1,7 +1,5 @@
-
-
-
 DROP FUNCTION IF EXISTS sp_list_staff_for_event(uuid);
+
 CREATE OR REPLACE FUNCTION sp_list_staff_for_event(p_event_id uuid)
 RETURNS TABLE(
     business_user_event_id uuid,
@@ -19,7 +17,9 @@ RETURNS TABLE(
     assigned_by_users_id uuid,
     created_at timestamptz,
     updated_at timestamptz,
-    user_role integer
+    user_role integer,
+    access_start timestamptz,
+    access_end timestamptz
 ) LANGUAGE sql STABLE
     SET search_path = public, extensions, pg_catalog
 AS $$
@@ -31,11 +31,33 @@ AS $$
         e.start_date, e.end_date, e.status::text,
         aue.assigned_by_admin_id,
         aue.created_at, aue.updated_at,
-        au.role
+        au.role,
+        aue.access_start,
+        aue.access_end
     FROM staff_event_access aue
     JOIN users au ON au.users_id = aue.staff_user_id
     JOIN events e ON e.events_id = aue.event_id
     WHERE aue.event_id = p_event_id
       AND au.is_active = true
-    ORDER BY au.first_name, au.last_name;
+
+    UNION ALL
+
+    SELECT
+        i.invitations_id, i.invitations_id,
+        ''::text, ''::text, i.email::text,
+        false,
+        i.event_id, e.title::text, e.slug::text,
+        e.start_date, e.end_date, e.status::text,
+        i.invited_by_users_id,
+        i.created_at, i.updated_at,
+        i.role::integer,
+        NULL::timestamptz,
+        NULL::timestamptz
+    FROM invitations i
+    JOIN events e ON e.events_id = i.event_id
+    WHERE i.event_id = p_event_id
+      AND i.status = 'Pending'
+      AND i.expires_at > now()
+
+    ORDER BY first_name, last_name, email;
 $$;

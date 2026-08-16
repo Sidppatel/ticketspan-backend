@@ -8,7 +8,7 @@ AS $$
     JOIN staff_event_access aue ON aue.event_id = e.events_id
     WHERE aue.staff_user_id = p_business_user_id
       AND e.status IN ('Published', 'Completed')
-      AND now() >= e.start_date - make_interval(hours => p_grace_hours)
-      AND now() <= e.end_date + make_interval(hours => p_grace_hours)
+      AND now() >= COALESCE(aue.access_start, e.start_date - make_interval(hours => p_grace_hours))
+      AND now() <= COALESCE(aue.access_end, e.end_date + make_interval(hours => p_grace_hours))
     ORDER BY e.start_date;
 $$;

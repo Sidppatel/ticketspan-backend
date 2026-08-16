@@ -12,4 +12,7 @@ public class StaffEventAccess : BaseEntity
 
     public Guid? AssignedByAdminId { get; set; }
     public User? AssignedByAdmin { get; set; }
+
+    public DateTime? AccessStart { get; set; }
+    public DateTime? AccessEnd { get; set; }
 }
