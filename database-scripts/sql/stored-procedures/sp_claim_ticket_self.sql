@@ -5,14 +5,16 @@ CREATE OR REPLACE FUNCTION sp_claim_ticket_self(
 AS $$
 DECLARE
     v_booking_id uuid;
+    v_booking_user_id uuid;
     v_status text;
     v_already_count int;
     v_updated int;
 BEGIN
-    SELECT bookings_id, status::text
-        INTO v_booking_id, v_status
-        FROM booking_lines
-        WHERE booking_lines_id = p_ticket_id AND kind = 'Ticket'
+    SELECT bl.bookings_id, b.users_id, bl.status::text
+        INTO v_booking_id, v_booking_user_id, v_status
+        FROM booking_lines bl
+        JOIN bookings b ON bl.bookings_id = b.bookings_id
+        WHERE bl.booking_lines_id = p_ticket_id AND bl.kind = 'Ticket'
         FOR UPDATE;
 
     IF v_booking_id IS NULL THEN
@@ -20,10 +22,16 @@ BEGIN
         RETURN;
     END IF;
 
+    IF v_booking_user_id <> p_user_id AND NOT app.is_developer() THEN
+        RETURN QUERY SELECT false, 'Only the booking purchaser can claim this ticket for themselves.';
+        RETURN;
+    END IF;
+
     IF v_status NOT IN ('Unassigned', 'Invited') THEN
         RETURN QUERY SELECT false, 'This ticket has already been claimed. Revoke it first.';
         RETURN;
     END IF;
+
 
     SELECT COUNT(*) INTO v_already_count
         FROM booking_lines

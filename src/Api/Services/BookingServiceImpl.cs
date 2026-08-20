@@ -386,10 +386,33 @@ public sealed partial class BookingServiceImpl : BookingService.BookingServiceBa
         var ct = context.CancellationToken;
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         var bookingId = Guid.Parse(request.Value);
+
+        var isPublicViewer = tenantContext.Role == Lookups.UserRoles.PublicViewer;
+        if (isPublicViewer)
+        {
+            if (tenantContext.UsersId is null)
+            {
+                throw new RpcException(new Status(StatusCode.Unauthenticated, "Authentication required"));
+            }
+        }
+        else
+        {
+            await EventAccess.RequireResolvedAsync(
+                connection, tenantContext, "SELECT events_id FROM vw_bookings WHERE bookings_id = @key", bookingId, ct);
+        }
+
+        var sql = isPublicViewer
+            ? BookingSelect + " WHERE b.bookings_id = @id AND b.users_id = @u"
+            : BookingSelect + " WHERE b.bookings_id = @id";
+
         Booking booking;
-        await using (var cmd = new NpgsqlCommand(BookingSelect + " WHERE b.bookings_id = @id", connection))
+        await using (var cmd = new NpgsqlCommand(sql, connection))
         {
             cmd.Parameters.AddWithValue("id", bookingId);
+            if (isPublicViewer)
+            {
+                cmd.Parameters.AddWithValue("u", tenantContext.UsersId!);
+            }
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             if (!await reader.ReadAsync(ct))
             {
@@ -443,12 +466,26 @@ public sealed partial class BookingServiceImpl : BookingService.BookingServiceBa
         var response = new ListBookingsResponse { Meta = new PageMeta { Offset = page.Offset, Limit = page.Limit } };
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
 
+        var isPublicViewer = tenantContext.Role == Lookups.UserRoles.PublicViewer;
         var hasEvent = Guid.TryParse(request.EventsId, out var eventId) && eventId != Guid.Empty;
         var search = (page.Search ?? string.Empty).Trim();
         var hasSearch = search.Length > 0;
 
         var sqlBuilder = new StringBuilder(BookingSelect);
         sqlBuilder.Append(" WHERE b.status = 'Paid'");
+        if (isPublicViewer)
+        {
+            if (tenantContext.UsersId is null)
+            {
+                return response;
+            }
+            sqlBuilder.Append(" AND b.users_id = @u");
+        }
+        else if (tenantContext.IsEventScoped && hasEvent)
+        {
+            await EventAccess.RequireAsync(connection, tenantContext, eventId, ct);
+        }
+
         if (hasEvent)
         {
             sqlBuilder.Append(" AND b.events_id = @ev");
@@ -460,6 +497,10 @@ public sealed partial class BookingServiceImpl : BookingService.BookingServiceBa
         sqlBuilder.Append(" ORDER BY b.created_at DESC LIMIT @lim OFFSET @off");
 
         await using var cmd = new NpgsqlCommand(sqlBuilder.ToString(), connection);
+        if (isPublicViewer)
+        {
+            cmd.Parameters.AddWithValue("u", tenantContext.UsersId!);
+        }
         if (hasEvent)
         {
             cmd.Parameters.AddWithValue("ev", eventId);
@@ -479,6 +520,7 @@ public sealed partial class BookingServiceImpl : BookingService.BookingServiceBa
         response.Meta.Total = response.Bookings.Count;
         return response;
     }
+
 
     private const string BookingSelect =
         "SELECT b.bookings_id, b.booking_number, b.status, b.users_id, b.events_id, b.subtotal_cents, b.fee_cents, b.total_cents, "

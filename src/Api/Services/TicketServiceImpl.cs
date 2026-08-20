@@ -52,15 +52,36 @@ public sealed class TicketServiceImpl : TicketService.TicketServiceBase
     {
         var ct = context.CancellationToken;
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
-        await EventAccess.RequireResolvedAsync(
-            connection, tenantContext, "SELECT events_id FROM vw_tickets WHERE ticket_id = @key", Guid.Parse(request.Value), ct);
+        var ticketId = Guid.Parse(request.Value);
+        var isPublicViewer = tenantContext.Role == Lookups.UserRoles.PublicViewer;
+        if (isPublicViewer)
+        {
+            if (tenantContext.UsersId is null)
+            {
+                throw new RpcException(new Status(StatusCode.Unauthenticated, "Authentication required"));
+            }
+            await using var verifyCmd = new NpgsqlCommand(
+                "SELECT 1 FROM vw_tickets WHERE ticket_id = @id AND (guest_users_id = @u OR booking_user_id = @u)", connection);
+            verifyCmd.Parameters.AddWithValue("id", ticketId);
+            verifyCmd.Parameters.AddWithValue("u", tenantContext.UsersId!);
+            if (await verifyCmd.ExecuteScalarAsync(ct) is null)
+            {
+                throw new RpcException(new Status(StatusCode.NotFound, "Ticket not found"));
+            }
+        }
+        else
+        {
+            await EventAccess.RequireResolvedAsync(
+                connection, tenantContext, "SELECT events_id FROM vw_tickets WHERE ticket_id = @key", ticketId, ct);
+        }
+
         await using var cmd = new NpgsqlCommand(
             "SELECT t.ticket_id, t.ticket_code, t.qr_token, t.seat_number, t.status, t.guest_users_id, "
             + "t.event_title, t.event_start_date, t.venue_name, t.event_slug, t.booking_number, t.ticket_type_label, "
             + "t.invited_email, t.invite_sent_at "
             + "FROM vw_tickets t "
             + "WHERE t.ticket_id = @id", connection);
-        cmd.Parameters.AddWithValue("id", Guid.Parse(request.Value));
+        cmd.Parameters.AddWithValue("id", ticketId);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct))
         {
@@ -74,15 +95,36 @@ public sealed class TicketServiceImpl : TicketService.TicketServiceBase
         var ct = context.CancellationToken;
         var response = new ListTicketsResponse();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
-        await EventAccess.RequireResolvedAsync(
-            connection, tenantContext, "SELECT events_id FROM vw_bookings WHERE bookings_id = @key", Guid.Parse(request.Value), ct);
+        var bookingId = Guid.Parse(request.Value);
+        var isPublicViewer = tenantContext.Role == Lookups.UserRoles.PublicViewer;
+        if (isPublicViewer)
+        {
+            if (tenantContext.UsersId is null)
+            {
+                throw new RpcException(new Status(StatusCode.Unauthenticated, "Authentication required"));
+            }
+            await using var verifyCmd = new NpgsqlCommand(
+                "SELECT 1 FROM vw_bookings WHERE bookings_id = @id AND users_id = @u", connection);
+            verifyCmd.Parameters.AddWithValue("id", bookingId);
+            verifyCmd.Parameters.AddWithValue("u", tenantContext.UsersId!);
+            if (await verifyCmd.ExecuteScalarAsync(ct) is null)
+            {
+                throw new RpcException(new Status(StatusCode.NotFound, "Booking not found"));
+            }
+        }
+        else
+        {
+            await EventAccess.RequireResolvedAsync(
+                connection, tenantContext, "SELECT events_id FROM vw_bookings WHERE bookings_id = @key", bookingId, ct);
+        }
+
         await using var cmd = new NpgsqlCommand(
             "SELECT t.ticket_id, t.ticket_code, t.qr_token, t.seat_number, t.status, t.guest_users_id, "
             + "t.event_title, t.event_start_date, t.venue_name, t.event_slug, t.booking_number, t.ticket_type_label, "
             + "t.invited_email, t.invite_sent_at "
             + "FROM vw_tickets t "
             + "WHERE t.bookings_id = @p ORDER BY t.seat_number", connection);
-        cmd.Parameters.AddWithValue("p", Guid.Parse(request.Value));
+        cmd.Parameters.AddWithValue("p", bookingId);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
         {
@@ -115,6 +157,10 @@ public sealed class TicketServiceImpl : TicketService.TicketServiceBase
     public override async Task<AckResponse> InviteTicket(InviteTicketRequest request, ServerCallContext context)
     {
         var ct = context.CancellationToken;
+        if (tenantContext.UsersId is null)
+        {
+            throw new RpcException(new Status(StatusCode.Unauthenticated, "Authentication required"));
+        }
         var token = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
         var hash = EmailHasher.Hash(token);
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
@@ -125,6 +171,7 @@ public sealed class TicketServiceImpl : TicketService.TicketServiceBase
         cmd.Parameters.AddWithValue("email", request.Email);
         cmd.Parameters.AddWithValue("exp", DateTime.UtcNow.AddDays(14));
         var ok = (bool)(await cmd.ExecuteScalarAsync(ct))!;
+
 
         if (ok)
         {
