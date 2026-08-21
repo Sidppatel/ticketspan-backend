@@ -29,6 +29,9 @@ service EventService {
   rpc SetPrimaryEventImage (RemoveEventImageRequest) returns (ticketspan.common.AckResponse);
   rpc ReorderEventImages (ReorderEventImagesRequest) returns (ticketspan.common.AckResponse);
   rpc GetMediaSettings (ticketspan.common.Empty) returns (MediaSettings);
+  rpc GetEventReminderSettings (ticketspan.common.UuidValue) returns (EventReminderSettings);
+  rpc UpdateEventReminderSettings (UpdateEventReminderSettingsRequest) returns (ticketspan.common.AckResponse);
+  rpc TriggerManualEventReminder (ticketspan.common.UuidValue) returns (TriggerManualEventReminderResponse);
 }
 
 message EventImage {
@@ -214,4 +217,30 @@ message EventStats {
   int32 tickets_sold = 3;
   int64 revenue_cents = 4;
   int32 checked_in = 5;
+}
+
+message EventReminderSettings {
+  string events_id = 1;
+  bool reminders_enabled = 2;
+  bool reminder_7d_sent = 3;
+  bool reminder_48h_sent = 4;
+  int64 last_manual_reminder_at = 5;
+  int32 manual_reminder_count = 6;
+  int32 reminder_1_hours = 7;
+  int32 reminder_2_hours = 8;
+  int32 default_reminder_1_hours = 9;
+  int32 default_reminder_2_hours = 10;
+}
+
+message UpdateEventReminderSettingsRequest {
+  string events_id = 1;
+  bool reminders_enabled = 2;
+  int32 reminder_1_hours = 3;
+  int32 reminder_2_hours = 4;
+}
+
+message TriggerManualEventReminderResponse {
+  bool success = 1;
+  string message = 2;
+  int32 recipients_count = 3;
 }

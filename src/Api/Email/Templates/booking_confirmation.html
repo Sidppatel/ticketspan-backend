@@ -5,45 +5,97 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{Subject}}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f3f4f6;font-family:Arial,Helvetica,sans-serif;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f3f4f6;padding:32px 0;">
+<body style="margin:0;padding:0;background-color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f8fafc;padding:40px 16px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="560" cellspacing="0" cellpadding="0" style="background-color:#ffffff;border-radius:12px;overflow:hidden;">
+        <!-- Main Card Container -->
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:580px;background-color:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05),0 2px 4px -2px rgba(0,0,0,0.05);">
+          
+          <!-- Header -->
           <tr>
-            <td style="background-color:#4f46e5;padding:24px 32px;">
-              <span style="color:#ffffff;font-size:20px;font-weight:bold;">TicketSpan</span>
+            <td style="padding:28px 32px 24px;border-bottom:1px solid #f1f5f9;background-color:#ffffff;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td align="left" style="vertical-align:middle;">
+                    <table role="presentation" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td style="vertical-align:middle;padding-right:12px;">
+                          <table role="presentation" cellspacing="0" cellpadding="0" style="background:#0f172a;border-radius:8px;width:36px;height:36px;">
+                            <tr>
+                              <td align="center" valign="middle" style="color:#ffffff;font-size:15px;font-weight:800;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;letter-spacing:0.5px;">TS</td>
+                            </tr>
+                          </table>
+                        </td>
+                        <td style="vertical-align:middle;">
+                          <span style="font-size:18px;font-weight:700;letter-spacing:-0.3px;color:#0f172a;">TicketSpan</span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <span style="display:inline-block;padding:4px 10px;border-radius:9999px;font-size:12px;font-weight:600;background-color:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;">Confirmed</span>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
+
+          <!-- Body Content -->
           <tr>
             <td style="padding:32px;">
-              <h1 style="margin:0 0 16px;font-size:22px;color:#111827;">Your Booking Confirmation</h1>
-              <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">
-                Thank you for your purchase! Your booking is confirmed.
+              <h1 style="margin:0 0 12px;font-size:24px;font-weight:700;line-height:1.3;color:#0f172a;letter-spacing:-0.4px;">Your booking is confirmed!</h1>
+              <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#334155;">
+                Thank you for your order. Your tickets for <strong>{{EventTitle}}</strong> have been booked successfully.
               </p>
-              <h3 style="margin:24px 0 8px;font-size:16px;color:#111827;">Event Details</h3>
-              <p style="margin:0 0 4px;font-size:15px;color:#374151;"><strong>Event:</strong> {{EventTitle}}</p>
-              <p style="margin:0 0 4px;font-size:15px;color:#374151;"><strong>Date:</strong> {{EventDate}}</p>
-              <p style="margin:0 0 16px;font-size:15px;color:#374151;"><strong>Venue:</strong> {{VenueName}}</p>
-              
-              <h3 style="margin:24px 0 8px;font-size:16px;color:#111827;">Booking Info</h3>
-              <p style="margin:0 0 16px;font-size:15px;color:#374151;"><strong>Booking Reference:</strong> {{BookingNumber}}</p>
 
-              {{ReceiptContent}}
+              <!-- Event Details Card -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:24px;">
+                <tr>
+                  <td style="padding:20px;">
+                    <p style="margin:0 0 10px;font-size:17px;font-weight:700;color:#0f172a;">{{EventTitle}}</p>
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td style="padding:4px 0;font-size:14px;color:#64748b;width:75px;vertical-align:top;"><strong>Date:</strong></td>
+                        <td style="padding:4px 0;font-size:14px;color:#1e293b;">{{EventDate}}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:4px 0;font-size:14px;color:#64748b;width:75px;vertical-align:top;"><strong>Venue:</strong></td>
+                        <td style="padding:4px 0;font-size:14px;color:#1e293b;">{{VenueName}}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:4px 0;font-size:14px;color:#64748b;width:75px;vertical-align:top;"><strong>Ref #:</strong></td>
+                        <td style="padding:4px 0;font-size:14px;color:#1e293b;font-family:monospace;font-weight:600;">{{BookingNumber}}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
 
+              <!-- Ticket Lines -->
               {{TicketDetails}}
+
+              <!-- Receipt Table -->
+              <div style="margin-top:24px;">
+                <h3 style="margin:0 0 12px;font-size:15px;font-weight:700;color:#0f172a;text-transform:uppercase;letter-spacing:0.5px;">Payment Summary</h3>
+                {{ReceiptContent}}
+              </div>
+
             </td>
           </tr>
+
+          <!-- Footer -->
           <tr>
-            <td style="padding:20px 32px;background-color:#f9fafb;border-top:1px solid #e5e7eb;">
-              <p style="margin:0 0 8px;font-size:12px;color:#9ca3af;">
-                All ticket sales are final. No refunds.
+            <td style="padding:24px 32px;background-color:#f8fafc;border-top:1px solid #e2e8f0;">
+              <p style="margin:0 0 6px;font-size:12px;color:#64748b;line-height:1.5;">
+                All ticket sales are subject to the event organizer's policy. Present your digital ticket code or QR code at entry.
               </p>
-              <p style="margin:0;font-size:12px;color:#9ca3af;">
-                If you have any questions, please contact the event organizer.
+              <p style="margin:0;font-size:12px;color:#94a3b8;">
+                Powered by <strong>TicketSpan</strong> • Multi-Tenant Event Ticketing
               </p>
             </td>
           </tr>
+
         </table>
       </td>
     </tr>

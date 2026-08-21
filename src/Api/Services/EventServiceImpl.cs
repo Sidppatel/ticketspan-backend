@@ -3,6 +3,7 @@ using Grpc.Core;
 using Npgsql;
 using NpgsqlTypes;
 using TicketSpan.Api.Data;
+using TicketSpan.Api.Email;
 using TicketSpan.Api.Security;
 using TicketSpan.Protos.Common;
 using TicketSpan.Protos.Event;
@@ -13,11 +14,28 @@ public sealed partial class EventServiceImpl : EventService.EventServiceBase
 {
     private readonly Db db;
     private readonly TenantContext tenantContext;
+    private readonly IEmailService emailService;
+    private readonly EmailTemplateRenderer templates;
+    private readonly AppSettingsProvider settings;
+    private readonly ILogger<EventServiceImpl> logger;
+    private readonly IConfiguration configuration;
 
-    public EventServiceImpl(Db db, TenantContext tenantContext)
+    public EventServiceImpl(
+        Db db,
+        TenantContext tenantContext,
+        IEmailService emailService,
+        EmailTemplateRenderer templates,
+        AppSettingsProvider settings,
+        ILogger<EventServiceImpl> logger,
+        IConfiguration configuration)
     {
         this.db = db;
         this.tenantContext = tenantContext;
+        this.emailService = emailService;
+        this.templates = templates;
+        this.settings = settings;
+        this.logger = logger;
+        this.configuration = configuration;
     }
 
     public override async Task<CreateEventResponse> CreateEvent(CreateEventRequest request, ServerCallContext context)
@@ -543,4 +561,150 @@ public sealed partial class EventServiceImpl : EventService.EventServiceBase
 
     private Task RequireEventAccessAsync(NpgsqlConnection connection, Guid eventId, CancellationToken ct) =>
         EventAccess.RequireAsync(connection, tenantContext, eventId, ct);
+
+    private void RequireDeveloper()
+    {
+        if (!tenantContext.IsDeveloper)
+        {
+            throw new RpcException(new Status(StatusCode.PermissionDenied, "Developer privileges required"));
+        }
+    }
+
+    public override async Task<EventReminderSettings> GetEventReminderSettings(UuidValue request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        var eventId = Guid.Parse(request.Value);
+        await using var connection = await db.OpenBootstrapAsync(ct);
+        await using var cmd = new NpgsqlCommand(
+            "SELECT events_id, reminders_enabled, reminder_1_hours, reminder_2_hours, default_reminder_1_hours, default_reminder_2_hours, reminder_7d_sent, reminder_48h_sent, last_manual_reminder_at, manual_reminder_count " +
+            "FROM sp_get_event_reminder_settings(@id)", connection);
+        cmd.Parameters.AddWithValue("id", eventId);
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (await reader.ReadAsync(ct))
+        {
+            return new EventReminderSettings
+            {
+                EventsId = reader.GetGuid(0).ToString(),
+                RemindersEnabled = reader.GetBoolean(1),
+                Reminder1Hours = reader.GetInt32(2),
+                Reminder2Hours = reader.GetInt32(3),
+                DefaultReminder1Hours = reader.GetInt32(4),
+                DefaultReminder2Hours = reader.GetInt32(5),
+                Reminder7DSent = reader.GetBoolean(6),
+                Reminder48HSent = reader.GetBoolean(7),
+                LastManualReminderAt = reader.IsDBNull(8) ? 0 : new DateTimeOffset(reader.GetDateTime(8)).ToUnixTimeSeconds(),
+                ManualReminderCount = reader.GetInt32(9)
+            };
+        }
+
+        return new EventReminderSettings
+        {
+            EventsId = eventId.ToString(),
+            RemindersEnabled = true,
+            Reminder1Hours = 168,
+            Reminder2Hours = 48,
+            DefaultReminder1Hours = 168,
+            DefaultReminder2Hours = 48
+        };
+    }
+
+    public override async Task<AckResponse> UpdateEventReminderSettings(UpdateEventReminderSettingsRequest request, ServerCallContext context)
+    {
+        RequireDeveloper();
+        var ct = context.CancellationToken;
+        var eventId = Guid.Parse(request.EventsId);
+        await using var connection = await db.OpenBootstrapAsync(ct);
+        await using var cmd = new NpgsqlCommand("SELECT sp_set_event_reminder_settings(@id, @enabled, @r1, @r2)", connection);
+        cmd.Parameters.AddWithValue("id", eventId);
+        cmd.Parameters.AddWithValue("enabled", request.RemindersEnabled);
+        cmd.Parameters.AddWithValue("r1", request.Reminder1Hours > 0 ? request.Reminder1Hours : DBNull.Value);
+        cmd.Parameters.AddWithValue("r2", request.Reminder2Hours > 0 ? request.Reminder2Hours : DBNull.Value);
+        await cmd.ExecuteNonQueryAsync(ct);
+        return new AckResponse { Success = true, Message = "Reminder settings updated" };
+    }
+
+    public override async Task<TriggerManualEventReminderResponse> TriggerManualEventReminder(UuidValue request, ServerCallContext context)
+    {
+        RequireDeveloper();
+        var ct = context.CancellationToken;
+        var eventId = Guid.Parse(request.Value);
+        await using var connection = await db.OpenBootstrapAsync(ct);
+
+        var attendees = new List<(string Email, string EventTitle, DateTime StartDate, string VenueName, string VenueAddress, string TenantSlug, string TenantName)>();
+        await using (var cmd = new NpgsqlCommand(
+            "SELECT email, event_title, start_date, venue_name, venue_address, tenant_slug, tenant_name " +
+            "FROM sp_get_event_attendee_emails(@id)", connection))
+        {
+            cmd.Parameters.AddWithValue("id", eventId);
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                attendees.Add((
+                    reader.GetString(0),
+                    reader.GetString(1),
+                    reader.GetDateTime(2),
+                    reader.GetString(3),
+                    reader.GetString(4),
+                    reader.GetString(5),
+                    reader.GetString(6)
+                ));
+            }
+        }
+
+        if (attendees.Count == 0)
+        {
+            return new TriggerManualEventReminderResponse
+            {
+                Success = true,
+                Message = "No confirmed attendees found for this event",
+                RecipientsCount = 0
+            };
+        }
+
+        var fromAddress = await settings.GetStringAsync("admin_invitation_email", "noreply@ticketspan.com", ct);
+        var publicBase = configuration["FRONTEND_PUBLIC_URL"] ?? "http://localhost:5173";
+
+        foreach (var att in attendees)
+        {
+            try
+            {
+                var eventLink = string.IsNullOrEmpty(att.TenantSlug)
+                    ? $"{publicBase.TrimEnd('/')}/e/{eventId}"
+                    : $"http://{att.TenantSlug}.localhost:5173/e/{eventId}";
+                
+                var values = new Dictionary<string, string>
+                {
+                    ["Subject"] = $"Reminder: {att.EventTitle} is coming up!",
+                    ["ReminderBadge"] = "Event Reminder",
+                    ["EventTitle"] = att.EventTitle,
+                    ["EventDate"] = att.StartDate.ToString("f"),
+                    ["VenueName"] = att.VenueName,
+                    ["VenueAddress"] = string.IsNullOrEmpty(att.VenueAddress) ? "See event details for venue directions" : att.VenueAddress,
+                    ["EventLink"] = eventLink,
+                    ["TenantName"] = att.TenantName
+                };
+
+                var htmlBody = await templates.RenderAsync("event_reminder.html", values, ct);
+                await emailService.SendAsync(fromAddress, att.Email, $"Reminder: {att.EventTitle} is coming up!", htmlBody, ct);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to send manual event reminder to {Email}", att.Email);
+            }
+        }
+
+        await using (var markCmd = new NpgsqlCommand("SELECT sp_mark_event_reminder_sent(@id, 'manual')", connection))
+        {
+            markCmd.Parameters.AddWithValue("id", eventId);
+            await markCmd.ExecuteNonQueryAsync(ct);
+        }
+
+        return new TriggerManualEventReminderResponse
+        {
+            Success = true,
+            Message = $"Reminders dispatched to {attendees.Count} ticket holder(s)",
+            RecipientsCount = attendees.Count
+        };
+    }
 }

@@ -130,6 +130,7 @@ builder.Services.AddHttpClient("salestaxzip");
 builder.Services.AddSingleton<TicketSpan.Api.Payments.SalesTaxService>();
 builder.Services.AddHostedService<TicketSpan.Api.Payments.HoldExpiryWorker>();
 builder.Services.AddHostedService<TicketSpan.Api.Payments.BillingWorker>();
+builder.Services.AddHostedService<TicketSpan.Api.Services.EventReminderWorker>();
 
 var jwtService = new JwtTokenService(builder.Configuration);
 var validation = jwtService.ValidationParameters;

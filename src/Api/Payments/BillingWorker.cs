@@ -17,13 +17,15 @@ public sealed class BillingWorker : BackgroundService
     private static readonly TimeSpan Interval = TimeSpan.FromHours(1);
     private readonly Db db;
     private readonly IEmailService emailService;
+    private readonly EmailTemplateRenderer templates;
     private readonly ILogger<BillingWorker> logger;
     private readonly ErrorLogger errorLogger;
 
-    public BillingWorker(Db db, IEmailService emailService, ILogger<BillingWorker> logger, ErrorLogger errorLogger)
+    public BillingWorker(Db db, IEmailService emailService, EmailTemplateRenderer templates, ILogger<BillingWorker> logger, ErrorLogger errorLogger)
     {
         this.db = db;
         this.emailService = emailService;
+        this.templates = templates;
         this.logger = logger;
         this.errorLogger = errorLogger;
     }
@@ -118,13 +120,17 @@ public sealed class BillingWorker : BackgroundService
             if (email is not null)
             {
                 var daysLeft = Math.Max((int)Math.Ceiling((reminder.EndsAt - DateTime.UtcNow).TotalDays), 0);
-                await emailService.SendAsync(
-                    "noreply@ticketspan.com", email,
-                    $"Your ticketspan trial ends in {daysLeft} day{(daysLeft == 1 ? "" : "s")}",
-                    $"<p>Hi {tenantName},</p><p>Your 14-day Professional trial ends on "
-                    + $"{reminder.EndsAt:MMMM d, yyyy}. Subscribe to keep Advanced Analytics and your "
-                    + "trial features — or do nothing and your account returns to the free plan.</p>",
-                    ct);
+                var subject = $"Your TicketSpan trial ends in {daysLeft} day{(daysLeft == 1 ? "" : "s")}";
+                var values = new Dictionary<string, string>
+                {
+                    ["Subject"] = subject,
+                    ["TenantName"] = tenantName ?? "your workspace",
+                    ["DaysLeft"] = daysLeft.ToString(),
+                    ["TrialEndDate"] = reminder.EndsAt.ToString("MMMM d, yyyy"),
+                    ["BillingLink"] = "http://admin.localhost:5173/billing"
+                };
+                var htmlBody = await templates.RenderAsync("trial_reminder.html", values, ct);
+                await emailService.SendAsync("noreply@ticketspan.com", email, subject, htmlBody, ct);
             }
 
             await using var markCmd = new NpgsqlCommand("SELECT sp_mark_trial_reminder(@id, @day)", connection);

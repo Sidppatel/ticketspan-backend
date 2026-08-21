@@ -23,6 +23,45 @@ public sealed partial class AuthServiceImpl
         cmd.Parameters.AddWithValue("exp", DateTime.UtcNow.AddMinutes(15));
         cmd.Parameters.AddWithValue("t", (object?)tenantsId ?? DBNull.Value);
         await cmd.ExecuteNonQueryAsync(ct);
+
+        try
+        {
+            var fromAddress = await settings.GetStringAsync("magic_link_email", "noreply@ticketspan.com", ct);
+            var subject = await settings.GetStringAsync("magic_link_subject", "Your TicketSpan Sign-In Link", ct);
+            
+            string linkBase;
+            if (!string.IsNullOrEmpty(request.Origin))
+            {
+                linkBase = $"{request.Origin.TrimEnd('/')}/magic-login";
+            }
+            else
+            {
+                var template = await settings.GetStringAsync("magic_link_base", "http://{slug}.localhost:5173/magic-login", ct);
+                linkBase = string.IsNullOrEmpty(request.TenantSlug)
+                    ? template.Replace("{slug}.", string.Empty).Replace("{slug}", string.Empty)
+                    : template.Replace("{slug}", request.TenantSlug);
+            }
+            
+            var separator = linkBase.Contains('?') ? "&" : "?";
+            var magicLink = $"{linkBase}{separator}token={token}";
+            if (!string.IsNullOrEmpty(request.TenantSlug))
+            {
+                magicLink += $"&tenant={Uri.EscapeDataString(request.TenantSlug)}";
+            }
+            var values = new Dictionary<string, string>
+            {
+                ["Subject"] = subject,
+                ["Email"] = request.Email,
+                ["MagicLink"] = magicLink
+            };
+            var htmlBody = await templates.RenderAsync("magic_link.html", values, ct);
+            await email.SendAsync(fromAddress, request.Email, subject, htmlBody, ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send magic link email to {Email}", request.Email);
+        }
+
         return new TicketSpan.Protos.Common.AckResponse { Success = true, Message = "Magic link sent" };
     }
 

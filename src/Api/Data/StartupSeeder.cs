@@ -64,6 +64,7 @@ public sealed class StartupSeeder
         ("sponsor_image_aspect_ratio", "1:1", "Crop and display aspect ratio for sponsor logos."),
         ("performer_image_aspect_ratio", "1:1", "Crop and display aspect ratio for performer photos."),
         ("venue_image_aspect_ratio", "16:9", "Crop and display aspect ratio for venue photos."),
+        ("event_reminder", "[168, 48]", "reminder hours"),
     };
 
     public async Task SeedAsync(CancellationToken ct)

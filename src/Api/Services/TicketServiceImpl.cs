@@ -300,6 +300,77 @@ public sealed class TicketServiceImpl : TicketService.TicketServiceBase
         return response;
     }
 
+    public override async Task<AckResponse> SendTicketEmail(UuidValue request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        var ticketId = Guid.Parse(request.Value);
+        await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+
+        string recipientEmail = "";
+        string ticketCode = "";
+        int seatNumber = 0;
+        string eventTitle = "";
+        DateTime eventStartDate = DateTime.MinValue;
+        string venueName = "";
+
+        await using (var cmd = new NpgsqlCommand(
+            "SELECT COALESCE(tk.invited_email, gu.email, bu.email), tk.ticket_code, tk.seat_number, e.title, e.start_date, v.name " +
+            "FROM tickets tk " +
+            "JOIN bookings b ON b.bookings_id = tk.bookings_id " +
+            "JOIN events e ON e.events_id = b.events_id " +
+            "JOIN users bu ON bu.users_id = b.users_id " +
+            "LEFT JOIN users gu ON gu.users_id = tk.guest_users_id " +
+            "LEFT JOIN venues v ON v.venues_id = e.venues_id " +
+            "WHERE tk.tickets_id = @id", connection))
+        {
+            cmd.Parameters.AddWithValue("id", ticketId);
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            if (await reader.ReadAsync(ct))
+            {
+                recipientEmail = reader.IsDBNull(0) ? "" : reader.GetString(0);
+                ticketCode = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                seatNumber = reader.GetInt32(2);
+                eventTitle = reader.IsDBNull(3) ? "" : reader.GetString(3);
+                eventStartDate = reader.IsDBNull(4) ? DateTime.UtcNow : reader.GetDateTime(4);
+                venueName = reader.IsDBNull(5) ? "Online / Venue" : reader.GetString(5);
+            }
+        }
+
+        if (string.IsNullOrEmpty(recipientEmail))
+        {
+            throw new RpcException(new Status(StatusCode.NotFound, "No recipient email found for this ticket"));
+        }
+
+        try
+        {
+            var fromAddress = await settings.GetStringAsync("admin_invitation_email", "noreply@ticketspan.com", ct);
+            var subject = $"Your Ticket Pass: {eventTitle}";
+            var linkBase = TenantClaimLinkBase();
+            var ticketPassLink = $"{linkBase}?ticket={ticketCode}";
+
+            var values = new Dictionary<string, string>
+            {
+                ["Subject"] = subject,
+                ["EventTitle"] = eventTitle,
+                ["EventDate"] = eventStartDate.ToString("f"),
+                ["VenueName"] = venueName,
+                ["TicketCode"] = ticketCode,
+                ["SeatNumber"] = seatNumber.ToString(),
+                ["TicketPassLink"] = ticketPassLink
+            };
+
+            var htmlBody = await templates.RenderAsync("ticket_delivery.html", values, ct);
+            await email.SendAsync(fromAddress, recipientEmail, subject, htmlBody, ct);
+            logger.LogInformation("Ticket delivery email sent to {Email} for Ticket: {TicketCode}", recipientEmail, ticketCode);
+            return new AckResponse { Success = true, Message = "Ticket pass sent to email" };
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send ticket delivery email to {Email}", recipientEmail);
+            return new AckResponse { Success = false, Message = "Failed to send email" };
+        }
+    }
+
     private static Ticket MapTicket(NpgsqlDataReader reader)
     {
         var ticket = new Ticket

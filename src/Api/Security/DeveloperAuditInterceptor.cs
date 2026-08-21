@@ -113,6 +113,7 @@ public sealed class DeveloperAuditInterceptor : Interceptor
         CancellationToken ct)
     {
         var emailService = httpContext.RequestServices.GetRequiredService<IEmailService>();
+        var templates = httpContext.RequestServices.GetRequiredService<EmailTemplateRenderer>();
         var settings = httpContext.RequestServices.GetRequiredService<AppSettingsProvider>();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         string tenantName;
@@ -146,12 +147,18 @@ public sealed class DeveloperAuditInterceptor : Interceptor
             "DeleteEvent" => "removed an event",
             _ => "updated your events",
         };
-        var detail = string.IsNullOrEmpty(eventTitle) ? string.Empty : $" (<strong>{System.Net.WebUtility.HtmlEncode(eventTitle)}</strong>)";
+        var detail = string.IsNullOrEmpty(eventTitle) ? string.Empty : $" ({System.Net.WebUtility.HtmlEncode(eventTitle)})";
         var subject = $"TicketSpan team update for {tenantName}";
-        var htmlBody =
-            $"<p>Hello,</p><p>The TicketSpan team {actionText}{detail} in your workspace <strong>{System.Net.WebUtility.HtmlEncode(tenantName)}</strong>.</p>"
-            + "<p>You can review it in your admin dashboard under Events.</p>"
-            + "<p>— TicketSpan</p>";
+        
+        var values = new Dictionary<string, string>
+        {
+            ["Subject"] = subject,
+            ["ActionText"] = actionText,
+            ["EventDetail"] = detail,
+            ["TenantName"] = tenantName,
+            ["DashboardLink"] = "http://admin.localhost:5173/events"
+        };
+        var htmlBody = await templates.RenderAsync("developer_audit_notification.html", values, ct);
         var fromAddress = await settings.GetStringAsync("developer_notification_email", "noreply@ticketspan.com", ct);
         foreach (var email in adminEmails)
         {

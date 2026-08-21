@@ -80,35 +80,35 @@ public static class BookingEmailSender
 
             
             var receiptBuilder = new StringBuilder();
-            receiptBuilder.Append("<table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"margin-top:16px;border-top:1px solid #e5e7eb;padding-top:16px;\">");
+            receiptBuilder.Append("<table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"border:1px solid #e2e8f0;border-radius:8px;background-color:#f8fafc;padding:12px 16px;\">");
             
             if (feesIncluded)
             {
-                
-                receiptBuilder.Append($"<tr><td style=\"font-size:15px;color:#374151;padding:4px 0;\">Tax:</td><td align=\"right\" style=\"font-size:15px;color:#374151;padding:4px 0;\">${taxCents / 100.0:F2}</td></tr>");
-                receiptBuilder.Append($"<tr><td style=\"font-size:15px;color:#374151;padding:4px 0;\"><strong>Total:</strong></td><td align=\"right\" style=\"font-size:15px;color:#374151;padding:4px 0;\"><strong>${totalCents / 100.0:F2}</strong></td></tr>");
+                receiptBuilder.Append($"<tr><td style=\"font-size:14px;color:#64748b;padding:6px 0;\">Estimated Tax:</td><td align=\"right\" style=\"font-size:14px;color:#334155;padding:6px 0;\">${taxCents / 100.0:F2}</td></tr>");
+                receiptBuilder.Append($"<tr><td style=\"font-size:15px;font-weight:700;color:#0f172a;padding:8px 0 2px;border-top:1px solid #e2e8f0;\">Total Paid:</td><td align=\"right\" style=\"font-size:16px;font-weight:700;color:#0f172a;padding:8px 0 2px;border-top:1px solid #e2e8f0;\">${totalCents / 100.0:F2}</td></tr>");
             }
             else
             {
-                
-                receiptBuilder.Append($"<tr><td style=\"font-size:15px;color:#374151;padding:4px 0;\">Subtotal:</td><td align=\"right\" style=\"font-size:15px;color:#374151;padding:4px 0;\">${subtotalCents / 100.0:F2}</td></tr>");
-                receiptBuilder.Append($"<tr><td style=\"font-size:15px;color:#374151;padding:4px 0;\">Service fee:</td><td align=\"right\" style=\"font-size:15px;color:#374151;padding:4px 0;\">${serviceFeeCents / 100.0:F2}</td></tr>");
-                receiptBuilder.Append($"<tr><td style=\"font-size:15px;color:#374151;padding:4px 0;\">Tax:</td><td align=\"right\" style=\"font-size:15px;color:#374151;padding:4px 0;\">${taxCents / 100.0:F2}</td></tr>");
-                receiptBuilder.Append($"<tr><td style=\"font-size:15px;color:#374151;padding:4px 0;\"><strong>Total:</strong></td><td align=\"right\" style=\"font-size:15px;color:#374151;padding:4px 0;\"><strong>${totalCents / 100.0:F2}</strong></td></tr>");
+                receiptBuilder.Append($"<tr><td style=\"font-size:14px;color:#64748b;padding:4px 0;\">Subtotal:</td><td align=\"right\" style=\"font-size:14px;color:#334155;padding:4px 0;\">${subtotalCents / 100.0:F2}</td></tr>");
+                receiptBuilder.Append($"<tr><td style=\"font-size:14px;color:#64748b;padding:4px 0;\">Service fee:</td><td align=\"right\" style=\"font-size:14px;color:#334155;padding:4px 0;\">${serviceFeeCents / 100.0:F2}</td></tr>");
+                receiptBuilder.Append($"<tr><td style=\"font-size:14px;color:#64748b;padding:4px 0;\">Tax:</td><td align=\"right\" style=\"font-size:14px;color:#334155;padding:4px 0;\">${taxCents / 100.0:F2}</td></tr>");
+                receiptBuilder.Append($"<tr><td style=\"font-size:15px;font-weight:700;color:#0f172a;padding:8px 0 2px;border-top:1px solid #e2e8f0;\">Total Paid:</td><td align=\"right\" style=\"font-size:16px;font-weight:700;color:#0f172a;padding:8px 0 2px;border-top:1px solid #e2e8f0;\">${totalCents / 100.0:F2}</td></tr>");
             }
             receiptBuilder.Append("</table>");
 
-            
             var ticketBuilder = new StringBuilder();
             if (ticketsList.Count > 0)
             {
-                ticketBuilder.Append("<h3 style=\"margin:24px 0 8px;font-size:16px;color:#111827;\">Your Tickets</h3>");
-                ticketBuilder.Append("<ul style=\"margin:0;padding-left:20px;font-size:15px;color:#374151;\">");
+                ticketBuilder.Append("<h3 style=\"margin:24px 0 12px;font-size:15px;font-weight:700;color:#0f172a;text-transform:uppercase;letter-spacing:0.5px;\">Your Tickets</h3>");
+                ticketBuilder.Append("<table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"margin-bottom:16px;\">");
                 foreach (var ticket in ticketsList)
                 {
-                    ticketBuilder.Append($"<li style=\"margin-bottom:8px;\"><strong>Ticket Code:</strong> {ticket.code} (Seat: {ticket.seat})</li>");
+                    ticketBuilder.Append("<tr><td style=\"padding:8px 12px;background:#ffffff;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:6px;\">");
+                    ticketBuilder.Append($"<span style=\"font-size:14px;font-weight:600;color:#0f172a;font-family:monospace;\">{ticket.code}</span>");
+                    ticketBuilder.Append($"<span style=\"font-size:13px;color:#64748b;margin-left:12px;\">(Seat: {ticket.seat})</span>");
+                    ticketBuilder.Append("</td></tr>");
                 }
-                ticketBuilder.Append("</ul>");
+                ticketBuilder.Append("</table>");
             }
 
             var fromAddress = await settings.GetStringAsync("admin_invitation_email", "noreply@ticketspan.com", ct);
