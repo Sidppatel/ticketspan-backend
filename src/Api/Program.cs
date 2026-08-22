@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.IdentityModel.Tokens;
 using TicketSpan.Api.Data;
+using TicketSpan.Api.Endpoints;
+using TicketSpan.Api.Endpoints.V1;
 using TicketSpan.Api.Middleware;
 using TicketSpan.Api.Security;
 using TicketSpan.Api.Services;
@@ -84,7 +86,19 @@ builder.Services.AddCors(options =>
                 "Retry-After");
     }));
 
+builder.Services.AddTicketSpanApiVersioning();
 builder.Services.AddTransient<TicketSpan.Api.Services.AuthServiceImpl>();
+builder.Services.AddTransient<TicketSpan.Api.Services.TenantServiceImpl>();
+builder.Services.AddTransient<TicketSpan.Api.Services.EventServiceImpl>();
+builder.Services.AddTransient<TicketSpan.Api.Services.VenueServiceImpl>();
+builder.Services.AddTransient<TicketSpan.Api.Services.PerformerServiceImpl>();
+builder.Services.AddTransient<TicketSpan.Api.Services.SponsorServiceImpl>();
+builder.Services.AddTransient<TicketSpan.Api.Services.BookingServiceImpl>();
+builder.Services.AddTransient<TicketSpan.Api.Services.CheckInServiceImpl>();
+builder.Services.AddTransient<TicketSpan.Api.Services.TicketServiceImpl>();
+builder.Services.AddTransient<TicketSpan.Api.Services.TableBookingServiceImpl>();
+builder.Services.AddTransient<TicketSpan.Api.Services.DashboardServiceImpl>();
+builder.Services.AddTransient<TicketSpan.Api.Services.ReportingServiceImpl>();
 builder.Services.AddGrpc(options =>
 {
     options.Interceptors.Add<TicketSpan.Api.ErrorHandling.ErrorLoggingInterceptor>();
@@ -195,7 +209,16 @@ app.MapGrpcService<ReportingServiceImpl>();
 app.MapGrpcService<TenantTierServiceImpl>();
 app.MapGrpcService<DeveloperBillingServiceImpl>();
 app.MapGrpcService<MaintenanceServiceImpl>();
-app.MapGet("/", () => "TicketSpan gRPC API");
+var v1 = app.CreateVersionedApiGroup(1, 0);
+v1.MapAuthApiV1();
+v1.MapEventApiV1();
+v1.MapBookingApiV1();
+v1.MapTicketApiV1();
+v1.MapCheckInApiV1();
+v1.MapCatalogApiV1();
+v1.MapAdminApiV1();
+app.MapOpenApi();
+app.MapGet("/", () => "TicketSpan API");
 app.MapGet("/health/live", () => Results.Ok("live"));
 app.MapGet("/health/ready", async (Db db, CancellationToken ct) =>
 {

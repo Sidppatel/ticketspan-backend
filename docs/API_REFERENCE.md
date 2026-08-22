@@ -87,6 +87,60 @@ Tax is computed on the taxable amount (`selling_price + platform_fee + gateway_f
 - `FeeService.AssignFeeFormula(kind, target_id, fee_formulas_id, reason)` → Ack — attaches/clears a formula on a ticket type or table type. `reason` required for developers; every change writes an `audit_logs` row (`FeeOverride` / `fee_formula_assigned` with kind, from, to, reason). Non-developers are blocked from changing the fee on items with sales (same sale-locking rule).
 - `PricingService.SetTenantDefaultFeeFormula(tenants_id, fee_formulas_id, reason)` → Ack — developer-only tenant-level override; `reason` required; audited (`FeeOverride` / `tenant_default_fee_changed` with from/to/reason).
 
+## Versioned REST API (v1)
+
+Base Path: `/api/v1` (with support for `X-Api-Version: 1.0` and `?api-version=1.0`). OpenAPI Definition: `/openapi/v1.json`.
+
+### Auth Endpoints (`/api/v1/auth`)
+- `POST /api/v1/auth/login` — Authenticate user credentials, returns `AuthApiResponse` with JWT.
+- `POST /api/v1/auth/signup` — Register new attendee.
+- `POST /api/v1/auth/google` — Authenticate with Google ID token.
+- `POST /api/v1/auth/magic-link/request` — Request passwordless magic link email.
+- `POST /api/v1/auth/magic-link/verify` — Verify magic link token and log in.
+- `POST /api/v1/auth/password-reset/request` — Request password reset link.
+- `POST /api/v1/auth/password-reset/confirm` — Set new password using token.
+- `GET  /api/v1/auth/me` — (Auth Required) Get current user profile.
+
+### Events Endpoints (`/api/v1/events`)
+- `GET /api/v1/events` — List published events with pagination, category filter, and search.
+- `GET /api/v1/events/{slugOrId}` — Get detailed event information including venue, pricing, and media.
+- `GET /api/v1/events/{id}/ticket-types` — Get active ticket tiers, pricing, fees, and remaining inventory.
+- `GET /api/v1/events/{id}/tables` — Get table layout and seat booking availability.
+- `GET /api/v1/events/{id}/schedule` — Get event schedule items and set times.
+
+### Bookings Endpoints (`/api/v1/bookings`)
+- `POST /api/v1/bookings/reserve` — Create atomic 10-minute hold on open-capacity tickets.
+- `POST /api/v1/bookings/tables/lock` — Lock a specific table for 10 minutes.
+- `POST /api/v1/bookings/tables/release` — Release a locked table.
+- `POST /api/v1/bookings/payment-intent` — Create Stripe PaymentIntent for checkout.
+- `GET  /api/v1/bookings/{bookingId}` — Retrieve booking details, invoice breakdown, and tickets.
+
+### Digital Tickets Endpoints (`/api/v1/tickets`)
+- `GET  /api/v1/tickets/my` — (Auth Required) List authenticated attendee's digital tickets.
+- `GET  /api/v1/tickets/{ticketId}` — Get ticket details, QR code token, and status.
+- `POST /api/v1/tickets/{ticketId}/claim` — (Auth Required) Claim an invited ticket to current account.
+- `POST /api/v1/tickets/invite` — (Auth Required) Send ticket invitation to guest email.
+
+### Check-In Operations (`/api/v1/checkin`) — (Role 1/2/4/99)
+- `POST /api/v1/checkin/scan` — Scan QR code token at the door with audit persistence.
+- `POST /api/v1/checkin/manual` — Check in attendee manually by ticket ID or code.
+- `GET  /api/v1/checkin/events` — List events assigned to current staff member.
+- `GET  /api/v1/checkin/guest-list/{eventId}` — Get full attendee roster for event.
+- `GET  /api/v1/checkin/stats/{eventId}` — Get real-time door arrival counts.
+
+### Catalog Endpoints (`/api/v1/catalog`)
+- `GET /api/v1/catalog/venues` & `GET /api/v1/catalog/venues/{id}` — Venues catalog.
+- `GET /api/v1/catalog/performers` & `GET /api/v1/catalog/performers/{idOrSlug}` — Performers & artists catalog.
+- `GET /api/v1/catalog/sponsors` & `GET /api/v1/catalog/sponsors/{idOrSlug}` — Sponsors catalog.
+
+### Admin Operations (`/api/v1/admin`) — (Tenant Admin/Manager Gated)
+- `GET  /api/v1/admin/dashboard` — Overview metrics (active events, attendees, revenue).
+- `POST /api/v1/admin/events` — Create new event (Draft/Published).
+- `PUT  /api/v1/admin/events/{id}` — Update event details.
+- `POST /api/v1/admin/events/{id}/status` — Change event status (Draft, Published, Cancelled).
+- `GET  /api/v1/admin/reports/summary` — Date-range revenue and ticket sales summary.
+- `GET  /api/v1/admin/reports/timeseries` — Timeseries revenue points by day/week/month.
+
 ## REST endpoints (exceptions)
 
 - `GET /health/live`, `GET /health/ready` — liveness/readiness (Docker healthcheck).
