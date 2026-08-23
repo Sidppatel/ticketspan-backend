@@ -37,6 +37,13 @@ message UpdateProfileRequest {
   string city = 5;
   string state = 6;
   string zip = 7;
+  string bio = 8;
+  string pronouns = 9;
+  string preferences_json = 10;
+  string billing_address_line = 11;
+  string billing_city = 12;
+  string billing_state = 13;
+  string billing_zip = 14;
 }
 
 message SetAvatarRequest {
@@ -123,4 +130,11 @@ message UserProfile {
   string state = 13;
   string zip = 14;
   bool google_connected = 15;
+  string bio = 16;
+  string pronouns = 17;
+  string preferences_json = 18;
+  string billing_address_line = 19;
+  string billing_city = 20;
+  string billing_state = 21;
+  string billing_zip = 22;
 }

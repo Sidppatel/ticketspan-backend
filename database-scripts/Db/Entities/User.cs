@@ -25,6 +25,9 @@ public class User : BaseEntity
     public Guid? AddressesId { get; set; }
     public Address? Address { get; set; }
 
+    public Guid? BillingAddressesId { get; set; }
+    public Address? BillingAddress { get; set; }
+
     public bool IsActive { get; set; } = true;
     public bool EmailVerified { get; set; }
     public DateTime? EmailVerifiedAt { get; set; }
@@ -37,4 +40,8 @@ public class User : BaseEntity
 
     public bool OptInLocationEmail { get; set; }
     public bool HasCompletedOnboarding { get; set; }
+
+    public string? Bio { get; set; }
+    public string? Pronouns { get; set; }
+    public string? PreferencesJson { get; set; }
 }

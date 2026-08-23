@@ -8,7 +8,17 @@ SELECT
     a.city, a.state, a.zip_code,
     u.email_verified,
     u.images_id,
-    (u.google_subject IS NOT NULL) AS google_connected
+    (u.google_subject IS NOT NULL) AS google_connected,
+    u.bio,
+    u.pronouns,
+    u.preferences_json::text AS preferences_json,
+    u.addresses_id,
+    u.billing_addresses_id,
+    ba.line1 AS billing_address_line,
+    ba.city AS billing_city,
+    ba.state AS billing_state,
+    ba.zip_code AS billing_zip
 FROM users u
 LEFT JOIN addresses a ON u.addresses_id = a.addresses_id
+LEFT JOIN addresses ba ON u.billing_addresses_id = ba.addresses_id
 LEFT JOIN images i ON u.images_id = i.images_id;

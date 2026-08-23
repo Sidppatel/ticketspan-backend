@@ -50,7 +50,7 @@ public sealed partial class AuthServiceImpl
         }
         await using (var connection = await db.OpenAsync(usersId, tc.TenantsId, ct))
         await using (var cmd = new NpgsqlCommand(
-            "SELECT sp_update_user_profile(@u, @first, @last, @phone, @addr, @city, @state, @zip, NULL)", connection))
+            "SELECT sp_update_user_profile(@u, @first, @last, @phone, @addr, @city, @state, @zip, NULL, @bio, @pronouns, @prefs, @billing_addr, @billing_city, @billing_state, @billing_zip)", connection))
         {
             cmd.Parameters.AddWithValue("u", usersId);
             cmd.Parameters.AddWithValue("first", NullIfEmpty(request.FirstName));
@@ -60,6 +60,16 @@ public sealed partial class AuthServiceImpl
             cmd.Parameters.AddWithValue("city", NullIfEmpty(request.City));
             cmd.Parameters.AddWithValue("state", NullIfEmpty(request.State));
             cmd.Parameters.AddWithValue("zip", NullIfEmpty(request.Zip));
+            cmd.Parameters.AddWithValue("bio", NullIfEmpty(request.Bio));
+            cmd.Parameters.AddWithValue("pronouns", NullIfEmpty(request.Pronouns));
+            cmd.Parameters.Add(new NpgsqlParameter("prefs", NpgsqlTypes.NpgsqlDbType.Jsonb)
+            {
+                Value = NullIfEmpty(request.PreferencesJson)
+            });
+            cmd.Parameters.AddWithValue("billing_addr", NullIfEmpty(request.BillingAddressLine));
+            cmd.Parameters.AddWithValue("billing_city", NullIfEmpty(request.BillingCity));
+            cmd.Parameters.AddWithValue("billing_state", NullIfEmpty(request.BillingState));
+            cmd.Parameters.AddWithValue("billing_zip", NullIfEmpty(request.BillingZip));
             await cmd.ExecuteNonQueryAsync(ct);
         }
         return await LoadProfileAsync(usersId, tc, ct);
@@ -139,7 +149,9 @@ public sealed partial class AuthServiceImpl
         await using var cmd = new NpgsqlCommand(
             "SELECT email, first_name, last_name, email_verified, COALESCE(phone, ''), images_id, "
             + "COALESCE(address_line1, ''), COALESCE(city, ''), COALESCE(state, ''), COALESCE(zip_code, ''), "
-            + "google_connected "
+            + "google_connected, "
+            + "COALESCE(bio, ''), COALESCE(pronouns, ''), COALESCE(preferences_json, ''), "
+            + "COALESCE(billing_address_line, ''), COALESCE(billing_city, ''), COALESCE(billing_state, ''), COALESCE(billing_zip, '') "
             + "FROM vw_user_profile WHERE users_id = @id", connection);
         cmd.Parameters.AddWithValue("id", usersId);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -165,7 +177,14 @@ public sealed partial class AuthServiceImpl
             City = reader.GetString(7),
             State = reader.GetString(8),
             Zip = reader.GetString(9),
-            GoogleConnected = reader.GetBoolean(10)
+            GoogleConnected = reader.GetBoolean(10),
+            Bio = reader.GetString(11),
+            Pronouns = reader.GetString(12),
+            PreferencesJson = reader.GetString(13),
+            BillingAddressLine = reader.GetString(14),
+            BillingCity = reader.GetString(15),
+            BillingState = reader.GetString(16),
+            BillingZip = reader.GetString(17)
         };
     }
 

@@ -160,11 +160,16 @@ public class EventPlatformDbContext(
             entity.Property(e => e.FailedLoginAttempts).HasDefaultValue(0);
             entity.Property(e => e.OptInLocationEmail).HasDefaultValue(false);
             entity.Property(e => e.HasCompletedOnboarding).HasDefaultValue(false);
+            entity.Property(e => e.Bio).HasMaxLength(1024);
+            entity.Property(e => e.Pronouns).HasMaxLength(64);
+            entity.Property(e => e.PreferencesJson).HasColumnType("jsonb");
             entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
                 .IsRequired(false).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.Image).WithMany().HasForeignKey(e => e.ImagesId)
                 .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
             entity.HasOne(e => e.Address).WithMany().HasForeignKey(e => e.AddressesId)
+                .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.BillingAddress).WithMany().HasForeignKey(e => e.BillingAddressesId)
                 .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
         });
 
