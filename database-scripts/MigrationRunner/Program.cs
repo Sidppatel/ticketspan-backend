@@ -30,15 +30,19 @@ if (args.Contains("--reload-sql"))
 {
     Console.WriteLine("[migrate] reloading SQL objects...");
     await using var ctx = factory.CreateDbContext(args);
-    var sqlRoot = Path.Combine(Directory.GetCurrentDirectory(), "database-scripts", "sql");
-    if (!Directory.Exists(sqlRoot))
+    var candidates = new[]
     {
-        sqlRoot = Path.Combine(Directory.GetCurrentDirectory(), "sql");
-    }
-    if (!Directory.Exists(sqlRoot))
-    {
-        sqlRoot = Path.Combine(Directory.GetCurrentDirectory(), "..", "sql");
-    }
+        Path.Combine(Directory.GetCurrentDirectory(), "ticketspan-backend", "database-scripts", "sql"),
+        Path.Combine(Directory.GetCurrentDirectory(), "database-scripts", "sql"),
+        Path.Combine(Directory.GetCurrentDirectory(), "sql"),
+        Path.Combine(Directory.GetCurrentDirectory(), "..", "sql"),
+        Path.Combine(Directory.GetCurrentDirectory(), "..", "database-scripts", "sql"),
+        Path.Combine(AppContext.BaseDirectory, "sql"),
+        Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "database-scripts", "sql")
+    };
+    var sqlRoot = candidates.FirstOrDefault(Directory.Exists)
+        ?? throw new DirectoryNotFoundException("Could not find SQL directory in candidate paths: " + string.Join(", ", candidates));
+    Console.WriteLine($"[migrate] resolved SQL root to: {sqlRoot}");
     
     var conn = ctx.Database.GetDbConnection();
     if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync();

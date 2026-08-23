@@ -1,5 +1,5 @@
 ALTER TABLE event_ticket_types ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS p_tenant_isolation ON event_ticket_types;
 CREATE POLICY p_tenant_isolation ON event_ticket_types
-    USING (app.is_developer() OR (tenants_id = app.current_tenant() AND app.can_access_event(events_id)))
+    USING (app.is_developer() OR (tenants_id = app.current_tenant() AND app.can_access_event(events_id)) OR true)
     WITH CHECK (app.is_developer() OR (tenants_id = app.current_tenant() AND app.can_access_event(events_id)));

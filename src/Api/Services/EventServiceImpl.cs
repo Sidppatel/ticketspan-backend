@@ -300,10 +300,6 @@ public sealed partial class EventServiceImpl : EventService.EventServiceBase
         var ct = context.CancellationToken;
         var page = request.Page ?? new PageRequest();
         var response = new ListEventsResponse { Meta = new PageMeta { Offset = page.Offset, Limit = page.Limit } };
-        if (tenantContext.TenantsId is not { } tenantsId)
-        {
-            return response;
-        }
         var isPublicViewer = tenantContext.UsersId is null || tenantContext.Role == Lookups.UserRoles.PublicViewer;
         var effectiveStatus = isPublicViewer ? "Published" : (request.Status ?? string.Empty);
         var hasStatus = effectiveStatus.Length > 0;
@@ -311,17 +307,32 @@ public sealed partial class EventServiceImpl : EventService.EventServiceBase
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         
         var sqlBuilder = new StringBuilder(EventSelect);
-        sqlBuilder.Append(" WHERE tenants_id = @tenant");
-        if (hasStatus)
+        if (tenantContext.TenantsId is { } tenantsId)
         {
-            sqlBuilder.Append(" AND status = @status");
+            sqlBuilder.Append(" WHERE tenants_id = @tenant");
+            if (hasStatus)
+            {
+                sqlBuilder.Append(" AND status = @status");
+            }
+            sqlBuilder.Append(EventScopeFilter);
         }
-        sqlBuilder.Append(EventScopeFilter);
+        else if (isPublicViewer)
+        {
+            sqlBuilder.Append(" WHERE status = 'Published'");
+        }
+        else
+        {
+            return response;
+        }
+
         sqlBuilder.Append(" ORDER BY start_date DESC LIMIT @lim OFFSET @off");
 
         await using var cmd = new NpgsqlCommand(sqlBuilder.ToString(), connection);
-        cmd.Parameters.AddWithValue("tenant", tenantsId);
-        if (hasStatus)
+        if (tenantContext.TenantsId is { } tid)
+        {
+            cmd.Parameters.AddWithValue("tenant", tid);
+        }
+        if (hasStatus && tenantContext.TenantsId is not null)
         {
             cmd.Parameters.AddWithValue("status", effectiveStatus);
         }

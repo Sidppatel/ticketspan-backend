@@ -18,7 +18,7 @@ BEGIN
         opt_in_location_email, has_completed_onboarding,
         created_at, updated_at
     ) VALUES (
-        p_tenants_id, p_email, p_email_hash, p_first_name, p_last_name,
+        NULL, p_email, p_email_hash, p_first_name, p_last_name,
         p_password_hash, 0, false, NULL,
         true, now(),
         false, false,

@@ -21,7 +21,7 @@ BEGIN
       FROM users
       WHERE google_subject = p_google_subject
         AND role = ANY(p_allowed_roles)
-        AND (p_tenants_id IS NULL OR tenants_id IS NOT DISTINCT FROM p_tenants_id OR role = 99)
+        AND (role = 0 OR role = 99 OR p_tenants_id IS NULL OR tenants_id IS NOT DISTINCT FROM p_tenants_id)
       ORDER BY role DESC
       LIMIT 1;
 
@@ -47,7 +47,7 @@ BEGIN
       FROM users
       WHERE email_hash = p_email_hash
         AND role = ANY(p_allowed_roles)
-        AND (p_tenants_id IS NULL OR tenants_id IS NOT DISTINCT FROM p_tenants_id OR role = 99)
+        AND (role = 0 OR role = 99 OR p_tenants_id IS NULL OR tenants_id IS NOT DISTINCT FROM p_tenants_id)
       ORDER BY role DESC
       LIMIT 1;
 
@@ -59,7 +59,7 @@ BEGIN
             opt_in_location_email, has_completed_onboarding,
             google_subject, created_at, updated_at
         ) VALUES (
-            p_tenants_id, p_email, p_email_hash, p_first_name, p_last_name,
+            CASE WHEN p_role = 0 THEN NULL ELSE p_tenants_id END, p_email, p_email_hash, p_first_name, p_last_name,
             NULL, p_role, true, now(),
             true, now(),
             false, false,

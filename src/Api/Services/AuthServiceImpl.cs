@@ -73,7 +73,9 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
             
             if (slugScoped)
             {
-                var matchesTenant = role == Lookups.UserRoles.Developer ? rowTenant is null : rowTenant == tenantsId;
+                var matchesTenant = (role == Lookups.UserRoles.Developer || role == Lookups.UserRoles.PublicViewer)
+                    ? true
+                    : rowTenant == tenantsId;
                 if (!matchesTenant)
                 {
                     continue;
@@ -94,14 +96,14 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
             {
                 continue;
             }
-            var email = reader.GetString(5);
-            var firstName = reader.GetString(6);
-            var lastName = reader.GetString(7);
-            var emailVerified = reader.GetBoolean(8);
+            var email = reader.IsDBNull(5) ? string.Empty : reader.GetString(5);
+            var firstName = reader.IsDBNull(6) ? string.Empty : reader.GetString(6);
+            var lastName = reader.IsDBNull(7) ? string.Empty : reader.GetString(7);
+            var emailVerified = !reader.IsDBNull(8) && reader.GetBoolean(8);
             await reader.CloseAsync();
             var tenantSlug = rowTenant is { } rt
                 ? await ResolveSlugAsync(rt, connection, ct) ?? request.TenantSlug
-                : string.Empty;
+                : request.TenantSlug ?? string.Empty;
             var profile = new UserProfile
             {
                 UsersId = usersId.ToString(),
@@ -140,19 +142,13 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
     public override async Task<AuthResponse> SignUp(SignUpRequest request, ServerCallContext context)
     {
         var ct = context.CancellationToken;
-        var tenantsId = await ResolveTenantAsync(request.TenantSlug, ct);
-        if (tenantsId is not { } tenant)
-        {
-            throw new RpcException(new Status(StatusCode.InvalidArgument, "Unknown tenant"));
-        }
         var emailHash = EmailHasher.Hash(request.Email);
         var passwordHash = passwordHasher.Hash(request.Password);
 
         await using var connection = await db.OpenAsync(null, null, ct);
         await using var cmd = new NpgsqlCommand(
             "SELECT users_id, role, email, first_name, last_name, email_verified "
-            + "FROM sp_signup_attendee(@t, @email, @h, @first, @last, @pwd)", connection);
-        cmd.Parameters.AddWithValue("t", tenant);
+            + "FROM sp_signup_attendee(NULL, @email, @h, @first, @last, @pwd)", connection);
         cmd.Parameters.AddWithValue("email", request.Email);
         cmd.Parameters.AddWithValue("h", emailHash);
         cmd.Parameters.AddWithValue("first", request.FirstName ?? string.Empty);
@@ -171,19 +167,19 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
             var profile = new UserProfile
             {
                 UsersId = usersId.ToString(),
-                TenantsId = tenant.ToString(),
-                Email = reader.GetString(2),
-                FirstName = reader.GetString(3),
-                LastName = reader.GetString(4),
+                TenantsId = string.Empty,
+                Email = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+                FirstName = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+                LastName = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
                 Role = role,
-                TenantSlug = request.TenantSlug,
-                EmailVerified = reader.GetBoolean(5)
+                TenantSlug = request.TenantSlug ?? string.Empty,
+                EmailVerified = !reader.IsDBNull(5) && reader.GetBoolean(5)
             };
-            return BuildAuth(usersId, profile.Email, tenant, role, request.TenantSlug, profile);
+            return BuildAuth(usersId, profile.Email, null, role, request.TenantSlug ?? string.Empty, profile);
         }
         catch (PostgresException ex) when (ex.SqlState == "23505")
         {
-            throw new RpcException(new Status(StatusCode.AlreadyExists, "An account with this email already exists for this tenant"));
+            throw new RpcException(new Status(StatusCode.AlreadyExists, "An account with this email already exists"));
         }
     }
 
@@ -197,7 +193,7 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
         }
 
         var portal = request.Portal ?? string.Empty;
-        var slugScoped = portal.Length == 0 || portal == "public";
+        var slugScoped = portal == "admin" || portal == "staff";
         var tenantsId = slugScoped ? await ResolveTenantAsync(request.TenantSlug, ct) : null;
         if (slugScoped && tenantsId is null)
         {
@@ -245,10 +241,10 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
         var usersId = reader.GetGuid(0);
         var rowTenant = reader.IsDBNull(1) ? (Guid?)null : reader.GetGuid(1);
         var role = reader.GetInt16(2);
-        var email = reader.GetString(3);
-        var firstName = reader.GetString(4);
-        var lastName = reader.GetString(5);
-        var emailVerified = reader.GetBoolean(6);
+        var email = reader.IsDBNull(3) ? string.Empty : reader.GetString(3);
+        var firstName = reader.IsDBNull(4) ? string.Empty : reader.GetString(4);
+        var lastName = reader.IsDBNull(5) ? string.Empty : reader.GetString(5);
+        var emailVerified = !reader.IsDBNull(6) && reader.GetBoolean(6);
         var hasAvatar = !reader.IsDBNull(7);
         EnsurePortalAllowsRole(portal, role);
         await reader.CloseAsync();

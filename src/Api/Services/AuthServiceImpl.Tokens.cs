@@ -257,12 +257,11 @@ public sealed partial class AuthServiceImpl
     }
 
     private static async Task<(Guid usersId, Guid? tenantsId, short role, string firstName, string lastName, bool emailVerified)> CreateAttendeeAsync(
-        NpgsqlConnection connection, Guid tenantsId, string email, string emailHash, CancellationToken ct)
+        NpgsqlConnection connection, Guid? tenantsId, string email, string emailHash, CancellationToken ct)
     {
         await using var cmd = new NpgsqlCommand(
             "SELECT users_id, tenants_id, role, first_name, last_name, email_verified "
-            + "FROM sp_signup_attendee(@t, @email, @h, @first, @last, NULL)", connection);
-        cmd.Parameters.AddWithValue("t", tenantsId);
+            + "FROM sp_signup_attendee(NULL, @email, @h, @first, @last, NULL)", connection);
         cmd.Parameters.AddWithValue("email", email);
         cmd.Parameters.AddWithValue("h", emailHash);
         cmd.Parameters.AddWithValue("first", string.Empty);

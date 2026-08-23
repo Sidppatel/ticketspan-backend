@@ -289,8 +289,8 @@ public sealed class TicketServiceImpl : TicketService.TicketServiceBase
             "SELECT t.ticket_id, t.ticket_code, t.qr_token, t.seat_number, t.status, t.guest_users_id, "
             + "t.event_title, t.event_start_date, t.venue_name, t.event_slug, t.booking_number, t.ticket_type_label "
             + "FROM vw_tickets t "
-            + "WHERE t.guest_users_id = @u "
-            + "ORDER BY t.event_start_date", connection);
+            + "WHERE (t.guest_users_id = @u OR (t.guest_users_id IS NULL AND t.booking_user_id = @u)) "
+            + "ORDER BY t.event_start_date ASC, t.seat_number ASC", connection);
         cmd.Parameters.AddWithValue("u", tenantContext.UsersId);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))

@@ -87,7 +87,7 @@ public sealed partial class AuthServiceImpl
         await using var conn = await db.OpenAsync(null, null, ct);
         await using var lookup = new NpgsqlCommand(
             "SELECT users_id, tenants_id, role, email, first_name, last_name, email_verified "
-            + "FROM sp_get_user_by_email_hash(@h) WHERE is_active = true AND tenants_id IS NOT DISTINCT FROM @tenant LIMIT 1", conn);
+            + "FROM sp_get_user_by_email_hash(@h) WHERE is_active = true AND (role = 0 OR role = 99 OR tenants_id IS NOT DISTINCT FROM @tenant) ORDER BY role DESC LIMIT 1", conn);
         lookup.Parameters.AddWithValue("h", emailHash);
         lookup.Parameters.AddWithValue("tenant", (object?)linkTenant ?? DBNull.Value);
 
@@ -108,15 +108,11 @@ public sealed partial class AuthServiceImpl
                 lastName = reader.GetString(5);
                 emailVerified = reader.GetBoolean(6);
             }
-            else if (linkTenant is { } tenant)
+            else
             {
                 await reader.CloseAsync();
                 (usersId, rowTenant, role, firstName, lastName, emailVerified) =
-                    await CreateAttendeeAsync(conn, tenant, email, emailHash, ct);
-            }
-            else
-            {
-                throw new RpcException(new Status(StatusCode.NotFound, "User not found"));
+                    await CreateAttendeeAsync(conn, null, email, emailHash, ct);
             }
         }
 

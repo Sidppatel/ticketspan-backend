@@ -38,7 +38,23 @@ public sealed class TenantResolutionMiddleware
                 tenantContext.IsActingForTenant = true;
                 tenantContext.NotifyTenant = httpContext.Request.Headers["x-notify-tenant"] == "1";
             }
-            if (tenantContext.TenantsId is null && tenantContext.Role != Lookups.UserRoles.Developer)
+            if (tenantContext.Role == Lookups.UserRoles.PublicViewer)
+            {
+                var slug = httpContext.Request.Headers["x-tenant-slug"].ToString();
+                if (!string.IsNullOrEmpty(slug))
+                {
+                    var resolvedTenantId = await ResolveTenantAsync(db, slug, httpContext.RequestAborted);
+                    if (resolvedTenantId is { } id)
+                    {
+                        tenantContext.TenantsId = id;
+                        tenantContext.TenantSlug = slug;
+                    }
+                }
+            }
+
+            if (tenantContext.TenantsId is null 
+                && tenantContext.Role != Lookups.UserRoles.Developer 
+                && tenantContext.Role != Lookups.UserRoles.PublicViewer)
             {
                 httpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
                 await httpContext.Response.WriteAsync("Tenant context required");
