@@ -17,7 +17,8 @@ SELECT
     ba.line1 AS billing_address_line,
     ba.city AS billing_city,
     ba.state AS billing_state,
-    ba.zip_code AS billing_zip
+    ba.zip_code AS billing_zip,
+    u.stripe_customer_id
 FROM users u
 LEFT JOIN addresses a ON u.addresses_id = a.addresses_id
 LEFT JOIN addresses ba ON u.billing_addresses_id = ba.addresses_id

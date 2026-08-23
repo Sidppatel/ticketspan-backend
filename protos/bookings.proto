@@ -38,6 +38,7 @@ service TicketService {
   rpc RevokeTicket (ticketspan.common.UuidValue) returns (ticketspan.common.AckResponse);
   rpc ListMyTickets (ticketspan.common.Empty) returns (ListTicketsResponse);
   rpc SendTicketEmail (ticketspan.common.UuidValue) returns (ticketspan.common.AckResponse);
+  rpc SelfCheckInTicket (ticketspan.common.UuidValue) returns (ScanResponse);
 }
 
 service CheckInService {
@@ -225,6 +226,8 @@ message PaymentIntentResponse {
   int64 hold_expires_at = 6;
 
   bool ach_allowed = 7;
+
+  string customer_session_client_secret = 8;
 }
 
 message UpdatePaymentMethodRequest {

@@ -122,6 +122,36 @@ public sealed partial class BookingServiceImpl
         }
 
         var applicationFee = taxCollectionMode == "self" ? fee - tax : fee;
+
+        string? stripeCustomerId = null;
+        if (tenantContext.UsersId is not null)
+        {
+            string userEmail = "";
+            string userName = "";
+            await using (var uCmd = new NpgsqlCommand(
+                "SELECT email, first_name || ' ' || last_name, stripe_customer_id FROM users WHERE users_id = @u", connection))
+            {
+                uCmd.Parameters.AddWithValue("u", tenantContext.UsersId.Value);
+                await using var uReader = await uCmd.ExecuteReaderAsync(ct);
+                if (await uReader.ReadAsync(ct))
+                {
+                    userEmail = uReader.GetString(0);
+                    userName = uReader.GetString(1);
+                    stripeCustomerId = uReader.IsDBNull(2) ? null : uReader.GetString(2);
+                }
+            }
+
+            if (string.IsNullOrEmpty(stripeCustomerId) && !string.IsNullOrEmpty(userEmail))
+            {
+                stripeCustomerId = await stripe.GetOrCreateCustomerAsync(null, userEmail, userName, tenantContext.UsersId.Value, ct);
+                await using var saveCustCmd = new NpgsqlCommand(
+                    "SELECT sp_get_or_set_user_stripe_customer(@u, @c)", connection);
+                saveCustCmd.Parameters.AddWithValue("u", tenantContext.UsersId.Value);
+                saveCustCmd.Parameters.AddWithValue("c", stripeCustomerId);
+                await saveCustCmd.ExecuteScalarAsync(ct);
+            }
+        }
+
         Stripe.PaymentIntent intent;
         try
         {
@@ -138,17 +168,32 @@ public sealed partial class BookingServiceImpl
                 }
                 else
                 {
-                    intent = await stripe.CreateDestinationPaymentIntentAsync(total, applicationFee, currency, connectedAccount!, bookingId, achAllowed, preferAch, ct, metadata);
+                    intent = await stripe.CreateDestinationPaymentIntentAsync(
+                        total, applicationFee, currency, connectedAccount!, bookingId, achAllowed, preferAch, ct, metadata, stripeCustomerId);
                 }
             }
             else
             {
-                intent = await stripe.CreateDestinationPaymentIntentAsync(total, applicationFee, currency, connectedAccount!, bookingId, achAllowed, preferAch, ct, metadata);
+                intent = await stripe.CreateDestinationPaymentIntentAsync(
+                    total, applicationFee, currency, connectedAccount!, bookingId, achAllowed, preferAch, ct, metadata, stripeCustomerId);
             }
         }
         catch (StripeException ex)
         {
             throw new RpcException(new Status(StatusCode.FailedPrecondition, $"Stripe payment setup failed: {ex.StripeError?.Message ?? ex.Message}"));
+        }
+
+        string? customerSessionClientSecret = null;
+        if (!string.IsNullOrEmpty(stripeCustomerId))
+        {
+            try
+            {
+                customerSessionClientSecret = await stripe.CreateCustomerSessionAsync(stripeCustomerId, ct);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not create Stripe CustomerSession for customer {CustomerId}", stripeCustomerId);
+            }
         }
 
         await using (var save = new NpgsqlCommand(
@@ -170,7 +215,8 @@ public sealed partial class BookingServiceImpl
             Status = intent.Status,
             AmountCents = total,
             HoldExpiresAt = holdExpiresAt is { } h ? new DateTimeOffset(h, TimeSpan.Zero).ToUnixTimeSeconds() : 0,
-            AchAllowed = achAllowed
+            AchAllowed = achAllowed,
+            CustomerSessionClientSecret = customerSessionClientSecret ?? string.Empty
         };
     }
 

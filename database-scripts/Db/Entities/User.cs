@@ -44,4 +44,5 @@ public class User : BaseEntity
     public string? Bio { get; set; }
     public string? Pronouns { get; set; }
     public string? PreferencesJson { get; set; }
+    public string? StripeCustomerId { get; set; }
 }

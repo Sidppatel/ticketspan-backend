@@ -114,6 +114,39 @@ public static class TicketEndpointsV1
             }
         }).RequireAuthorization();
 
+        tickets.MapPost("/{ticketId}/checkin", async (
+            string ticketId,
+            TicketServiceImpl ticketService,
+            CancellationToken ct) =>
+        {
+            if (!Guid.TryParse(ticketId, out _))
+            {
+                return Results.BadRequest(new ApiEnvelope<ScanTicketApiResponse>(false, null, "Invalid ticket ID"));
+            }
+
+            try
+            {
+                var res = await ticketService.SelfCheckInTicket(new UuidValue { Value = ticketId }, new UnaryServerCallContext(ct));
+                return Results.Ok(new ApiEnvelope<ScanTicketApiResponse>(true, new ScanTicketApiResponse(
+                    res.Valid,
+                    res.Message,
+                    res.HolderName,
+                    res.Status)));
+            }
+            catch (Grpc.Core.RpcException ex) when (ex.StatusCode == Grpc.Core.StatusCode.Unauthenticated)
+            {
+                return Results.Unauthorized();
+            }
+            catch (Grpc.Core.RpcException ex) when (ex.StatusCode == Grpc.Core.StatusCode.NotFound)
+            {
+                return Results.NotFound(new ApiEnvelope<ScanTicketApiResponse>(false, null, ex.Status.Detail));
+            }
+            catch (Grpc.Core.RpcException ex)
+            {
+                return Results.Problem(detail: ex.Status.Detail, statusCode: StatusCodes.Status400BadRequest);
+            }
+        }).RequireAuthorization();
+
         return group;
     }
 

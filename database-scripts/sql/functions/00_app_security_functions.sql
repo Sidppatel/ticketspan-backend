@@ -1,5 +1,15 @@
 CREATE SCHEMA IF NOT EXISTS app;
 
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'stripe_customer_id'
+    ) THEN
+        ALTER TABLE users ADD COLUMN stripe_customer_id VARCHAR(255);
+    END IF;
+END $$;
+
 CREATE OR REPLACE FUNCTION app.current_user_id()
 RETURNS uuid
 LANGUAGE sql STABLE

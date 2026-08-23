@@ -134,10 +134,100 @@ public sealed class StripeService
     }
 
 
+    public async Task<string> GetOrCreateCustomerAsync(string? existingCustomerId, string email, string name, Guid userId, CancellationToken ct)
+    {
+        if (!string.IsNullOrWhiteSpace(existingCustomerId))
+        {
+            try
+            {
+                var existing = await new CustomerService(client).GetAsync(existingCustomerId, cancellationToken: ct);
+                if (existing != null && !existing.Deleted.GetValueOrDefault())
+                {
+                    return existing.Id;
+                }
+            }
+            catch (StripeException)
+            {
+            }
+        }
+
+        var service = new CustomerService(client);
+        var options = new CustomerCreateOptions
+        {
+            Email = NullIfBlank(email),
+            Name = NullIfBlank(name),
+            Metadata = new Dictionary<string, string>
+            {
+                ["users_id"] = userId.ToString()
+            }
+        };
+        var customer = await service.CreateAsync(options, cancellationToken: ct);
+        return customer.Id;
+    }
+
+    public async Task<string> CreateCustomerSessionAsync(string customerId, CancellationToken ct)
+    {
+        var service = new CustomerSessionService(client);
+        var options = new CustomerSessionCreateOptions
+        {
+            Customer = customerId,
+            Components = new CustomerSessionComponentsOptions
+            {
+                PaymentElement = new CustomerSessionComponentsPaymentElementOptions
+                {
+                    Enabled = true,
+                    Features = new CustomerSessionComponentsPaymentElementFeaturesOptions
+                    {
+                        PaymentMethodSave = "enabled",
+                        PaymentMethodRemove = "enabled",
+                        PaymentMethodRedisplay = "enabled"
+                    }
+                }
+            }
+        };
+        var session = await service.CreateAsync(options, cancellationToken: ct);
+        return session.ClientSecret;
+    }
+
+    public async Task<SetupIntent> CreateSetupIntentAsync(string customerId, CancellationToken ct)
+    {
+        var service = new SetupIntentService(client);
+        var options = new SetupIntentCreateOptions
+        {
+            Customer = customerId,
+            PaymentMethodTypes = new List<string> { "card" },
+            AutomaticPaymentMethods = new SetupIntentAutomaticPaymentMethodsOptions
+            {
+                Enabled = false
+            },
+            Usage = "on_session"
+        };
+        return await service.CreateAsync(options, cancellationToken: ct);
+    }
+
+    public async Task<StripeList<PaymentMethod>> ListPaymentMethodsAsync(string customerId, CancellationToken ct)
+    {
+        var service = new PaymentMethodService(client);
+        var options = new PaymentMethodListOptions
+        {
+            Customer = customerId,
+            Type = "card"
+        };
+        return await service.ListAsync(options, cancellationToken: ct);
+    }
+
+    public async Task<PaymentMethod> DetachPaymentMethodAsync(string paymentMethodId, CancellationToken ct)
+    {
+        var service = new PaymentMethodService(client);
+        return await service.DetachAsync(paymentMethodId, cancellationToken: ct);
+    }
+
     public async Task<PaymentIntent> CreateDestinationPaymentIntentAsync(
         long amountCents, long applicationFeeCents, string currency,
         string destinationAccountId, Guid bookingId, bool achAllowed, bool bankOnly, CancellationToken ct,
-        IReadOnlyDictionary<string, string>? metadata = null)
+        IReadOnlyDictionary<string, string>? metadata = null,
+        string? customerId = null,
+        bool setupFutureUsage = true)
     {
         var service = new PaymentIntentService(client);
         var methods = bankOnly
@@ -160,6 +250,14 @@ public sealed class StripeService
             TransferData = new PaymentIntentTransferDataOptions { Destination = destinationAccountId },
             Metadata = meta
         };
+        if (!string.IsNullOrEmpty(customerId))
+        {
+            options.Customer = customerId;
+            if (setupFutureUsage)
+            {
+                options.SetupFutureUsage = "on_session";
+            }
+        }
         var requestOptions = new RequestOptions
         {
             IdempotencyKey = $"pi_create_{bookingId}_{(bankOnly ? "ach" : "card")}"

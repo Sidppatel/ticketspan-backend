@@ -371,6 +371,69 @@ public sealed class TicketServiceImpl : TicketService.TicketServiceBase
         }
     }
 
+    public override async Task<ScanResponse> SelfCheckInTicket(UuidValue request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        if (tenantContext.UsersId is null)
+        {
+            throw new RpcException(new Status(StatusCode.Unauthenticated, "Authentication required"));
+        }
+        if (!Guid.TryParse(request.Value, out var ticketId))
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "Invalid ticket ID"));
+        }
+
+        await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+
+        Guid eventId;
+        string currentStatus;
+        await using (var checkCmd = new NpgsqlCommand(
+            "SELECT bl.events_id, bl.status " +
+            "FROM booking_lines bl " +
+            "JOIN bookings b ON b.bookings_id = bl.bookings_id " +
+            "WHERE bl.booking_lines_id = @id AND bl.kind = 'Ticket' " +
+            "AND (bl.guest_users_id = @u OR (bl.guest_users_id IS NULL AND b.users_id = @u))", connection))
+        {
+            checkCmd.Parameters.AddWithValue("id", ticketId);
+            checkCmd.Parameters.AddWithValue("u", tenantContext.UsersId);
+            await using var reader = await checkCmd.ExecuteReaderAsync(ct);
+            if (!await reader.ReadAsync(ct))
+            {
+                throw new RpcException(new Status(StatusCode.NotFound, "Ticket not found or does not belong to user"));
+            }
+            eventId = reader.GetGuid(0);
+            currentStatus = reader.GetString(1);
+        }
+
+        if (currentStatus == "CheckedIn")
+        {
+            return new ScanResponse
+            {
+                Valid = true,
+                Message = "Ticket is already checked in",
+                Status = "CheckedIn"
+            };
+        }
+
+        await using var cmd = new NpgsqlCommand(
+            "SELECT success, message, guest_name, status_str FROM sp_check_in_ticket(@id, @ev, @staff, 'universal_pass_self')", connection);
+        cmd.Parameters.AddWithValue("id", ticketId);
+        cmd.Parameters.AddWithValue("ev", eventId);
+        cmd.Parameters.AddWithValue("staff", tenantContext.UsersId);
+        await using var resReader = await cmd.ExecuteReaderAsync(ct);
+        if (!await resReader.ReadAsync(ct))
+        {
+            return new ScanResponse { Valid = false, Message = "Self check-in failed" };
+        }
+        return new ScanResponse
+        {
+            Valid = resReader.GetBoolean(0),
+            Message = resReader.IsDBNull(1) ? "Check-in successful" : resReader.GetString(1),
+            HolderName = resReader.IsDBNull(2) ? string.Empty : resReader.GetString(2),
+            Status = resReader.IsDBNull(3) ? "CheckedIn" : resReader.GetString(3)
+        };
+    }
+
     private static Ticket MapTicket(NpgsqlDataReader reader)
     {
         var ticket = new Ticket

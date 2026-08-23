@@ -217,6 +217,7 @@ v1.MapTicketApiV1();
 v1.MapCheckInApiV1();
 v1.MapCatalogApiV1();
 v1.MapAdminApiV1();
+v1.MapPaymentApiV1();
 app.MapOpenApi();
 app.MapGet("/", () => "TicketSpan API");
 app.MapGet("/health/live", () => Results.Ok("live"));
