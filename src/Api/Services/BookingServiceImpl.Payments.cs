@@ -129,7 +129,7 @@ public sealed partial class BookingServiceImpl
             string userEmail = "";
             string userName = "";
             await using (var uCmd = new NpgsqlCommand(
-                "SELECT email, first_name || ' ' || last_name, stripe_customer_id FROM users WHERE users_id = @u", connection))
+                "SELECT email, first_name || ' ' || last_name, stripe_customer_id FROM vw_user_profile WHERE users_id = @u", connection))
             {
                 uCmd.Parameters.AddWithValue("u", tenantContext.UsersId.Value);
                 await using var uReader = await uCmd.ExecuteReaderAsync(ct);

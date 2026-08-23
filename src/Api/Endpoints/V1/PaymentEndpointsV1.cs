@@ -29,7 +29,7 @@ public static class PaymentEndpointsV1
             await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
             string? stripeCustomerId = null;
             await using (var cmd = new NpgsqlCommand(
-                "SELECT stripe_customer_id FROM users WHERE users_id = @u", connection))
+                "SELECT stripe_customer_id FROM vw_user_profile WHERE users_id = @u", connection))
             {
                 cmd.Parameters.AddWithValue("u", tenantContext.UsersId.Value);
                 stripeCustomerId = await cmd.ExecuteScalarAsync(ct) as string;
@@ -76,7 +76,7 @@ public static class PaymentEndpointsV1
             string userEmail = "";
             string userName = "";
             await using (var cmd = new NpgsqlCommand(
-                "SELECT email, first_name || ' ' || last_name, stripe_customer_id FROM users WHERE users_id = @u", connection))
+                "SELECT email, first_name || ' ' || last_name, stripe_customer_id FROM vw_user_profile WHERE users_id = @u", connection))
             {
                 cmd.Parameters.AddWithValue("u", tenantContext.UsersId.Value);
                 await using var reader = await cmd.ExecuteReaderAsync(ct);

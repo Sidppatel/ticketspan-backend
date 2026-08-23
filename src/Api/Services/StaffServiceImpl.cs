@@ -152,7 +152,7 @@ public sealed class StaffServiceImpl : StaffService.StaffServiceBase
         DateTime startDate = DateTime.UtcNow;
         string venueName = "";
         await using (var evCmd = new NpgsqlCommand(
-            "SELECT e.title, e.start_date, v.name FROM events e LEFT JOIN venues v ON v.venues_id = e.venues_id WHERE e.events_id = @ev", connection))
+            "SELECT title, start_date, venue_name FROM vw_events WHERE events_id = @ev", connection))
         {
             evCmd.Parameters.AddWithValue("ev", eventId);
             await using var evReader = await evCmd.ExecuteReaderAsync(ct);

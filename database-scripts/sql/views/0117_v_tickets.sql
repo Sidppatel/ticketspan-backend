@@ -14,15 +14,13 @@ SELECT
     e.title AS event_title,
     e.start_date AS event_start_date,
     e.end_date AS event_end_date,
-    v.name AS venue_name,
+    COALESCE(v.name, 'Online / Venue')::varchar(256) AS venue_name,
     COALESCE(addr.city, '') AS venue_city,
     b.users_id AS booking_user_id,
     bu.email AS booking_user_email,
     bl.invite_token_hash,
     bu.first_name AS booking_user_first_name,
     bu.last_name AS booking_user_last_name,
-    
-    
     (SELECT bl2.tables_id FROM booking_lines bl2
      WHERE bl2.bookings_id = b.bookings_id AND bl2.kind = 'Table' LIMIT 1) AS booking_table_id,
     COALESCE(ett.label, 'Ticket') AS ticket_type_label,
@@ -30,7 +28,7 @@ SELECT
 FROM booking_lines bl
 JOIN bookings b ON bl.bookings_id = b.bookings_id
 JOIN events e ON b.events_id = e.events_id
-JOIN venues v ON e.venues_id = v.venues_id
+LEFT JOIN venues v ON e.venues_id = v.venues_id
 LEFT JOIN addresses addr ON v.addresses_id = addr.addresses_id
 LEFT JOIN users gu ON bl.guest_users_id = gu.users_id
 JOIN users bu ON b.users_id = bu.users_id

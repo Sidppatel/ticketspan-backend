@@ -314,14 +314,9 @@ public sealed class TicketServiceImpl : TicketService.TicketServiceBase
         string venueName = "";
 
         await using (var cmd = new NpgsqlCommand(
-            "SELECT COALESCE(tk.invited_email, gu.email, bu.email), tk.ticket_code, tk.seat_number, e.title, e.start_date, v.name " +
-            "FROM tickets tk " +
-            "JOIN bookings b ON b.bookings_id = tk.bookings_id " +
-            "JOIN events e ON e.events_id = b.events_id " +
-            "JOIN users bu ON bu.users_id = b.users_id " +
-            "LEFT JOIN users gu ON gu.users_id = tk.guest_users_id " +
-            "LEFT JOIN venues v ON v.venues_id = e.venues_id " +
-            "WHERE tk.tickets_id = @id", connection))
+            "SELECT COALESCE(invited_email, guest_email, booking_user_email), ticket_code, seat_number, event_title, event_start_date, venue_name " +
+            "FROM vw_tickets " +
+            "WHERE ticket_id = @id", connection))
         {
             cmd.Parameters.AddWithValue("id", ticketId);
             await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -388,11 +383,10 @@ public sealed class TicketServiceImpl : TicketService.TicketServiceBase
         Guid eventId;
         string currentStatus;
         await using (var checkCmd = new NpgsqlCommand(
-            "SELECT bl.events_id, bl.status " +
-            "FROM booking_lines bl " +
-            "JOIN bookings b ON b.bookings_id = bl.bookings_id " +
-            "WHERE bl.booking_lines_id = @id AND bl.kind = 'Ticket' " +
-            "AND (bl.guest_users_id = @u OR (bl.guest_users_id IS NULL AND b.users_id = @u))", connection))
+            "SELECT events_id, status " +
+            "FROM vw_tickets " +
+            "WHERE ticket_id = @id " +
+            "AND (guest_users_id = @u OR (guest_users_id IS NULL AND booking_user_id = @u))", connection))
         {
             checkCmd.Parameters.AddWithValue("id", ticketId);
             checkCmd.Parameters.AddWithValue("u", tenantContext.UsersId);
