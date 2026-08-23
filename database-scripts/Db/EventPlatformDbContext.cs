@@ -163,6 +163,7 @@ public class EventPlatformDbContext(
             entity.Property(e => e.Bio).HasMaxLength(1024);
             entity.Property(e => e.Pronouns).HasMaxLength(64);
             entity.Property(e => e.PreferencesJson).HasColumnType("jsonb");
+            entity.Property(e => e.StripeCustomerId).HasMaxLength(255);
             entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
                 .IsRequired(false).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.Image).WithMany().HasForeignKey(e => e.ImagesId)
