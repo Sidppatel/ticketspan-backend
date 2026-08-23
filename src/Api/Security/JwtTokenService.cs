@@ -1,12 +1,13 @@
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 
 namespace TicketSpan.Api.Security;
 
 public sealed class JwtTokenService
 {
+    private static readonly JsonWebTokenHandler TokenHandler = new();
     private readonly byte[] signingKey;
     private readonly string issuer;
     private readonly string audience;
@@ -39,21 +40,27 @@ public sealed class JwtTokenService
     private (string token, long expiresAt) Build(Guid usersId, string email, Guid? tenantsId, int role, string tenantSlug, int minutes, string type)
     {
         var expires = DateTime.UtcNow.AddMinutes(minutes);
-        var claims = new List<Claim>
+        var claims = new Dictionary<string, object>
         {
-            new("sub", usersId.ToString()),
-            new("email", email),
-            new("role", role.ToString()),
-            new("tenant_slug", tenantSlug),
-            new("typ", type)
+            ["sub"] = usersId.ToString(),
+            ["email"] = email,
+            ["role"] = role.ToString(),
+            ["tenant_slug"] = tenantSlug,
+            ["typ"] = type
         };
         if (tenantsId is { } t)
         {
-            claims.Add(new Claim("tenants_id", t.ToString()));
+            claims["tenants_id"] = t.ToString();
         }
-        var creds = new SigningCredentials(new SymmetricSecurityKey(signingKey), SecurityAlgorithms.HmacSha256);
-        var jwt = new JwtSecurityToken(issuer, audience, claims, expires: expires, signingCredentials: creds);
-        var token = new JwtSecurityTokenHandler().WriteToken(jwt);
+        var descriptor = new SecurityTokenDescriptor
+        {
+            Issuer = issuer,
+            Audience = audience,
+            Expires = expires,
+            Claims = claims,
+            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(signingKey), SecurityAlgorithms.HmacSha256)
+        };
+        var token = TokenHandler.CreateToken(descriptor);
         return (token, new DateTimeOffset(expires).ToUnixTimeSeconds());
     }
 }

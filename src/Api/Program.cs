@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.IdentityModel.Tokens;
 using TicketSpan.Api.Data;
@@ -8,8 +9,6 @@ using TicketSpan.Api.Middleware;
 using TicketSpan.Api.Security;
 using TicketSpan.Api.Services;
 
-System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
-
 var renderPort = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrEmpty(renderPort))
 {
@@ -18,8 +17,8 @@ if (!string.IsNullOrEmpty(renderPort))
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>(
-    new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider());
+builder.Services.AddDataProtection()
+    .UseEphemeralDataProtectionProvider();
 
 if (!builder.Environment.IsDevelopment())
 {

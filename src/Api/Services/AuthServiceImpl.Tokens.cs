@@ -195,7 +195,7 @@ public sealed partial class AuthServiceImpl
     {
         var ct = context.CancellationToken;
         var v = jwt.ValidationParameters;
-        var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler { MapInboundClaims = false };
+        var handler = new Microsoft.IdentityModel.JsonWebTokens.JsonWebTokenHandler { MapInboundClaims = false };
         var parameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -209,7 +209,16 @@ public sealed partial class AuthServiceImpl
         System.Security.Claims.ClaimsPrincipal principal;
         try
         {
-            principal = handler.ValidateToken(request.RefreshToken, parameters, out _);
+            var tokenValidationResult = await handler.ValidateTokenAsync(request.RefreshToken, parameters);
+            if (!tokenValidationResult.IsValid)
+            {
+                throw new RpcException(new Status(StatusCode.Unauthenticated, "Invalid refresh token"));
+            }
+            principal = new System.Security.Claims.ClaimsPrincipal(tokenValidationResult.ClaimsIdentity);
+        }
+        catch (RpcException)
+        {
+            throw;
         }
         catch (Exception)
         {
