@@ -83,15 +83,20 @@ public sealed partial class AuthServiceImpl
         {
             throw new RpcException(new Status(StatusCode.Unauthenticated, "Not authenticated"));
         }
-        if (!Guid.TryParse(request.ImagesId, out var imageId))
+        Guid? imageId = null;
+        if (!string.IsNullOrWhiteSpace(request.ImagesId))
         {
-            throw new RpcException(new Status(StatusCode.InvalidArgument, "Invalid image id"));
+            if (!Guid.TryParse(request.ImagesId, out var parsed))
+            {
+                throw new RpcException(new Status(StatusCode.InvalidArgument, "Invalid image id"));
+            }
+            imageId = parsed;
         }
         await using (var connection = await db.OpenAsync(usersId, tc.TenantsId, ct))
         await using (var cmd = new NpgsqlCommand("SELECT sp_set_user_image(@u, @img)", connection))
         {
             cmd.Parameters.AddWithValue("u", usersId);
-            cmd.Parameters.AddWithValue("img", imageId);
+            cmd.Parameters.AddWithValue("img", (object?)imageId ?? DBNull.Value);
             await cmd.ExecuteScalarAsync(ct);
         }
         return await LoadProfileAsync(usersId, tc, ct);

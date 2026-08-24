@@ -173,7 +173,7 @@ public sealed class TicketServiceImpl : TicketService.TicketServiceBase
         var ok = (bool)(await cmd.ExecuteScalarAsync(ct))!;
 
 
-        if (ok)
+        if (ok && !string.IsNullOrWhiteSpace(request.Email))
         {
             try
             {
@@ -238,7 +238,7 @@ public sealed class TicketServiceImpl : TicketService.TicketServiceBase
             }
         }
 
-        return new AckResponse { Success = ok, Message = ok ? "Invite sent" : "Invite failed" };
+        return new AckResponse { Success = ok, Message = ok ? token : "Invite failed" };
     }
 
     public override async Task<AckResponse> ClaimTicketSelf(UuidValue request, ServerCallContext context)
@@ -289,7 +289,7 @@ public sealed class TicketServiceImpl : TicketService.TicketServiceBase
             "SELECT t.ticket_id, t.ticket_code, t.qr_token, t.seat_number, t.status, t.guest_users_id, "
             + "t.event_title, t.event_start_date, t.venue_name, t.event_slug, t.booking_number, t.ticket_type_label "
             + "FROM vw_tickets t "
-            + "WHERE (t.guest_users_id = @u OR (t.guest_users_id IS NULL AND t.booking_user_id = @u)) "
+            + "WHERE t.guest_users_id = @u AND t.status IN ('Claimed', 'CheckedIn') "
             + "ORDER BY t.event_start_date ASC, t.seat_number ASC", connection);
         cmd.Parameters.AddWithValue("u", tenantContext.UsersId);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
