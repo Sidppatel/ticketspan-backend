@@ -25,6 +25,7 @@ service TenantTierService {
   rpc SetTenantAch (SetTenantAchRequest) returns (ticketspan.common.AckResponse);
 
   rpc SetTenantTaxMode (SetTenantTaxModeRequest) returns (ticketspan.common.AckResponse);
+  rpc SetTenantTaxDefault (SetTenantTaxDefaultRequest) returns (ticketspan.common.AckResponse);
 }
 
 message ReportingAccess {
@@ -160,6 +161,7 @@ message TenantReportingAccessRow {
   bool ach_enabled = 8;
   string ach_fee_formulas_id = 9;
   string tax_collection_mode = 10;
+  bool charge_tax_by_default = 11;
 }
 
 message TenantReportingAccessList {
@@ -187,5 +189,11 @@ message SetTenantAchRequest {
 message SetTenantTaxModeRequest {
   string tenants_id = 1;
   string mode = 2;
+  string reason = 3;
+}
+
+message SetTenantTaxDefaultRequest {
+  string tenants_id = 1;
+  bool charge_tax_by_default = 2;
   string reason = 3;
 }

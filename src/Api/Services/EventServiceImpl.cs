@@ -56,7 +56,7 @@ public sealed partial class EventServiceImpl : EventService.EventServiceBase
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
             "SELECT sp_create_event(@t, @title, @slug, @desc, @status, @cat, @start, @end, @img, @feat, @layout, "
-            + "NULL, NULL, NULL, @venue, @creator, @sched, @etype, @short_desc, @story_desc, @hero_img, @poster_img, @verified, @urgency)", connection);
+            + "NULL, NULL, NULL, @venue, @creator, @sched, @etype, @short_desc, @story_desc, @hero_img, @poster_img, @verified, @urgency, @tax_exempt)", connection);
         cmd.Parameters.AddWithValue("t", tenantContext.TenantsId!.Value);
         cmd.Parameters.AddWithValue("title", request.Title);
         cmd.Parameters.AddWithValue("slug", request.Slug);
@@ -80,6 +80,7 @@ public sealed partial class EventServiceImpl : EventService.EventServiceBase
         cmd.Parameters.AddWithValue("poster_img", string.IsNullOrEmpty(request.PosterImageId) ? DBNull.Value : Guid.Parse(request.PosterImageId));
         cmd.Parameters.AddWithValue("verified", request.IsVerifiedOrganizer);
         cmd.Parameters.AddWithValue("urgency", (object?)NullIfEmpty(request.UrgencyBadgeText) ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("tax_exempt", request.TaxExempt ? true : (object)DBNull.Value);
 
         try
         {
@@ -175,7 +176,7 @@ public sealed partial class EventServiceImpl : EventService.EventServiceBase
         }
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT sp_update_event(@id, @title, NULL, @desc, @cat, @start, @end, @img, @feat, NULL, NULL, NULL, NULL, @venue, NULL, @etype, @meta, @short_desc, @story_desc, @hero_img, @poster_img, @verified, @urgency)", connection);
+            "SELECT sp_update_event(@id, @title, NULL, @desc, @cat, @start, @end, @img, @feat, NULL, NULL, NULL, NULL, @venue, NULL, @etype, @meta, @short_desc, @story_desc, @hero_img, @poster_img, @verified, @urgency, @tax_exempt)", connection);
         cmd.Parameters.AddWithValue("id", Guid.Parse(request.EventsId));
         cmd.Parameters.AddWithValue("title", (object?)NullIfEmpty(request.Title) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("desc", (object?)NullIfEmpty(request.Description) ?? DBNull.Value);
@@ -196,6 +197,7 @@ public sealed partial class EventServiceImpl : EventService.EventServiceBase
         cmd.Parameters.AddWithValue("poster_img", string.IsNullOrEmpty(request.PosterImageId) ? DBNull.Value : Guid.Parse(request.PosterImageId));
         cmd.Parameters.AddWithValue("verified", request.IsVerifiedOrganizer);
         cmd.Parameters.AddWithValue("urgency", (object?)NullIfEmpty(request.UrgencyBadgeText) ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("tax_exempt", request.TaxExempt);
         try
         {
             await cmd.ExecuteNonQueryAsync(ct);
@@ -236,6 +238,31 @@ public sealed partial class EventServiceImpl : EventService.EventServiceBase
             throw MapPostgres(ex);
         }
         return new AckResponse { Success = true, Message = request.AchEnabled ? "ACH enabled" : "ACH disabled" };
+    }
+
+    public override async Task<AckResponse> SetEventTaxExempt(SetEventTaxExemptRequest request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        RequireTenant();
+        var eventId = Guid.Parse(request.EventsId);
+        await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        await RequireEventAccessAsync(connection, eventId, ct);
+        await using var cmd = new NpgsqlCommand("SELECT sp_set_event_tax_exempt(@id, @ex)", connection);
+        cmd.Parameters.AddWithValue("id", eventId);
+        cmd.Parameters.AddWithValue("ex", request.TaxExempt);
+        try
+        {
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+        catch (PostgresException ex)
+        {
+            throw MapPostgres(ex);
+        }
+        return new AckResponse
+        {
+            Success = true,
+            Message = request.TaxExempt ? "Sales tax disabled (event marked tax-exempt)" : "Sales tax enabled for event"
+        };
     }
 
     public override async Task<AckResponse> DeleteEvent(UuidValue request, ServerCallContext context)

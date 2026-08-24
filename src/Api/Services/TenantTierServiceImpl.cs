@@ -47,7 +47,7 @@ public sealed class TenantTierServiceImpl : TenantTierService.TenantTierServiceB
 
         await using var cmd = new NpgsqlCommand(
             "SELECT tenants_id, slug, name, tier, advanced_reporting_enabled, has_advanced_reporting, archived, "
-            + "ach_enabled, ach_fee_formulas_id, tax_collection_mode "
+            + "ach_enabled, ach_fee_formulas_id, tax_collection_mode, charge_tax_by_default "
             + "FROM vw_tenant_reporting_access WHERE (@q IS NULL OR name ILIKE @q OR slug ILIKE @q) "
             + "ORDER BY name OFFSET @o LIMIT @l", connection);
         cmd.Parameters.Add(new NpgsqlParameter("q", NpgsqlTypes.NpgsqlDbType.Text)
@@ -70,7 +70,8 @@ public sealed class TenantTierServiceImpl : TenantTierService.TenantTierServiceB
                 Archived = reader.GetBoolean(6),
                 AchEnabled = reader.GetBoolean(7),
                 AchFeeFormulasId = reader.IsDBNull(8) ? string.Empty : reader.GetGuid(8).ToString(),
-                TaxCollectionMode = reader.GetString(9)
+                TaxCollectionMode = reader.GetString(9),
+                ChargeTaxByDefault = !reader.IsDBNull(10) && reader.GetBoolean(10)
             });
         }
         return response;
@@ -196,6 +197,43 @@ public sealed class TenantTierServiceImpl : TenantTierService.TenantTierServiceB
         });
         await LogTierAuditAsync(connection, tenantsId, "tax_mode_changed", metadataJson, ct);
         return new AckResponse { Success = true, Message = $"Tax collection mode set to {request.Mode}" };
+    }
+
+    public override async Task<AckResponse> SetTenantTaxDefault(SetTenantTaxDefaultRequest request, ServerCallContext context)
+    {
+        RequireDeveloper();
+        var ct = context.CancellationToken;
+        if (string.IsNullOrWhiteSpace(request.Reason))
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "A change reason is required"));
+        }
+        var tenantsId = Guid.Parse(request.TenantsId);
+        await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
+        System.Text.Json.JsonElement oldState;
+        try
+        {
+            await using var cmd = new NpgsqlCommand("SELECT sp_set_tenant_tax_default(@t, @d)", connection);
+            cmd.Parameters.AddWithValue("t", tenantsId);
+            cmd.Parameters.AddWithValue("d", request.ChargeTaxByDefault);
+            oldState = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(
+                (string)(await cmd.ExecuteScalarAsync(ct))!);
+        }
+        catch (PostgresException exception) when (exception.SqlState is "P0001" or "22023")
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument, exception.MessageText));
+        }
+        var metadataJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            from_charge_tax_by_default = oldState.GetProperty("charge_tax_by_default").GetBoolean(),
+            to_charge_tax_by_default = request.ChargeTaxByDefault,
+            reason = request.Reason
+        });
+        await LogTierAuditAsync(connection, tenantsId, "tenant_tax_default_changed", metadataJson, ct);
+        return new AckResponse
+        {
+            Success = true,
+            Message = $"Default tax policy set to {(request.ChargeTaxByDefault ? "charge tax" : "tax-exempt")}"
+        };
     }
 
     private void RequireDeveloper()

@@ -65,7 +65,8 @@ SELECT
     COALESCE(tr.county_rate, 0) AS venue_county_tax_rate,
     COALESCE(tr.city_rate, 0) AS venue_city_tax_rate,
     COALESCE(tr.local_rate, 0) AS venue_local_tax_rate,
-    COALESCE(tr.combined_rate, 0) AS venue_combined_tax_rate
+    COALESCE(tr.combined_rate, 0) AS venue_combined_tax_rate,
+    COALESCE(e.tax_exempt, false) AS tax_exempt
 FROM events e
 JOIN venues v ON e.venues_id = v.venues_id
 LEFT JOIN addresses a ON v.addresses_id = a.addresses_id

@@ -11,5 +11,6 @@ SELECT
     t.archived_at IS NOT NULL AS archived,
     t.ach_enabled,
     t.ach_fee_formulas_id,
-    t.tax_collection_mode::text AS tax_collection_mode
+    t.tax_collection_mode::text AS tax_collection_mode,
+    COALESCE(t.charge_tax_by_default, true) AS charge_tax_by_default
 FROM tenants t;

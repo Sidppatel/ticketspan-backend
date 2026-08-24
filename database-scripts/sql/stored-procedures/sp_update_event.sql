@@ -13,7 +13,8 @@ CREATE OR REPLACE FUNCTION sp_update_event(
     p_hero_backdrop_image_id uuid DEFAULT NULL,
     p_poster_image_id uuid DEFAULT NULL,
     p_is_verified_organizer bool DEFAULT NULL,
-    p_urgency_badge_text text DEFAULT NULL
+    p_urgency_badge_text text DEFAULT NULL,
+    p_tax_exempt bool DEFAULT NULL
 ) RETURNS void LANGUAGE plpgsql
     SET search_path = public, extensions, pg_catalog
 AS $$
@@ -38,6 +39,7 @@ BEGIN
         poster_image_id = p_poster_image_id,
         is_verified_organizer = COALESCE(p_is_verified_organizer, is_verified_organizer),
         urgency_badge_text = p_urgency_badge_text,
+        tax_exempt = COALESCE(p_tax_exempt, tax_exempt),
         updated_at = now()
     WHERE events_id = p_id;
 END; $$;

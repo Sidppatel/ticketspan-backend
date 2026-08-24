@@ -39,7 +39,7 @@ public sealed partial class EventServiceImpl
         "SELECT events_id, title, slug, description, status, category, start_date, end_date, image_path, "
         + "is_featured, layout_mode, total_capacity, venues_id, performers::text, sponsors::text, fees_included, event_type, primary_image_id, extra_info::text, ach_enabled, "
         + "venue_state_tax_rate, venue_county_tax_rate, venue_city_tax_rate, venue_local_tax_rate, venue_combined_tax_rate, "
-        + "short_description, story_description, hero_backdrop_image_id, poster_image_id, is_verified_organizer, urgency_badge_text "
+        + "short_description, story_description, hero_backdrop_image_id, poster_image_id, is_verified_organizer, urgency_badge_text, tax_exempt "
         + "FROM vw_events";
 
     private static Event MapEvent(NpgsqlDataReader r) => new()
@@ -68,12 +68,14 @@ public sealed partial class EventServiceImpl
         VenueCountyTaxRate = r.IsDBNull(21) ? 0.0 : r.GetDouble(21),
         VenueCityTaxRate = r.IsDBNull(22) ? 0.0 : r.GetDouble(22),
         VenueLocalTaxRate = r.IsDBNull(23) ? 0.0 : r.GetDouble(23),
+        VenueCombinedTaxRate = r.IsDBNull(24) ? 0.0 : r.GetDouble(24),
         ShortDescription = r.FieldCount > 25 && !r.IsDBNull(25) ? r.GetString(25) : string.Empty,
         StoryDescription = r.FieldCount > 26 && !r.IsDBNull(26) ? r.GetString(26) : string.Empty,
         HeroBackdropImageId = r.FieldCount > 27 && !r.IsDBNull(27) ? r.GetGuid(27).ToString() : string.Empty,
         PosterImageId = r.FieldCount > 28 && !r.IsDBNull(28) ? r.GetGuid(28).ToString() : string.Empty,
         IsVerifiedOrganizer = r.FieldCount <= 29 || r.IsDBNull(29) || r.GetBoolean(29),
-        UrgencyBadgeText = r.FieldCount > 30 && !r.IsDBNull(30) ? r.GetString(30) : string.Empty
+        UrgencyBadgeText = r.FieldCount > 30 && !r.IsDBNull(30) ? r.GetString(30) : string.Empty,
+        TaxExempt = r.FieldCount > 31 && !r.IsDBNull(31) && r.GetBoolean(31)
     };
 
     private static string? NullIfEmpty(string value) => string.IsNullOrEmpty(value) ? null : value;

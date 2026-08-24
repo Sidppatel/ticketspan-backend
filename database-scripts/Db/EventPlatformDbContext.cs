@@ -115,6 +115,7 @@ public class EventPlatformDbContext(
                 .HasForeignKey(e => e.AchFeeFormulasId)
                 .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
             entity.Property(e => e.TaxCollectionMode).HasMaxLength(16).HasDefaultValue("platform");
+            entity.Property(e => e.ChargeTaxByDefault).HasDefaultValue(true);
         });
 
         modelBuilder.Entity<TenantStripeProfile>(entity =>

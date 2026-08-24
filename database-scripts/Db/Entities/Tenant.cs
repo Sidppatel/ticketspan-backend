@@ -76,4 +76,5 @@ public class Tenant : BaseEntity
     public FeeFormula? AchFeeFormula { get; set; }
 
     public string TaxCollectionMode { get; set; } = "platform";
+    public bool ChargeTaxByDefault { get; set; } = true;
 }

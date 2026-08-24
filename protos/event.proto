@@ -19,6 +19,7 @@ service EventService {
   rpc SetEventFeesIncluded (SetEventFeesIncludedRequest) returns (ticketspan.common.AckResponse);
 
   rpc SetEventAch (SetEventAchRequest) returns (ticketspan.common.AckResponse);
+  rpc SetEventTaxExempt (SetEventTaxExemptRequest) returns (ticketspan.common.AckResponse);
   rpc ListScheduleItems (ticketspan.common.UuidValue) returns (ListScheduleItemsResponse);
   rpc CreateScheduleItem (CreateScheduleItemRequest) returns (ticketspan.common.UuidValue);
   rpc UpdateScheduleItem (UpdateScheduleItemRequest) returns (ticketspan.common.AckResponse);
@@ -112,6 +113,11 @@ message SetEventAchRequest {
   bool ach_enabled = 2;
 }
 
+message SetEventTaxExemptRequest {
+  string events_id = 1;
+  bool tax_exempt = 2;
+}
+
 message Event {
   string events_id = 1;
   string tenants_id = 2;
@@ -145,6 +151,7 @@ message Event {
   string poster_image_id = 30;
   bool is_verified_organizer = 31;
   string urgency_badge_text = 32;
+  bool tax_exempt = 33;
 }
 
 message GetEventBySlugRequest { string slug = 1; }
@@ -169,6 +176,7 @@ message CreateEventRequest {
   string poster_image_id = 20;
   bool is_verified_organizer = 21;
   string urgency_badge_text = 22;
+  bool tax_exempt = 23;
 }
 
 message CreateEventResponse { string events_id = 1; }
@@ -191,6 +199,7 @@ message UpdateEventRequest {
   string poster_image_id = 16;
   bool is_verified_organizer = 17;
   string urgency_badge_text = 18;
+  bool tax_exempt = 19;
 }
 
 message ChangeEventStatusRequest {
