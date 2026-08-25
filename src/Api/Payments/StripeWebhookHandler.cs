@@ -116,7 +116,13 @@ public sealed class StripeWebhookHandler
     {
         await SetTxStatus(conn, pi.Id, "Succeeded", ct);
 
-        
+        var transferGroup = pi.TransferGroup ?? (pi.Metadata != null && pi.Metadata.TryGetValue("transfer_group", out var tg) ? tg : null);
+        if (!string.IsNullOrEmpty(transferGroup))
+        {
+            await ProcessMultiTenantPaymentSucceededAsync(conn, pi, transferGroup, ct);
+            return;
+        }
+
         var bookingId = await BookingIdForIntent(conn, pi, ct);
         if (bookingId is null)
         {
@@ -159,6 +165,68 @@ public sealed class StripeWebhookHandler
         {
             await BookingEmailSender.SendBookingConfirmationEmailAsync(
                 conn, bookingId.Value, emailService, templates, settings, logger, ct);
+        }
+    }
+
+    private async Task ProcessMultiTenantPaymentSucceededAsync(
+        NpgsqlConnection conn, PaymentIntent pi, string transferGroup, CancellationToken ct)
+    {
+        var confirmedBookings = new List<Guid>();
+        await using (var getBookingsCmd = new NpgsqlCommand(
+            "SELECT b.bookings_id, t.stripe_connected_account_id, b.subtotal_cents, b.fee_cents, b.tax_cents, t.tax_collection_mode " +
+            "FROM bookings b " +
+            "JOIN tenants t ON t.tenants_id = b.tenants_id " +
+            "JOIN stripe_transactions st ON st.bookings_id = b.bookings_id " +
+            "WHERE st.payment_intent_id = @id", conn))
+        {
+            getBookingsCmd.Parameters.AddWithValue("id", pi.Id);
+            await using var r = await getBookingsCmd.ExecuteReaderAsync(ct);
+            while (await r.ReadAsync(ct))
+            {
+                var bId = r.GetGuid(0);
+                var stripeAcct = r.IsDBNull(1) ? null : r.GetString(1);
+                var subtotal = r.GetInt32(2);
+                var fee = r.GetInt32(3);
+                var tax = r.GetInt32(4);
+                var taxMode = r.IsDBNull(5) ? "platform" : r.GetString(5);
+
+                confirmedBookings.Add(bId);
+
+                var transferAmount = taxMode == "self" ? subtotal + tax : subtotal;
+                if (!string.IsNullOrEmpty(stripeAcct) && transferAmount > 0)
+                {
+                    try
+                    {
+                        var transfer = await stripeService.CreateTransferAsync(
+                            transferAmount, pi.Currency ?? "usd", stripeAcct, transferGroup,
+                            $"Payout for booking {bId}", ct);
+                        logger.LogInformation("Successfully initiated Stripe transfer {TrId} of {Amt} cents to {Acct}",
+                            transfer.Id, transferAmount, stripeAcct);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Failed to initiate Stripe transfer of {Amt} cents to {Acct} for booking {Bid}",
+                            transferAmount, stripeAcct, bId);
+                    }
+                }
+            }
+        }
+
+        foreach (var bId in confirmedBookings)
+        {
+            var qrToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+            bool confirmed;
+            await using (var cmd = new NpgsqlCommand("SELECT sp_confirm_booking(@b, @qr)", conn))
+            {
+                cmd.Parameters.AddWithValue("b", bId);
+                cmd.Parameters.AddWithValue("qr", qrToken);
+                confirmed = await cmd.ExecuteScalarAsync(ct) is true;
+            }
+            if (confirmed)
+            {
+                await BookingEmailSender.SendBookingConfirmationEmailAsync(
+                    conn, bId, emailService, templates, settings, logger, ct);
+            }
         }
     }
 

@@ -265,6 +265,90 @@ public sealed class StripeService
         return await service.CreateAsync(options, requestOptions, ct);
     }
 
+    public async Task<PaymentIntent> CreateTransferGroupPaymentIntentAsync(
+        long amountCents, string currency, string transferGroup,
+        bool achAllowed, bool bankOnly, CancellationToken ct,
+        IReadOnlyDictionary<string, string>? metadata = null,
+        string? customerId = null,
+        bool setupFutureUsage = true)
+    {
+        var service = new PaymentIntentService(client);
+        var methods = bankOnly
+            ? new List<string> { "us_bank_account" }
+            : new List<string> { "card", "cashapp" };
+        var meta = new Dictionary<string, string> { ["transfer_group"] = transferGroup };
+        if (metadata is not null)
+        {
+            foreach (var (key, value) in metadata)
+            {
+                meta[key] = value;
+            }
+        }
+        var options = new PaymentIntentCreateOptions
+        {
+            Amount = amountCents,
+            Currency = currency,
+            PaymentMethodTypes = methods,
+            TransferGroup = transferGroup,
+            Metadata = meta
+        };
+        if (!string.IsNullOrEmpty(customerId))
+        {
+            options.Customer = customerId;
+            if (setupFutureUsage)
+            {
+                options.SetupFutureUsage = "on_session";
+            }
+        }
+        var requestOptions = new RequestOptions
+        {
+            IdempotencyKey = $"pi_tg_create_{transferGroup}_{(bankOnly ? "ach" : "card")}"
+        };
+        return await service.CreateAsync(options, requestOptions, ct);
+    }
+
+    public async Task<Transfer> CreateTransferAsync(
+        long amountCents, string currency, string destinationAccountId, string transferGroup,
+        string? description, CancellationToken ct,
+        IReadOnlyDictionary<string, string>? metadata = null)
+    {
+        var service = new TransferService(client);
+        var meta = new Dictionary<string, string> { ["transfer_group"] = transferGroup };
+        if (metadata is not null)
+        {
+            foreach (var (key, value) in metadata)
+            {
+                meta[key] = value;
+            }
+        }
+        var options = new TransferCreateOptions
+        {
+            Amount = amountCents,
+            Currency = currency,
+            Destination = destinationAccountId,
+            TransferGroup = transferGroup,
+            Description = description,
+            Metadata = meta
+        };
+        var requestOptions = new RequestOptions
+        {
+            IdempotencyKey = $"tr_{transferGroup}_{destinationAccountId}_{amountCents}"
+        };
+        return await service.CreateAsync(options, requestOptions, ct);
+    }
+
+    public async Task<TransferReversal> ReverseTransferAsync(
+        string transferId, long? amountCents, string? description, CancellationToken ct)
+    {
+        var service = new TransferReversalService(client);
+        var options = new TransferReversalCreateOptions
+        {
+            Amount = amountCents,
+            Description = description
+        };
+        return await service.CreateAsync(transferId, options, cancellationToken: ct);
+    }
+
     public async Task<PaymentIntent> GetPaymentIntentAsync(string intentId, CancellationToken ct)
         => await new PaymentIntentService(client).GetAsync(intentId, cancellationToken: ct);
 
