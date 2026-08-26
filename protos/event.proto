@@ -30,9 +30,25 @@ service EventService {
   rpc SetPrimaryEventImage (RemoveEventImageRequest) returns (ticketspan.common.AckResponse);
   rpc ReorderEventImages (ReorderEventImagesRequest) returns (ticketspan.common.AckResponse);
   rpc GetMediaSettings (ticketspan.common.Empty) returns (MediaSettings);
+  rpc GetPublicAppSettings (ticketspan.common.Empty) returns (PublicAppSettings);
   rpc GetEventReminderSettings (ticketspan.common.UuidValue) returns (EventReminderSettings);
   rpc UpdateEventReminderSettings (UpdateEventReminderSettingsRequest) returns (ticketspan.common.AckResponse);
   rpc TriggerManualEventReminder (ticketspan.common.UuidValue) returns (TriggerManualEventReminderResponse);
+}
+
+message PublicAppSettings {
+  int32 booking_hold_seconds = 1;
+  string default_timezone = 2;
+  string event_image_aspect_ratio = 3;
+  string event_thumbnail_aspect_ratio = 4;
+  string sponsor_image_aspect_ratio = 5;
+  string performer_image_aspect_ratio = 6;
+  string venue_image_aspect_ratio = 7;
+  int32 floorplan_default_size = 8;
+  int32 floorplan_canvas_width = 9;
+  int32 floorplan_canvas_height = 10;
+  string floorplan_default_color = 11;
+  map<string, string> all_settings = 12;
 }
 
 message EventImage {

@@ -103,7 +103,7 @@ public sealed class EventReminderWorker : BackgroundService
         logger.LogInformation("Processing automated reminders for {Count} event(s)", eventsDue.Count);
 
         var fromAddress = await settings.GetStringAsync("admin_invitation_email", "noreply@ticketspan.com", ct);
-        var publicBase = configuration["FRONTEND_PUBLIC_URL"] ?? "http://localhost:5173";
+        var eventLinkTemplate = await settings.GetStringAsync("event_link_base", "http://{slug}.localhost:5173/e/{eventId}", ct);
 
         foreach (var ev in eventsDue)
         {
@@ -138,9 +138,8 @@ public sealed class EventReminderWorker : BackgroundService
             {
                 try
                 {
-                    var eventLink = string.IsNullOrEmpty(att.TenantSlug)
-                        ? $"{publicBase.TrimEnd('/')}/e/{ev.EventId}"
-                        : $"http://{att.TenantSlug}.localhost:5173/e/{ev.EventId}";
+                    var slug = string.IsNullOrEmpty(att.TenantSlug) ? "app" : att.TenantSlug;
+                    var eventLink = eventLinkTemplate.Replace("{slug}", slug).Replace("{eventId}", ev.EventId.ToString());
 
                     var values = new Dictionary<string, string>
                     {

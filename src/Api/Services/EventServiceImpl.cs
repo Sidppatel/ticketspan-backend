@@ -558,24 +558,37 @@ public sealed partial class EventServiceImpl : EventService.EventServiceBase
     public override async Task<MediaSettings> GetMediaSettings(Empty request, ServerCallContext context)
     {
         var ct = context.CancellationToken;
-        await using var connection = await db.OpenAsync(null, null, ct);
-        await using var cmd = new NpgsqlCommand(
-            "SELECT key, value FROM vw_app_settings WHERE key IN ('event_image_aspect_ratio', 'event_thumbnail_aspect_ratio')",
-            connection);
-        var settings = new MediaSettings { EventImageAspectRatio = "16:9", EventThumbnailAspectRatio = "4:3" };
-        await using var reader = await cmd.ExecuteReaderAsync(ct);
-        while (await reader.ReadAsync(ct))
+        var s = new MediaSettings
         {
-            if (reader.GetString(0) == "event_image_aspect_ratio")
-            {
-                settings.EventImageAspectRatio = reader.GetString(1);
-            }
-            else
-            {
-                settings.EventThumbnailAspectRatio = reader.GetString(1);
-            }
+            EventImageAspectRatio = await settings.GetStringAsync("event_image_aspect_ratio", "16:9", ct),
+            EventThumbnailAspectRatio = await settings.GetStringAsync("event_thumbnail_aspect_ratio", "4:3", ct)
+        };
+        return s;
+    }
+
+    public override async Task<PublicAppSettings> GetPublicAppSettings(Empty request, ServerCallContext context)
+    {
+        var ct = context.CancellationToken;
+        var all = await settings.GetAllAsync(ct);
+        var res = new PublicAppSettings
+        {
+            BookingHoldSeconds = await settings.GetIntAsync("booking_hold_seconds", 600, ct),
+            DefaultTimezone = await settings.GetStringAsync("default_timezone", "America/Chicago", ct),
+            EventImageAspectRatio = await settings.GetStringAsync("event_image_aspect_ratio", "16:9", ct),
+            EventThumbnailAspectRatio = await settings.GetStringAsync("event_thumbnail_aspect_ratio", "4:3", ct),
+            SponsorImageAspectRatio = await settings.GetStringAsync("sponsor_image_aspect_ratio", "1:1", ct),
+            PerformerImageAspectRatio = await settings.GetStringAsync("performer_image_aspect_ratio", "1:1", ct),
+            VenueImageAspectRatio = await settings.GetStringAsync("venue_image_aspect_ratio", "16:9", ct),
+            FloorplanDefaultSize = await settings.GetIntAsync("floorplan_default_size", 80, ct),
+            FloorplanCanvasWidth = await settings.GetIntAsync("floorplan_canvas_width", 1200, ct),
+            FloorplanCanvasHeight = await settings.GetIntAsync("floorplan_canvas_height", 800, ct),
+            FloorplanDefaultColor = await settings.GetStringAsync("floorplan_default_color", "#059669", ct)
+        };
+        foreach (var (k, v) in all)
+        {
+            res.AllSettings[k] = v;
         }
-        return settings;
+        return res;
     }
 
     private string EventScopeFilter =>
@@ -701,15 +714,14 @@ public sealed partial class EventServiceImpl : EventService.EventServiceBase
         }
 
         var fromAddress = await settings.GetStringAsync("admin_invitation_email", "noreply@ticketspan.com", ct);
-        var publicBase = configuration["FRONTEND_PUBLIC_URL"] ?? "http://localhost:5173";
+        var eventLinkTemplate = await settings.GetStringAsync("event_link_base", "http://{slug}.localhost:5173/e/{eventId}", ct);
 
         foreach (var att in attendees)
         {
             try
             {
-                var eventLink = string.IsNullOrEmpty(att.TenantSlug)
-                    ? $"{publicBase.TrimEnd('/')}/e/{eventId}"
-                    : $"http://{att.TenantSlug}.localhost:5173/e/{eventId}";
+                var slug = string.IsNullOrEmpty(att.TenantSlug) ? "app" : att.TenantSlug;
+                var eventLink = eventLinkTemplate.Replace("{slug}", slug).Replace("{eventId}", eventId.ToString());
                 
                 var values = new Dictionary<string, string>
                 {

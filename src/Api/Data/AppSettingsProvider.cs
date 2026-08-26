@@ -30,6 +30,12 @@ public sealed class AppSettingsProvider
         loaded = true;
     }
 
+    public async Task<IReadOnlyDictionary<string, string>> GetAllAsync(CancellationToken ct)
+    {
+        await EnsureLoadedAsync(ct);
+        return cache;
+    }
+
     public async Task<string> GetStringAsync(string key, string fallback, CancellationToken ct)
     {
         await EnsureLoadedAsync(ct);
