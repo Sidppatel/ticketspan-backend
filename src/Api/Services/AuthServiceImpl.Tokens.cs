@@ -198,6 +198,20 @@ public sealed partial class AuthServiceImpl
 
     public override async Task<AuthResponse> RefreshToken(RefreshTokenRequest request, ServerCallContext context)
     {
+        var rawToken = request.RefreshToken;
+        if (string.IsNullOrWhiteSpace(rawToken))
+        {
+            var httpContext = context.GetHttpContext();
+            if (httpContext != null && httpContext.Request.Cookies.TryGetValue("ts_refresh", out var cookieToken))
+            {
+                rawToken = cookieToken;
+            }
+        }
+        if (string.IsNullOrWhiteSpace(rawToken))
+        {
+            throw new RpcException(new Status(StatusCode.Unauthenticated, "No refresh token provided"));
+        }
+
         var ct = context.CancellationToken;
         var v = jwt.ValidationParameters;
         var handler = new Microsoft.IdentityModel.JsonWebTokens.JsonWebTokenHandler { MapInboundClaims = false };
@@ -214,7 +228,7 @@ public sealed partial class AuthServiceImpl
         System.Security.Claims.ClaimsPrincipal principal;
         try
         {
-            var tokenValidationResult = await handler.ValidateTokenAsync(request.RefreshToken, parameters);
+            var tokenValidationResult = await handler.ValidateTokenAsync(rawToken, parameters);
             if (!tokenValidationResult.IsValid)
             {
                 throw new RpcException(new Status(StatusCode.Unauthenticated, "Invalid refresh token"));
@@ -241,10 +255,11 @@ public sealed partial class AuthServiceImpl
         var email = principal.FindFirst("email")?.Value ?? string.Empty;
         var slug = principal.FindFirst("tenant_slug")?.Value ?? string.Empty;
         Guid? tokenTenant = Guid.TryParse(principal.FindFirst("tenants_id")?.Value, out var t) ? t : null;
+        int tokenVersion = int.TryParse(principal.FindFirst("v")?.Value, out var tv) ? tv : 1;
 
         await using var connection = await db.OpenAsync(null, null, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT tenants_id, role, email, is_active FROM sp_get_user_by_email_hash(@h) "
+            "SELECT tenants_id, role, email, is_active, token_version FROM sp_get_user_by_email_hash(@h) "
             + "WHERE users_id = @u AND tenants_id IS NOT DISTINCT FROM @tenant LIMIT 1", connection);
         cmd.Parameters.AddWithValue("h", EmailHasher.Hash(email));
         cmd.Parameters.AddWithValue("u", usersId);
@@ -258,6 +273,12 @@ public sealed partial class AuthServiceImpl
         {
             throw new RpcException(new Status(StatusCode.PermissionDenied, "Account disabled"));
         }
+        var currentTokenVersion = reader.GetInt32(4);
+        if (tokenVersion != currentTokenVersion)
+        {
+            ClearRefreshTokenCookie(context);
+            throw new RpcException(new Status(StatusCode.Unauthenticated, "Session has been invalidated or expired"));
+        }
         var rowTenant = reader.IsDBNull(0) ? (Guid?)null : reader.GetGuid(0);
         var role = reader.GetInt16(1);
         var freshEmail = reader.GetString(2);
@@ -269,23 +290,91 @@ public sealed partial class AuthServiceImpl
             Role = role,
             TenantSlug = slug
         };
-        return BuildAuth(usersId, freshEmail, rowTenant, role, slug, profile);
+        return BuildAuth(usersId, freshEmail, rowTenant, role, slug, profile, currentTokenVersion, context);
     }
 
     public override async Task<TicketSpan.Protos.Common.AckResponse> Logout(LogoutRequest request, ServerCallContext context)
     {
         var ct = context.CancellationToken;
-        await using var connection = await db.OpenAsync(null, null, ct);
-        await using var cmd = new NpgsqlCommand("SELECT sp_revoke_device_session(@h)", connection);
-        cmd.Parameters.AddWithValue("h", request.SessionHash);
-        await cmd.ExecuteNonQueryAsync(ct);
+        ClearRefreshTokenCookie(context);
+        if (!string.IsNullOrEmpty(request.SessionHash))
+        {
+            await using var connection = await db.OpenAsync(null, null, ct);
+            await using var cmd = new NpgsqlCommand("SELECT sp_revoke_device_session(@h)", connection);
+            cmd.Parameters.AddWithValue("h", request.SessionHash);
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
         return new TicketSpan.Protos.Common.AckResponse { Success = true, Message = "Logged out" };
     }
 
-    private AuthResponse BuildAuth(Guid usersId, string email, Guid? tenantsId, int role, string slug, UserProfile profile)
+    private void SetRefreshTokenCookie(ServerCallContext context, string refreshToken)
     {
-        var (access, expiresAt) = jwt.Issue(usersId, email, tenantsId, role, slug);
-        var (refresh, _) = jwt.IssueRefresh(usersId, email, tenantsId, role, slug);
+        var httpContext = context.GetHttpContext();
+        if (httpContext == null)
+        {
+            return;
+        }
+        var host = httpContext.Request.Host.Host;
+        var corsBaseDomain = configuration["CORS_BASE_DOMAIN"];
+        string? domain = null;
+        if (!string.IsNullOrEmpty(corsBaseDomain) && (host == corsBaseDomain || host.EndsWith("." + corsBaseDomain)))
+        {
+            domain = "." + corsBaseDomain.TrimStart('.');
+        }
+        httpContext.Response.Cookies.Append("ts_refresh", refreshToken, new Microsoft.AspNetCore.Http.CookieOptions
+        {
+            HttpOnly = true,
+            Secure = httpContext.Request.IsHttps || !string.IsNullOrEmpty(corsBaseDomain),
+            SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax,
+            Domain = domain,
+            Expires = DateTimeOffset.UtcNow.AddMinutes(jwt.RefreshLifetimeMinutes),
+            Path = "/"
+        });
+    }
+
+    private void ClearRefreshTokenCookie(ServerCallContext context)
+    {
+        var httpContext = context.GetHttpContext();
+        if (httpContext == null)
+        {
+            return;
+        }
+        var host = httpContext.Request.Host.Host;
+        var corsBaseDomain = configuration["CORS_BASE_DOMAIN"];
+        string? domain = null;
+        if (!string.IsNullOrEmpty(corsBaseDomain) && (host == corsBaseDomain || host.EndsWith("." + corsBaseDomain)))
+        {
+            domain = "." + corsBaseDomain.TrimStart('.');
+        }
+        var options = new Microsoft.AspNetCore.Http.CookieOptions
+        {
+            HttpOnly = true,
+            Secure = httpContext.Request.IsHttps || !string.IsNullOrEmpty(corsBaseDomain),
+            SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax,
+            Domain = domain,
+            Path = "/"
+        };
+        httpContext.Response.Cookies.Delete("ts_refresh", options);
+        if (domain != null)
+        {
+            httpContext.Response.Cookies.Delete("ts_refresh", new Microsoft.AspNetCore.Http.CookieOptions
+            {
+                HttpOnly = true,
+                Secure = httpContext.Request.IsHttps || !string.IsNullOrEmpty(corsBaseDomain),
+                SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax,
+                Path = "/"
+            });
+        }
+    }
+
+    private AuthResponse BuildAuth(Guid usersId, string email, Guid? tenantsId, int role, string slug, UserProfile profile, int tokenVersion = 1, ServerCallContext? context = null)
+    {
+        var (access, expiresAt) = jwt.Issue(usersId, email, tenantsId, role, slug, tokenVersion);
+        var (refresh, _) = jwt.IssueRefresh(usersId, email, tenantsId, role, slug, tokenVersion);
+        if (context != null)
+        {
+            SetRefreshTokenCookie(context, refresh);
+        }
         return new AuthResponse { AccessToken = access, RefreshToken = refresh, ExpiresAt = expiresAt, User = profile };
     }
 

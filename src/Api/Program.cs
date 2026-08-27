@@ -75,6 +75,7 @@ builder.Services.AddCors(options =>
         policy
             .AllowAnyHeader()
             .AllowAnyMethod()
+            .AllowCredentials()
             .WithExposedHeaders(
                 "grpc-status",
                 "grpc-message",

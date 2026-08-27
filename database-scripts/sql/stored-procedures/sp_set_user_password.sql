@@ -11,6 +11,7 @@ BEGIN
     UPDATE users
     SET password_hash = p_new_password_hash,
         pepper_version = p_pepper_version,
+        token_version = CASE WHEN p_revoke_other_sessions THEN token_version + 1 ELSE token_version END,
         updated_at = now()
     WHERE users_id = p_users_id;
 

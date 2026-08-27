@@ -24,6 +24,8 @@ public sealed class JwtTokenService
         refreshLifetimeMinutes = int.TryParse(configuration["JWT_REFRESH_LIFETIME_MINUTES"], out var rm) ? rm : 43200;
     }
 
+    public int RefreshLifetimeMinutes => refreshLifetimeMinutes;
+
     public TokenParameters ValidationParameters => new()
     {
         Key = new SymmetricSecurityKey(signingKey),
@@ -31,13 +33,13 @@ public sealed class JwtTokenService
         Audience = audience
     };
 
-    public (string token, long expiresAt) Issue(Guid usersId, string email, Guid? tenantsId, int role, string tenantSlug)
-        => Build(usersId, email, tenantsId, role, tenantSlug, lifetimeMinutes, "access");
+    public (string token, long expiresAt) Issue(Guid usersId, string email, Guid? tenantsId, int role, string tenantSlug, int tokenVersion = 1)
+        => Build(usersId, email, tenantsId, role, tenantSlug, tokenVersion, lifetimeMinutes, "access");
 
-    public (string token, long expiresAt) IssueRefresh(Guid usersId, string email, Guid? tenantsId, int role, string tenantSlug)
-        => Build(usersId, email, tenantsId, role, tenantSlug, refreshLifetimeMinutes, "refresh");
+    public (string token, long expiresAt) IssueRefresh(Guid usersId, string email, Guid? tenantsId, int role, string tenantSlug, int tokenVersion = 1)
+        => Build(usersId, email, tenantsId, role, tenantSlug, tokenVersion, refreshLifetimeMinutes, "refresh");
 
-    private (string token, long expiresAt) Build(Guid usersId, string email, Guid? tenantsId, int role, string tenantSlug, int minutes, string type)
+    private (string token, long expiresAt) Build(Guid usersId, string email, Guid? tenantsId, int role, string tenantSlug, int tokenVersion, int minutes, string type)
     {
         var expires = DateTime.UtcNow.AddMinutes(minutes);
         var claims = new Dictionary<string, object>
@@ -46,7 +48,8 @@ public sealed class JwtTokenService
             ["email"] = email,
             ["role"] = role.ToString(),
             ["tenant_slug"] = tenantSlug,
-            ["typ"] = type
+            ["typ"] = type,
+            ["v"] = tokenVersion.ToString()
         };
         if (tenantsId is { } t)
         {

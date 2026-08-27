@@ -61,7 +61,7 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
         };
 
         await using var cmd = new NpgsqlCommand(
-            $"SELECT users_id, tenants_id, password_hash, pepper_version, role, email, first_name, last_name, email_verified, is_active "
+            $"SELECT users_id, tenants_id, password_hash, pepper_version, role, email, first_name, last_name, email_verified, is_active, token_version "
             + $"FROM {viewName} WHERE email_hash = @h", connection);
         cmd.Parameters.AddWithValue("h", emailHash);
 
@@ -100,6 +100,7 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
             var firstName = reader.IsDBNull(6) ? string.Empty : reader.GetString(6);
             var lastName = reader.IsDBNull(7) ? string.Empty : reader.GetString(7);
             var emailVerified = !reader.IsDBNull(8) && reader.GetBoolean(8);
+            var tokenVersion = reader.GetInt32(10);
             await reader.CloseAsync();
             var tenantSlug = rowTenant is { } rt
                 ? await ResolveSlugAsync(rt, connection, ct) ?? request.TenantSlug
@@ -134,7 +135,7 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
                 }
             });
 
-            return BuildAuth(usersId, profile.Email, rowTenant, role, tenantSlug, profile);
+            return BuildAuth(usersId, profile.Email, rowTenant, role, tenantSlug, profile, tokenVersion, context);
         }
         throw new RpcException(new Status(StatusCode.Unauthenticated, "Invalid credentials"));
     }
@@ -175,7 +176,7 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
                 TenantSlug = request.TenantSlug ?? string.Empty,
                 EmailVerified = !reader.IsDBNull(5) && reader.GetBoolean(5)
             };
-            return BuildAuth(usersId, profile.Email, null, role, request.TenantSlug ?? string.Empty, profile);
+            return BuildAuth(usersId, profile.Email, null, role, request.TenantSlug ?? string.Empty, profile, 1, context);
         }
         catch (PostgresException ex) when (ex.SqlState == "23505")
         {
@@ -281,7 +282,7 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
                 }
             });
         }
-        return BuildAuth(usersId, profile.Email, rowTenant, role, tenantSlug, profile);
+        return BuildAuth(usersId, profile.Email, rowTenant, role, tenantSlug, profile, 1, context);
         }
     }
 

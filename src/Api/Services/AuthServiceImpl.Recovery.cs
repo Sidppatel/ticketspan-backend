@@ -86,7 +86,7 @@ public sealed partial class AuthServiceImpl
         var emailHash = EmailHasher.Hash(email);
         await using var conn = await db.OpenAsync(null, null, ct);
         await using var lookup = new NpgsqlCommand(
-            "SELECT users_id, tenants_id, role, email, first_name, last_name, email_verified "
+            "SELECT users_id, tenants_id, role, email, first_name, last_name, email_verified, token_version "
             + "FROM sp_get_user_by_email_hash(@h) WHERE is_active = true AND (role = 0 OR role = 99 OR tenants_id IS NOT DISTINCT FROM @tenant) ORDER BY role DESC LIMIT 1", conn);
         lookup.Parameters.AddWithValue("h", emailHash);
         lookup.Parameters.AddWithValue("tenant", (object?)linkTenant ?? DBNull.Value);
@@ -97,6 +97,7 @@ public sealed partial class AuthServiceImpl
         string firstName;
         string lastName;
         bool emailVerified;
+        int tokenVersion = 1;
         await using (var reader = await lookup.ExecuteReaderAsync(ct))
         {
             if (await reader.ReadAsync(ct))
@@ -107,6 +108,7 @@ public sealed partial class AuthServiceImpl
                 firstName = reader.GetString(4);
                 lastName = reader.GetString(5);
                 emailVerified = reader.GetBoolean(6);
+                tokenVersion = reader.GetInt32(7);
             }
             else
             {
@@ -126,7 +128,7 @@ public sealed partial class AuthServiceImpl
             Role = role,
             EmailVerified = emailVerified
         };
-        return BuildAuth(usersId, email, rowTenant, role, string.Empty, profile);
+        return BuildAuth(usersId, email, rowTenant, role, string.Empty, profile, tokenVersion, context);
     }
 
     public override async Task<TicketSpan.Protos.Common.AckResponse> RequestPasswordReset(PasswordResetRequest request, ServerCallContext context)
@@ -241,6 +243,7 @@ public sealed partial class AuthServiceImpl
         cmd.Parameters.AddWithValue("h", newHash);
         cmd.Parameters.AddWithValue("pv", passwordHasher.CurrentVersion);
         await cmd.ExecuteNonQueryAsync(ct);
+        ClearRefreshTokenCookie(context);
         return new TicketSpan.Protos.Common.AckResponse { Success = true, Message = "Password updated" };
     }
 }
