@@ -166,11 +166,9 @@ public sealed class StripeWebhookHandler
     {
         var confirmedBookings = new List<Guid>();
         await using (var getBookingsCmd = new NpgsqlCommand(
-            "SELECT b.bookings_id, t.stripe_connected_account_id, b.subtotal_cents, b.fee_cents, b.tax_cents, t.tax_collection_mode " +
-            "FROM bookings b " +
-            "JOIN tenants t ON t.tenants_id = b.tenants_id " +
-            "JOIN stripe_transactions st ON st.bookings_id = b.bookings_id " +
-            "WHERE st.payment_intent_id = @id", conn))
+            "SELECT bookings_id, stripe_connected_account_id, subtotal_cents, fee_cents, tax_cents, tax_collection_mode " +
+            "FROM vw_stripe_payout_bookings " +
+            "WHERE payment_intent_id = @id", conn))
         {
             getBookingsCmd.Parameters.AddWithValue("id", pi.Id);
             await using var r = await getBookingsCmd.ExecuteReaderAsync(ct);

@@ -80,7 +80,7 @@ public sealed class CheckInServiceImpl : CheckInService.CheckInServiceBase
         else
         {
             cmd = new NpgsqlCommand(
-                "SELECT v.events_id, v.title, v.slug, v.start_date, v.end_date, v.status, v.venue_name FROM vw_events v WHERE v.events_id IN (SELECT events_id FROM sp_list_events_for_staff(@u, 24)) ORDER BY v.start_date", connection);
+                "SELECT events_id, title, slug, start_date, end_date, status, venue_name FROM sp_list_events_for_staff(@u, 24)", connection);
             cmd.Parameters.AddWithValue("u", tenantContext.UsersId!);
         }
 

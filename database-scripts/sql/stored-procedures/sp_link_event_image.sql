@@ -7,7 +7,8 @@ CREATE OR REPLACE FUNCTION sp_link_event_image(
     event_image_id uuid,
     sort_order int,
     is_primary boolean,
-    image_type text
+    image_type text,
+    storage_key text
 ) LANGUAGE plpgsql
     SET search_path = public, extensions, pg_catalog
 AS $$
@@ -39,7 +40,9 @@ BEGIN
         INSERT INTO event_images (tenants_id, events_id, images_id, sort_order, is_primary, type,
             created_at, updated_at)
         VALUES (v_tenant, p_event_id, p_image_id, v_sort, v_is_primary, p_type, now(), now())
-        RETURNING event_images_id, sort_order, is_primary, type
+        RETURNING event_images_id, sort_order, is_primary, type, images_id
     )
-    SELECT inserted.event_images_id, inserted.sort_order, inserted.is_primary, inserted.type::text FROM inserted;
+    SELECT inserted.event_images_id, inserted.sort_order, inserted.is_primary, inserted.type::text, img.storage_key
+    FROM inserted
+    JOIN images img ON img.images_id = inserted.images_id;
 END; $$;

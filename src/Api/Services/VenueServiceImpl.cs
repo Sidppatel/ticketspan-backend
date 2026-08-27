@@ -158,8 +158,8 @@ public sealed class VenueServiceImpl : VenueService.VenueServiceBase
         RequireTenant();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT i.storage_key, l.is_primary, l.sort_order "
-            + "FROM sp_link_venue_image(@v, @img) l JOIN vw_images i ON i.images_id = @img", connection);
+            "SELECT storage_key, is_primary, sort_order "
+            + "FROM sp_link_venue_image(@v, @img)", connection);
         cmd.Parameters.AddWithValue("v", Guid.Parse(request.VenuesId));
         cmd.Parameters.AddWithValue("img", Guid.Parse(request.ImagesId));
         try

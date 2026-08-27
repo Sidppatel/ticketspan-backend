@@ -150,7 +150,7 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
         RequireUser();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT id FROM sp_lock_table(@u, (SELECT events_id FROM vw_event_layout_tables WHERE tables_id = @t), @t, 15)", connection);
+            "SELECT id FROM sp_lock_table(@u, NULL, @t, 15)", connection);
         cmd.Parameters.AddWithValue("u", tenantContext.UsersId!);
         cmd.Parameters.AddWithValue("t", Guid.Parse(request.TablesId));
         var result = await cmd.ExecuteScalarAsync(ct);
@@ -163,7 +163,7 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
         RequireUser();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT sp_release_table_lock(@u, (SELECT events_id FROM vw_event_layout_tables WHERE tables_id = @t), @t)", connection);
+            "SELECT sp_release_table_lock(@u, NULL, @t)", connection);
         cmd.Parameters.AddWithValue("u", tenantContext.UsersId!);
         cmd.Parameters.AddWithValue("t", Guid.Parse(request.TablesId));
         var ok = (bool)(await cmd.ExecuteScalarAsync(ct))!;

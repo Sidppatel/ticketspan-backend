@@ -121,7 +121,7 @@ public sealed partial class EventServiceImpl : EventService.EventServiceBase
         }
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT events_id, title, slug, status FROM vw_events WHERE events_id IN (SELECT events_id FROM sp_search_events(@q)) AND tenants_id = @tenant", connection);
+            "SELECT events_id, title, slug, status FROM sp_search_events(@q, @tenant)", connection);
         cmd.Parameters.AddWithValue("q", request.Query);
         cmd.Parameters.AddWithValue("tenant", tenantsId);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -487,9 +487,8 @@ public sealed partial class EventServiceImpl : EventService.EventServiceBase
         var type = NullIfEmpty(request.Type) ?? "event_image";
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT i.storage_key, l.image_type, l.is_primary, l.sort_order "
-            + "FROM sp_link_event_image(@ev, @img, @type) l "
-            + "JOIN vw_images i ON i.images_id = @img", connection);
+            "SELECT storage_key, image_type, is_primary, sort_order "
+            + "FROM sp_link_event_image(@ev, @img, @type)", connection);
         cmd.Parameters.AddWithValue("ev", Guid.Parse(request.EventsId));
         cmd.Parameters.AddWithValue("img", Guid.Parse(request.ImagesId));
         cmd.Parameters.AddWithValue("type", type);
