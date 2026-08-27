@@ -2,9 +2,6 @@ using Db.Enums;
 
 namespace Db.Entities;
 
-
-
-
 public class FloorPlanTemplateObject : BaseEntity
 {
     public Guid TenantsId { get; set; }

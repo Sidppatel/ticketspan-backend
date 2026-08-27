@@ -18,8 +18,8 @@ if (args.Contains("--seed-tax"))
     if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync();
     await using var cmd = conn.CreateCommand();
     cmd.CommandText = @"
-        INSERT INTO tax_rate_cache (zip_code, state, county, city, state_rate, county_rate, city_rate, local_rate, combined_rate, api_response_id, fetched_at, updated_at) 
-        VALUES ('36611', 'AL', 'Mobile', 'Mobile', 0.04, 0.06, 0.00, 0.00, 0.10, 'manual_injection', '2099-01-01 00:00:00+00', now()) 
+        INSERT INTO tax_rate_cache (zip_code, state, county, city, state_rate, county_rate, city_rate, local_rate, combined_rate, api_response_id, fetched_at, updated_at)
+        VALUES ('36611', 'AL', 'Mobile', 'Mobile', 0.04, 0.06, 0.00, 0.00, 0.10, 'manual_injection', '2099-01-01 00:00:00+00', now())
         ON CONFLICT (zip_code) DO UPDATE SET state_rate = EXCLUDED.state_rate, county_rate = EXCLUDED.county_rate, combined_rate = EXCLUDED.combined_rate, fetched_at = EXCLUDED.fetched_at, updated_at = now();";
     await cmd.ExecuteNonQueryAsync();
     Console.WriteLine("[migrate] tax rates seeded.");
@@ -43,7 +43,7 @@ if (args.Contains("--reload-sql"))
     var sqlRoot = candidates.FirstOrDefault(Directory.Exists)
         ?? throw new DirectoryNotFoundException("Could not find SQL directory in candidate paths: " + string.Join(", ", candidates));
     Console.WriteLine($"[migrate] resolved SQL root to: {sqlRoot}");
-    
+
     var conn = ctx.Database.GetDbConnection();
     if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync();
     await using var tx = await conn.BeginTransactionAsync();
@@ -211,7 +211,7 @@ static async Task BackfillHistoryAsync(EventPlatformDbContext ctx)
 {
     var migrations = ctx.Database.GetMigrations().ToList();
     var backfillMigrations = migrations.Where(id => string.Compare(id, "20260428000000", StringComparison.Ordinal) < 0).ToList();
-    
+
     foreach (var id in backfillMigrations)
     {
         await ctx.Database.ExecuteSqlRawAsync(

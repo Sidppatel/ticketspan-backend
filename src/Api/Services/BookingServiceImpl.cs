@@ -300,7 +300,7 @@ public sealed partial class BookingServiceImpl : BookingService.BookingServiceBa
         var ct = context.CancellationToken;
         var bookingId = Guid.Parse(request.BookingsId);
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
-        
+
         bool confirmed;
         await using (var cmd = new NpgsqlCommand("SELECT sp_confirm_booking(@id, @qr)", connection))
         {
@@ -520,7 +520,6 @@ public sealed partial class BookingServiceImpl : BookingService.BookingServiceBa
         response.Meta.Total = response.Bookings.Count;
         return response;
     }
-
 
     private const string BookingSelect =
         "SELECT b.bookings_id, b.booking_number, b.status, b.users_id, b.events_id, b.subtotal_cents, b.fee_cents, b.total_cents, "

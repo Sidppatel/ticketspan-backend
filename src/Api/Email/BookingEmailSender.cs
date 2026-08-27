@@ -22,7 +22,7 @@ public static class BookingEmailSender
     {
         try
         {
-            
+
             await using var cmd = new NpgsqlCommand(
                 "SELECT booking_number, subtotal_cents, fee_cents, total_cents, user_email, " +
                 "event_title, event_start_date, venue_name, fees_included, tax_cents, service_fee_cents " +
@@ -65,7 +65,6 @@ public static class BookingEmailSender
                 return;
             }
 
-            
             var ticketsList = new List<(string code, int seat)>();
             await using (var ticketCmd = new NpgsqlCommand(
                 "SELECT ticket_code, seat_number FROM vw_booking_ticket_lines WHERE bookings_id = @id ORDER BY seat_number", conn))
@@ -78,10 +77,9 @@ public static class BookingEmailSender
                 }
             }
 
-            
             var receiptBuilder = new StringBuilder();
             receiptBuilder.Append("<table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"border:1px solid #e2e8f0;border-radius:8px;background-color:#f8fafc;padding:12px 16px;\">");
-            
+
             if (feesIncluded)
             {
                 receiptBuilder.Append($"<tr><td style=\"font-size:14px;color:#64748b;padding:6px 0;\">Estimated Tax:</td><td align=\"right\" style=\"font-size:14px;color:#334155;padding:6px 0;\">${taxCents / 100.0:F2}</td></tr>");

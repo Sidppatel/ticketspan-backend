@@ -5,13 +5,6 @@ using TicketSpan.Api.ErrorHandling;
 
 namespace TicketSpan.Api.Payments;
 
-
-
-
-
-
-
-
 public sealed class BillingWorker : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromHours(1);
@@ -60,7 +53,7 @@ public sealed class BillingWorker : BackgroundService
         }
         catch (OperationCanceledException)
         {
-            
+
         }
     }
 

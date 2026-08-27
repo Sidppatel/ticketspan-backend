@@ -14,8 +14,6 @@ public class Table : BaseEntity
     public bool IsActive { get; set; } = true;
     public int SortOrder { get; set; }
 
-    
-    
     public TableShape? ShapeOverride { get; set; }
     public string? ColorOverride { get; set; }
     public int? CapacityOverride { get; set; }

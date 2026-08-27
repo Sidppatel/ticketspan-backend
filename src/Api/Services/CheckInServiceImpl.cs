@@ -69,7 +69,7 @@ public sealed class CheckInServiceImpl : CheckInService.CheckInServiceBase
         var ct = context.CancellationToken;
         var response = new ListEventsForStaffResponse();
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
-        
+
         NpgsqlCommand cmd;
         if (tenantContext.IsDeveloper || tenantContext.Role == Lookups.UserRoles.Admin || tenantContext.Role == Lookups.UserRoles.SubTenant)
         {
@@ -122,8 +122,7 @@ public sealed class CheckInServiceImpl : CheckInService.CheckInServiceBase
         var ticketsGrouped = new Dictionary<string, List<GuestTicket>>();
 
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
-        
-        
+
         await using (var cmd = new NpgsqlCommand(
             @"SELECT bookings_id, booking_number, buyer_first_name, buyer_last_name, status
               FROM vw_event_guest_bookings WHERE events_id = @ev
@@ -143,7 +142,6 @@ public sealed class CheckInServiceImpl : CheckInService.CheckInServiceBase
             }
         }
 
-        
         await using (var cmd = new NpgsqlCommand(
             @"SELECT booking_lines_id, bookings_id, ticket_code,
                      guest_first_name, guest_last_name, buyer_first_name, buyer_last_name,
@@ -158,7 +156,7 @@ public sealed class CheckInServiceImpl : CheckInService.CheckInServiceBase
                 var ticketsId = reader.GetGuid(0).ToString();
                 var bookingsId = reader.GetGuid(1).ToString();
                 var code = reader.GetString(2);
-                
+
                 string guestName;
                 if (!reader.IsDBNull(3))
                 {
@@ -171,7 +169,7 @@ public sealed class CheckInServiceImpl : CheckInService.CheckInServiceBase
 
                 var status = reader.GetString(7);
                 var seatNumber = reader.GetInt32(8);
-                
+
                 long checkedInAt = 0;
                 if (!reader.IsDBNull(9))
                 {
@@ -217,7 +215,7 @@ public sealed class CheckInServiceImpl : CheckInService.CheckInServiceBase
         await VerifyAccessAsync(eventId, ct);
 
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
-        
+
         bool success = false;
         string message = "Check-in failed.";
         string holderName = "";
@@ -225,7 +223,7 @@ public sealed class CheckInServiceImpl : CheckInService.CheckInServiceBase
 
         if (request.Type == "Booking")
         {
-            
+
             await using (var cmd = new NpgsqlCommand(
                 "SELECT success, message, guest_name, status_str FROM sp_check_in_booking_by_number(@code, @ev, @staff, 'manual_entry')", connection))
             {
@@ -242,7 +240,6 @@ public sealed class CheckInServiceImpl : CheckInService.CheckInServiceBase
                 }
             }
 
-            
             if (!success)
             {
                 await using (var cmd = new NpgsqlCommand(
@@ -262,7 +259,6 @@ public sealed class CheckInServiceImpl : CheckInService.CheckInServiceBase
                 }
             }
 
-            
             if (!success && Guid.TryParse(request.CodeOrId, out var bookingGuid))
             {
                 await using (var cmd = new NpgsqlCommand(
@@ -282,9 +278,9 @@ public sealed class CheckInServiceImpl : CheckInService.CheckInServiceBase
                 }
             }
         }
-        else 
+        else
         {
-            
+
             await using (var cmd = new NpgsqlCommand(
                 "SELECT success, message, guest_name, status_str FROM sp_check_in_ticket_by_code(@code, @ev, @staff, 'manual_entry')", connection))
             {
@@ -301,7 +297,6 @@ public sealed class CheckInServiceImpl : CheckInService.CheckInServiceBase
                 }
             }
 
-            
             if (!success)
             {
                 await using (var cmd = new NpgsqlCommand(
@@ -321,7 +316,6 @@ public sealed class CheckInServiceImpl : CheckInService.CheckInServiceBase
                 }
             }
 
-            
             if (!success && Guid.TryParse(request.CodeOrId, out var ticketGuid))
             {
                 await using (var cmd = new NpgsqlCommand(
@@ -537,7 +531,7 @@ public sealed class CheckInServiceImpl : CheckInService.CheckInServiceBase
         }
         if (tenantContext.Role == Lookups.UserRoles.Staff)
         {
-            
+
             await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
             await using var cmd = new NpgsqlCommand(
                 "SELECT sp_staff_can_access_event(@u, @ev)", connection);
@@ -548,7 +542,7 @@ public sealed class CheckInServiceImpl : CheckInService.CheckInServiceBase
         }
         if (tenantContext.Role == Lookups.UserRoles.EventManager)
         {
-            
+
             await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
             await using var cmd = new NpgsqlCommand("SELECT app.can_access_event(@ev)", connection);
             cmd.Parameters.AddWithValue("ev", eventId);

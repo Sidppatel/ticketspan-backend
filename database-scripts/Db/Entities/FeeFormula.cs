@@ -1,11 +1,5 @@
 namespace Db.Entities;
 
-
-
-
-
-
-
 public class FeeFormula : BaseEntity
 {
     public required string Name { get; set; }

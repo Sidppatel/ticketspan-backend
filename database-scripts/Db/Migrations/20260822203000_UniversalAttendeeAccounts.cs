@@ -14,12 +14,12 @@ namespace Db.Migrations
                 BEGIN
                     CREATE TEMP TABLE IF NOT EXISTS tmp_user_merge AS
                     WITH ranked AS (
-                        SELECT 
-                            users_id, 
+                        SELECT
+                            users_id,
                             email_hash,
                             ROW_NUMBER() OVER (PARTITION BY email_hash ORDER BY created_at ASC) as rn,
                             FIRST_VALUE(users_id) OVER (PARTITION BY email_hash ORDER BY created_at ASC) as keeper_id
-                        FROM users 
+                        FROM users
                         WHERE role = 0
                     )
                     SELECT users_id AS old_id, keeper_id AS new_id
@@ -71,7 +71,7 @@ namespace Db.Migrations
                 UPDATE users SET tenants_id = NULL WHERE role = 0;
 
                 -- 4. Add updated constraint: Developer (99) and Attendee (0) have NULL tenants_id; Organizer roles (1,2,3,4) require tenants_id
-                ALTER TABLE users ADD CONSTRAINT ""CK_users_TenantScope"" 
+                ALTER TABLE users ADD CONSTRAINT ""CK_users_TenantScope""
                     CHECK ((role IN (0, 99) AND tenants_id IS NULL) OR (role NOT IN (0, 99) AND tenants_id IS NOT NULL));
 
                 -- 5. Create unique indexes for global attendees

@@ -7,12 +7,6 @@ using TicketSpan.Api.Email;
 
 namespace TicketSpan.Api.Payments;
 
-
-
-
-
-
-
 public sealed class StripeWebhookHandler
 {
     private readonly Db db;
@@ -49,7 +43,7 @@ public sealed class StripeWebhookHandler
                 break;
 
             case "payment_intent.payment_failed":
-                
+
                 await RunByIntent(connection, "sp_fail_booking_payment",
                     ((PaymentIntent)stripeEvent.Data.Object).Id, ct);
                 break;
@@ -59,15 +53,14 @@ public sealed class StripeWebhookHandler
                 break;
 
             case "payment_intent.processing":
-                
-                
+
                 await RunByIntent(connection, "sp_mark_booking_processing",
                     ((PaymentIntent)stripeEvent.Data.Object).Id, ct);
                 break;
 
             case "payment_intent.created":
             case "payment_intent.requires_action":
-                
+
                 break;
 
             case "charge.refunded":
@@ -298,7 +291,7 @@ public sealed class StripeWebhookHandler
         }
         catch (PostgresException ex) when (ex.SqlState == "no_data_found" || ex.SqlState == "P0002")
         {
-            
+
             logger.LogInformation("account.updated for untracked account {Acct}", account.Id);
         }
     }
@@ -313,7 +306,7 @@ public sealed class StripeWebhookHandler
             "SELECT sp_insert_stripe_transfer(@tid, @acct, @pi, @amt, @cur, @raw)", conn);
         cmd.Parameters.AddWithValue("tid", transfer.Id);
         cmd.Parameters.AddWithValue("acct", transfer.DestinationId);
-        cmd.Parameters.AddWithValue("pi", DBNull.Value); 
+        cmd.Parameters.AddWithValue("pi", DBNull.Value);
         cmd.Parameters.AddWithValue("amt", (int)transfer.Amount);
         cmd.Parameters.AddWithValue("cur", transfer.Currency ?? "usd");
         cmd.Parameters.Add(new NpgsqlParameter("raw", NpgsqlDbType.Jsonb) { Value = transfer.ToJson() });
@@ -329,7 +322,7 @@ public sealed class StripeWebhookHandler
 
     private async Task OnPayout(NpgsqlConnection conn, Event evt, Payout payout, CancellationToken ct)
     {
-        
+
         var accountId = evt.Account;
         if (string.IsNullOrEmpty(accountId))
         {
@@ -374,7 +367,7 @@ public sealed class StripeWebhookHandler
 
     private static async Task<Guid?> BookingIdForIntent(NpgsqlConnection conn, PaymentIntent pi, CancellationToken ct)
     {
-        
+
         await using (var look = new NpgsqlCommand(
             "SELECT bookings_id FROM vw_stripe_transactions WHERE payment_intent_id = @id", conn))
         {

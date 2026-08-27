@@ -18,9 +18,6 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
         this.tenantContext = tenantContext;
     }
 
-    
-    
-    
     private static Table MapTable(NpgsqlDataReader r) => new()
     {
         TablesId = r.GetGuid(0).ToString(),
@@ -183,8 +180,7 @@ public sealed class TableBookingServiceImpl : TableBookingService.TableBookingSe
         cmd.Parameters.AddWithValue("ev", Guid.Parse(request.EventsId));
         cmd.Parameters.AddWithValue("label", request.Label);
         cmd.Parameters.AddWithValue("cap", request.Capacity);
-        
-        
+
         cmd.Parameters.AddWithValue("shape", (object?)NullIfEmpty(request.Shape) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("color", (object?)NullIfEmpty(request.Color) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("price", request.PriceCents);

@@ -32,46 +32,18 @@ public class Tenant : BaseEntity
 
     public DateTime? ArchivedAt { get; set; }
 
-    
-    
-    
-    
     public string Tier { get; set; } = "free";
 
-    
-    
-    
-    
     public bool AdvancedReportingEnabled { get; set; }
 
-    
-    
-    
-    
     public Guid? DefaultFeeFormulasId { get; set; }
     public FeeFormula? DefaultFeeFormula { get; set; }
 
-    
-    
-    
-    
-    
-    
     public Guid? GatewayFeeFormulasId { get; set; }
     public FeeFormula? GatewayFeeFormula { get; set; }
 
-    
-    
-    
-    
-    
     public bool AchEnabled { get; set; }
 
-    
-    
-    
-    
-    
     public Guid? AchFeeFormulasId { get; set; }
     public FeeFormula? AchFeeFormula { get; set; }
 

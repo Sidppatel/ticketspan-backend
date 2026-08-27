@@ -28,7 +28,7 @@ public sealed partial class AuthServiceImpl
         {
             var fromAddress = await settings.GetStringAsync("magic_link_email", "noreply@ticketspan.com", ct);
             var subject = await settings.GetStringAsync("magic_link_subject", "Your TicketSpan Sign-In Link", ct);
-            
+
             string linkBase;
             if (!string.IsNullOrEmpty(request.Origin))
             {
@@ -41,7 +41,7 @@ public sealed partial class AuthServiceImpl
                     ? template.Replace("{slug}.", string.Empty).Replace("{slug}", string.Empty)
                     : template.Replace("{slug}", request.TenantSlug);
             }
-            
+
             var separator = linkBase.Contains('?') ? "&" : "?";
             var magicLink = $"{linkBase}{separator}token={token}";
             if (!string.IsNullOrEmpty(request.TenantSlug))

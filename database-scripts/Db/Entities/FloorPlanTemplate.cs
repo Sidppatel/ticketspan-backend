@@ -1,10 +1,5 @@
 namespace Db.Entities;
 
-
-
-
-
-
 public class FloorPlanTemplate : BaseEntity
 {
     public Guid TenantsId { get; set; }

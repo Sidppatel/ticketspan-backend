@@ -7,12 +7,6 @@ using TicketSpan.Protos.FloorPlan;
 
 namespace TicketSpan.Api.Services;
 
-
-
-
-
-
-
 public sealed class FloorPlanServiceImpl : FloorPlanService.FloorPlanServiceBase
 {
     private readonly Db db;

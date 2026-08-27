@@ -52,8 +52,8 @@ public sealed class TenantResolutionMiddleware
                 }
             }
 
-            if (tenantContext.TenantsId is null 
-                && tenantContext.Role != Lookups.UserRoles.Developer 
+            if (tenantContext.TenantsId is null
+                && tenantContext.Role != Lookups.UserRoles.Developer
                 && tenantContext.Role != Lookups.UserRoles.PublicViewer)
             {
                 httpContext.Response.StatusCode = StatusCodes.Status403Forbidden;

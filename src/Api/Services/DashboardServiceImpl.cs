@@ -23,7 +23,7 @@ public sealed class DashboardServiceImpl : DashboardService.DashboardServiceBase
         var ct = context.CancellationToken;
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
         await using var cmd = new NpgsqlCommand(
-            
+
             "SELECT total_events, published_events, total_revenue_cents, total_bookings FROM vw_admin_dashboard_stats", connection);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct))

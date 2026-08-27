@@ -3,11 +3,6 @@ using TicketSpan.Api.ErrorHandling;
 
 namespace TicketSpan.Api.Payments;
 
-
-
-
-
-
 public sealed class HoldExpiryWorker : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(60);
@@ -58,7 +53,7 @@ public sealed class HoldExpiryWorker : BackgroundService
         }
         catch (OperationCanceledException)
         {
-            
+
         }
     }
 }

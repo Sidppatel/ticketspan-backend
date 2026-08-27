@@ -24,7 +24,6 @@ public class EventTable : BaseEntity
     public Guid? TableTemplatesId { get; set; }
     public TableTemplate? TableTemplate { get; set; }
 
-    
     public Guid? PricesId { get; set; }
     public Price? Price { get; set; }
 

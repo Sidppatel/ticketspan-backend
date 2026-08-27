@@ -17,7 +17,6 @@ public sealed class StripeService
         client = new StripeClient(secret ?? "sk_test_unconfigured");
     }
 
-
     public async Task<string> CreateExpressAccountAsync(string? email, CancellationToken ct)
         => await CreateExpressAccountAsync(new StripeAccountPrefill { Email = email }, ct);
 
@@ -132,7 +131,6 @@ public sealed class StripeService
 
         await new AccountService(client).UpdateAsync(accountId, options, cancellationToken: ct);
     }
-
 
     public async Task<string> GetOrCreateCustomerAsync(string? existingCustomerId, string email, string name, Guid userId, CancellationToken ct)
     {

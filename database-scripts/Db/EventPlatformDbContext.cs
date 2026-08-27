@@ -413,7 +413,7 @@ public class EventPlatformDbContext(
             });
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.TenantsId);
-            
+
             entity.HasIndex(e => e.TenantsId).IsUnique()
                 .HasDatabaseName("IX_tenant_subscriptions_live")
                 .HasFilter("status IN ('trial','active','past_due')");
@@ -483,7 +483,7 @@ public class EventPlatformDbContext(
             entity.Property(e => e.Reference).HasMaxLength(64);
             entity.Property(e => e.Description).HasMaxLength(512);
             entity.Property(e => e.StripePaymentIntentId).HasMaxLength(128);
-            
+
             entity.HasOne(e => e.Tenant).WithMany().HasForeignKey(e => e.TenantsId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
@@ -810,7 +810,7 @@ public class EventPlatformDbContext(
             entity.HasIndex(e => e.TenantsId);
             entity.HasIndex(e => e.EventsId);
             entity.HasIndex(e => new { e.EventsId, e.Label }).IsUnique();
-            
+
             entity.HasIndex(e => new { e.EventsId, e.Status });
             entity.Property(e => e.Label).HasMaxLength(20);
             entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20)
@@ -848,7 +848,7 @@ public class EventPlatformDbContext(
             });
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.TenantsId);
-            
+
             entity.HasIndex(e => new { e.EventsId, e.UsersId, e.BookingNumber }).IsUnique();
             entity.HasIndex(e => e.QrToken).IsUnique().HasFilter("qr_token IS NOT NULL");
             entity.HasIndex(e => e.Status);

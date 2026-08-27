@@ -10,12 +10,6 @@ using TicketSpan.Protos.Common;
 
 namespace TicketSpan.Api.Services;
 
-
-
-
-
-
-
 public sealed partial class DeveloperBillingServiceImpl : DeveloperBillingService.DeveloperBillingServiceBase
 {
     private readonly Db db;

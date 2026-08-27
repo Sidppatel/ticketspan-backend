@@ -2,13 +2,6 @@ using Db.Enums;
 
 namespace Db.Entities;
 
-
-
-
-
-
-
-
 public class TableTemplatePriceRule : BaseEntity
 {
     public Guid TenantsId { get; set; }
@@ -20,7 +13,6 @@ public class TableTemplatePriceRule : BaseEntity
     public required string Name { get; set; }
     public PriceRuleType RuleType { get; set; } = PriceRuleType.TimeWindow;
 
-    
     public int Priority { get; set; }
 
     public int PriceCents { get; set; }

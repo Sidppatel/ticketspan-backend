@@ -266,7 +266,7 @@ public sealed class StaffServiceImpl : StaffService.StaffServiceBase
         RequireTenant();
         var userId = Guid.Parse(request.Value);
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
-        
+
         await using var cmd = new NpgsqlCommand("SELECT sp_remove_staff_role(@u, @t, @attendeeRole)", connection);
         cmd.Parameters.AddWithValue("u", userId);
         cmd.Parameters.AddWithValue("t", tenantContext.TenantsId!);

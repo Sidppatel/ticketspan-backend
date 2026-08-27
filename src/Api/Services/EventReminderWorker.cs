@@ -66,7 +66,7 @@ public sealed class EventReminderWorker : BackgroundService
         }
         catch (OperationCanceledException)
         {
-            // Worker is stopping
+
         }
     }
 

@@ -172,7 +172,6 @@ public sealed class TicketServiceImpl : TicketService.TicketServiceBase
         cmd.Parameters.AddWithValue("exp", DateTime.UtcNow.AddDays(14));
         var ok = (bool)(await cmd.ExecuteScalarAsync(ct))!;
 
-
         if (ok && !string.IsNullOrWhiteSpace(request.Email))
         {
             try
@@ -181,14 +180,14 @@ public sealed class TicketServiceImpl : TicketService.TicketServiceBase
                     "SELECT ticket_code, seat_number, event_title, event_start_date, venue_name, booking_user_email " +
                     "FROM vw_tickets WHERE ticket_id = @id", connection);
                 detailCmd.Parameters.AddWithValue("id", Guid.Parse(request.TicketsId));
-                
+
                 string ticketCode = "";
                 int seatNumber = 0;
                 string eventTitle = "";
                 DateTime eventStartDate = DateTime.MinValue;
                 string venueName = "";
                 string senderEmail = "";
-                
+
                 await using (var reader = await detailCmd.ExecuteReaderAsync(ct))
                 {
                     if (await reader.ReadAsync(ct))

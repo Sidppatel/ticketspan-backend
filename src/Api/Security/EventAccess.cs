@@ -3,11 +3,6 @@ using Npgsql;
 
 namespace TicketSpan.Api.Security;
 
-
-
-
-
-
 public static class EventAccess
 {
     public static async Task RequireAsync(
@@ -25,9 +20,6 @@ public static class EventAccess
         }
     }
 
-    
-    
-    
     public static async Task RequireResolvedAsync(
         NpgsqlConnection connection, TenantContext tenantContext, string eventIdScalarSql, Guid key, CancellationToken ct)
     {

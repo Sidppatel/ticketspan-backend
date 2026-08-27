@@ -2,10 +2,6 @@ using Db.Enums;
 
 namespace Db.Entities;
 
-
-
-
-
 public class LayoutObject : BaseEntity
 {
     public Guid TenantsId { get; set; }

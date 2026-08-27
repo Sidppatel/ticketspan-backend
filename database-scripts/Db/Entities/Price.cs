@@ -2,13 +2,6 @@ using Db.Enums;
 
 namespace Db.Entities;
 
-
-
-
-
-
-
-
 public class Price : BaseEntity
 {
     public Guid TenantsId { get; set; }
@@ -22,13 +15,10 @@ public class Price : BaseEntity
 
     public int BasePriceCents { get; set; }
 
-    
     public int PerAttendeeCents { get; set; }
 
-    
     public bool IsAllInclusive { get; set; }
 
-    
     public Guid? FeeFormulasId { get; set; }
     public FeeFormula? FeeFormula { get; set; }
 

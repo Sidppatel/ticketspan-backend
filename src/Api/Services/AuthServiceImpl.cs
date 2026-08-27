@@ -70,7 +70,7 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
         {
             var rowTenant = reader.IsDBNull(1) ? (Guid?)null : reader.GetGuid(1);
             var role = reader.GetInt16(4);
-            
+
             if (slugScoped)
             {
                 var matchesTenant = (role == Lookups.UserRoles.Developer || role == Lookups.UserRoles.PublicViewer)
@@ -338,4 +338,3 @@ public sealed partial class AuthServiceImpl : AuthService.AuthServiceBase
         }
     }
 }
-

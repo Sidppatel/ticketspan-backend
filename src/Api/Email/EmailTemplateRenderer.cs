@@ -10,7 +10,7 @@ public sealed class EmailTemplateRenderer
     {
         if (env.IsDevelopment())
         {
-            
+
             var current = Directory.GetCurrentDirectory();
             var candidates = new[]
             {

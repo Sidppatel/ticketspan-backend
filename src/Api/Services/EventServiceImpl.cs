@@ -47,8 +47,7 @@ public sealed partial class EventServiceImpl : EventService.EventServiceBase
         {
             throw new RpcException(new Status(StatusCode.Unauthenticated, "Authenticated tenant user required"));
         }
-        
-        
+
         if (request.EndDate <= request.StartDate)
         {
             throw new RpcException(new Status(StatusCode.InvalidArgument, "End date must be after start date"));
@@ -168,8 +167,7 @@ public sealed partial class EventServiceImpl : EventService.EventServiceBase
     {
         var ct = context.CancellationToken;
         RequireTenant();
-        
-        
+
         if (request.StartDate != 0 && request.EndDate != 0 && request.EndDate <= request.StartDate)
         {
             throw new RpcException(new Status(StatusCode.InvalidArgument, "End date must be after start date"));
@@ -332,7 +330,7 @@ public sealed partial class EventServiceImpl : EventService.EventServiceBase
         var hasStatus = effectiveStatus.Length > 0;
 
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
-        
+
         var sqlBuilder = new StringBuilder(EventSelect);
         if (tenantContext.TenantsId is { } tenantsId)
         {
@@ -722,7 +720,7 @@ public sealed partial class EventServiceImpl : EventService.EventServiceBase
             {
                 var slug = string.IsNullOrEmpty(att.TenantSlug) ? "app" : att.TenantSlug;
                 var eventLink = eventLinkTemplate.Replace("{slug}", slug).Replace("{eventId}", eventId.ToString());
-                
+
                 var values = new Dictionary<string, string>
                 {
                     ["Subject"] = $"Reminder: {att.EventTitle} is coming up!",

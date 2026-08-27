@@ -149,7 +149,7 @@ public sealed class DeveloperAuditInterceptor : Interceptor
         };
         var detail = string.IsNullOrEmpty(eventTitle) ? string.Empty : $" ({System.Net.WebUtility.HtmlEncode(eventTitle)})";
         var subject = $"TicketSpan team update for {tenantName}";
-        
+
         var values = new Dictionary<string, string>
         {
             ["Subject"] = subject,

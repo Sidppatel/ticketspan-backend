@@ -86,13 +86,13 @@ public sealed class InvitationServiceImpl : InvitationService.InvitationServiceB
         await using var lookup = new NpgsqlCommand(
             "SELECT invitations_id, email, role, tenants_id, event_id FROM sp_get_invitation_by_token(@h)", connection);
         lookup.Parameters.AddWithValue("h", hash);
-        
+
         Guid id;
         string email;
         short role;
         Guid? tenantsId;
         Guid? eventId;
-        
+
         await using (var reader = await lookup.ExecuteReaderAsync(ct))
         {
             if (!await reader.ReadAsync(ct))
