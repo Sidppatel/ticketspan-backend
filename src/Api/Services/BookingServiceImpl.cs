@@ -51,7 +51,8 @@ public sealed partial class BookingServiceImpl : BookingService.BookingServiceBa
         await using var cmd = new NpgsqlCommand(
             "SELECT event_ticket_types_id, label, price_cents, platform_fee_cents, "
             + "max_quantity, description, fee_formulas_id, capacity, "
-            + "selling_price_cents, sold_count, service_fee_cents, tax_cents, total_cents "
+            + "selling_price_cents, sold_count, service_fee_cents, tax_cents, total_cents, "
+            + "available_quantity, is_sold_out "
             + "FROM vw_event_ticket_types_pricing "
             + "WHERE events_id = @ev AND is_active = true ORDER BY sort_order, label", connection);
         cmd.Parameters.AddWithValue("ev", Guid.Parse(request.Value));
@@ -72,7 +73,9 @@ public sealed partial class BookingServiceImpl : BookingService.BookingServiceBa
                 SoldCount = reader.GetInt32(9),
                 ServiceFeeCents = reader.GetInt32(10),
                 TaxCents = reader.GetInt32(11),
-                TotalCents = reader.GetInt32(12)
+                TotalCents = reader.GetInt32(12),
+                AvailableQuantity = reader.GetInt32(13),
+                IsSoldOut = reader.GetBoolean(14)
             });
         }
         return response;

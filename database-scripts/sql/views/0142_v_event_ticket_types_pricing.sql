@@ -15,7 +15,9 @@ SELECT
     COALESCE(vs.sold_count, 0) AS sold_count,
     COALESCE(bp.platform_fee_cents + bp.gateway_fee_cents, 0) AS service_fee_cents,
     COALESCE(bp.tax_cents, 0) AS tax_cents,
-    COALESCE(bp.final_price_cents, tt.price_cents) AS total_cents
+    COALESCE(bp.final_price_cents, tt.price_cents) AS total_cents,
+    COALESCE(vs.available_count, CASE WHEN tt.max_quantity > 0 THEN tt.max_quantity - COALESCE(vs.sold_count, 0) WHEN tt.capacity > 0 THEN tt.capacity - COALESCE(vs.sold_count, 0) ELSE -1 END) AS available_quantity,
+    CASE WHEN (COALESCE(vs.available_count, CASE WHEN tt.max_quantity > 0 THEN tt.max_quantity - COALESCE(vs.sold_count, 0) WHEN tt.capacity > 0 THEN tt.capacity - COALESCE(vs.sold_count, 0) ELSE -1 END)) = 0 THEN true ELSE false END AS is_sold_out
 FROM event_ticket_types tt
 LEFT JOIN vw_event_ticket_types_summary vs ON vs.event_ticket_types_id = tt.event_ticket_types_id
 LEFT JOIN prices p ON p.events_id = tt.events_id AND p.pricing_type = 'TicketTier'

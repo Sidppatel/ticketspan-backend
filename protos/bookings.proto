@@ -204,6 +204,8 @@ message EventTicketType {
   int32 service_fee_cents = 11;
   int32 tax_cents = 12;
   int32 total_cents = 13;
+  int32 available_quantity = 14;
+  bool is_sold_out = 15;
 }
 
 message ListEventTicketTypesResponse {
