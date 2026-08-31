@@ -66,9 +66,12 @@ SELECT
     COALESCE(tr.city_rate, 0) AS venue_city_tax_rate,
     COALESCE(tr.local_rate, 0) AS venue_local_tax_rate,
     COALESCE(tr.combined_rate, 0) AS venue_combined_tax_rate,
-    COALESCE(e.tax_exempt, false) AS tax_exempt
+    COALESCE(e.tax_exempt, false) AS tax_exempt,
+    COALESCE(t.slug, '') AS tenant_slug,
+    COALESCE(t.name, '') AS tenant_name
 FROM events e
 JOIN venues v ON e.venues_id = v.venues_id
+LEFT JOIN tenants t ON e.tenants_id = t.tenants_id
 LEFT JOIN addresses a ON v.addresses_id = a.addresses_id
 LEFT JOIN users au ON e.created_by_users_id = au.users_id
 LEFT JOIN LATERAL (

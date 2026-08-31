@@ -324,52 +324,139 @@ public sealed partial class EventServiceImpl : EventService.EventServiceBase
     {
         var ct = context.CancellationToken;
         var page = request.Page ?? new PageRequest();
-        var response = new ListEventsResponse { Meta = new PageMeta { Offset = page.Offset, Limit = page.Limit } };
+        var limit = page.Limit <= 0 ? 15 : page.Limit;
+        var offset = page.Offset < 0 ? 0 : page.Offset;
+        var response = new ListEventsResponse { Meta = new PageMeta { Offset = offset, Limit = limit } };
         var isPublicViewer = tenantContext.UsersId is null || tenantContext.Role == Lookups.UserRoles.PublicViewer;
         var effectiveStatus = isPublicViewer ? "Published" : (request.Status ?? string.Empty);
         var hasStatus = effectiveStatus.Length > 0;
 
         await using var connection = await db.OpenAsync(tenantContext.UsersId, tenantContext.TenantsId, ct);
 
-        var sqlBuilder = new StringBuilder(EventSelect);
+        var whereClauses = new List<string>();
+        var parameters = new List<NpgsqlParameter>();
+
         if (tenantContext.TenantsId is { } tenantsId)
         {
-            sqlBuilder.Append(" WHERE tenants_id = @tenant");
+            whereClauses.Add("tenants_id = @tenant");
+            parameters.Add(new NpgsqlParameter("tenant", tenantsId));
             if (hasStatus)
             {
-                sqlBuilder.Append(" AND status = @status");
+                whereClauses.Add("status = @status");
+                parameters.Add(new NpgsqlParameter("status", effectiveStatus));
             }
-            sqlBuilder.Append(EventScopeFilter);
+            if (!string.IsNullOrEmpty(EventScopeFilter))
+            {
+                whereClauses.Add(EventScopeFilter.TrimStart().StartsWith("AND ", StringComparison.OrdinalIgnoreCase) 
+                    ? EventScopeFilter.TrimStart()[4..] 
+                    : EventScopeFilter);
+            }
         }
         else if (isPublicViewer)
         {
-            sqlBuilder.Append(" WHERE status = 'Published'");
+            whereClauses.Add("status = 'Published'");
         }
         else
         {
             return response;
         }
 
-        sqlBuilder.Append(" ORDER BY start_date DESC LIMIT @lim OFFSET @off");
+        if (request.UpcomingOnly || isPublicViewer)
+        {
+            var cutoff = DateTime.UtcNow.AddDays(-1);
+            whereClauses.Add("(start_date >= @upcomingCutoff OR (end_date IS NOT NULL AND end_date >= @upcomingCutoff))");
+            parameters.Add(new NpgsqlParameter("upcomingCutoff", cutoff));
+        }
 
-        await using var cmd = new NpgsqlCommand(sqlBuilder.ToString(), connection);
-        if (tenantContext.TenantsId is { } tid)
+        if (!string.IsNullOrWhiteSpace(request.Category) && !string.Equals(request.Category, "All", StringComparison.OrdinalIgnoreCase))
         {
-            cmd.Parameters.AddWithValue("tenant", tid);
+            whereClauses.Add("LOWER(category) = LOWER(@category)");
+            parameters.Add(new NpgsqlParameter("category", request.Category.Trim()));
         }
-        if (hasStatus && tenantContext.TenantsId is not null)
+
+        if (!string.IsNullOrWhiteSpace(request.TenantSlug) && !string.Equals(request.TenantSlug, "all", StringComparison.OrdinalIgnoreCase))
         {
-            cmd.Parameters.AddWithValue("status", effectiveStatus);
+            whereClauses.Add("LOWER(tenant_slug) = LOWER(@tenantSlug)");
+            parameters.Add(new NpgsqlParameter("tenantSlug", request.TenantSlug.Trim()));
         }
-        cmd.Parameters.AddWithValue("lim", page.Limit <= 0 ? 25 : page.Limit);
-        cmd.Parameters.AddWithValue("off", page.Offset);
+
+        if (!string.IsNullOrWhiteSpace(request.DateFilter) && !string.Equals(request.DateFilter, "all", StringComparison.OrdinalIgnoreCase))
+        {
+            var nowUtc = DateTime.UtcNow;
+            var startOfToday = new DateTime(nowUtc.Year, nowUtc.Month, nowUtc.Day, 0, 0, 0, DateTimeKind.Utc);
+            var endOfToday = startOfToday.AddDays(1).AddTicks(-1);
+
+            switch (request.DateFilter.ToLowerInvariant())
+            {
+                case "today":
+                    whereClauses.Add("start_date >= @startOfToday AND start_date <= @endOfToday");
+                    parameters.Add(new NpgsqlParameter("startOfToday", startOfToday));
+                    parameters.Add(new NpgsqlParameter("endOfToday", endOfToday));
+                    break;
+                case "weekend":
+                    var day = (int)nowUtc.DayOfWeek;
+                    var daysUntilFriday = (5 - day + 7) % 7;
+                    var friday = startOfToday.AddDays(daysUntilFriday);
+                    var sunday = friday.AddDays(2).AddDays(1).AddTicks(-1);
+                    if (day == 0 || day == 5 || day == 6)
+                    {
+                        whereClauses.Add("start_date >= @startOfToday AND start_date <= @endOfWeekend");
+                        parameters.Add(new NpgsqlParameter("startOfToday", startOfToday));
+                        parameters.Add(new NpgsqlParameter("endOfWeekend", sunday));
+                    }
+                    else
+                    {
+                        whereClauses.Add("start_date >= @startOfWeekend AND start_date <= @endOfWeekend");
+                        parameters.Add(new NpgsqlParameter("startOfWeekend", friday));
+                        parameters.Add(new NpgsqlParameter("endOfWeekend", sunday));
+                    }
+                    break;
+                case "month":
+                    var monthEnd = startOfToday.AddDays(30).AddDays(1).AddTicks(-1);
+                    whereClauses.Add("start_date >= @startOfToday AND start_date <= @monthEnd");
+                    parameters.Add(new NpgsqlParameter("startOfToday", startOfToday));
+                    parameters.Add(new NpgsqlParameter("monthEnd", monthEnd));
+                    break;
+            }
+        }
+
+        var search = (page.Search ?? string.Empty).Trim();
+        if (search.Length > 0)
+        {
+            whereClauses.Add("(title ILIKE @search OR COALESCE(short_description, '') ILIKE @search OR COALESCE(description, '') ILIKE @search OR COALESCE(category, '') ILIKE @search OR COALESCE(tenant_name, '') ILIKE @search OR COALESCE(tenant_slug, '') ILIKE @search)");
+            parameters.Add(new NpgsqlParameter("search", $"%{search}%"));
+        }
+
+        var whereSql = whereClauses.Count > 0 ? " WHERE " + string.Join(" AND ", whereClauses) : string.Empty;
+
+        var countSql = "SELECT COUNT(*) FROM vw_events" + whereSql;
+        await using (var countCmd = new NpgsqlCommand(countSql, connection))
+        {
+            foreach (var p in parameters)
+            {
+                countCmd.Parameters.Add((NpgsqlParameter)((ICloneable)p).Clone());
+            }
+            var totalObj = await countCmd.ExecuteScalarAsync(ct);
+            response.Meta.Total = Convert.ToInt32(totalObj);
+        }
+
+        var orderSql = (request.UpcomingOnly || isPublicViewer) ? " ORDER BY start_date ASC" : " ORDER BY start_date DESC";
+        var querySql = EventSelect + whereSql + orderSql + " LIMIT @lim OFFSET @off";
+
+        await using var cmd = new NpgsqlCommand(querySql, connection);
+        foreach (var p in parameters)
+        {
+            cmd.Parameters.Add(p);
+        }
+        cmd.Parameters.AddWithValue("lim", limit);
+        cmd.Parameters.AddWithValue("off", offset);
 
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
         {
             response.Events.Add(MapEvent(reader));
         }
-        response.Meta.Total = response.Events.Count;
+
         return response;
     }
 

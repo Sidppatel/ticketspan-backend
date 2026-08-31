@@ -168,6 +168,8 @@ message Event {
   bool is_verified_organizer = 31;
   string urgency_badge_text = 32;
   bool tax_exempt = 33;
+  string tenant_slug = 34;
+  string tenant_name = 35;
 }
 
 message GetEventBySlugRequest { string slug = 1; }
@@ -227,6 +229,9 @@ message ListEventsRequest {
   ticketspan.common.PageRequest page = 1;
   string status = 2;
   string category = 3;
+  string tenant_slug = 4;
+  string date_filter = 5;
+  bool upcoming_only = 6;
 }
 
 message SearchEventsRequest { string query = 1; }

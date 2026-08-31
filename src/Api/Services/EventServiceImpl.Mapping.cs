@@ -39,7 +39,7 @@ public sealed partial class EventServiceImpl
         "SELECT events_id, title, slug, description, status, category, start_date, end_date, image_path, "
         + "is_featured, layout_mode, total_capacity, venues_id, performers::text, sponsors::text, fees_included, event_type, primary_image_id, extra_info::text, ach_enabled, "
         + "venue_state_tax_rate, venue_county_tax_rate, venue_city_tax_rate, venue_local_tax_rate, venue_combined_tax_rate, "
-        + "short_description, story_description, hero_backdrop_image_id, poster_image_id, is_verified_organizer, urgency_badge_text, tax_exempt "
+        + "short_description, story_description, hero_backdrop_image_id, poster_image_id, is_verified_organizer, urgency_badge_text, tax_exempt, tenant_slug, tenant_name "
         + "FROM vw_events";
 
     private static Event MapEvent(NpgsqlDataReader r) => new()
@@ -75,7 +75,9 @@ public sealed partial class EventServiceImpl
         PosterImageId = r.FieldCount > 28 && !r.IsDBNull(28) ? r.GetGuid(28).ToString() : string.Empty,
         IsVerifiedOrganizer = r.FieldCount <= 29 || r.IsDBNull(29) || r.GetBoolean(29),
         UrgencyBadgeText = r.FieldCount > 30 && !r.IsDBNull(30) ? r.GetString(30) : string.Empty,
-        TaxExempt = r.FieldCount > 31 && !r.IsDBNull(31) && r.GetBoolean(31)
+        TaxExempt = r.FieldCount > 31 && !r.IsDBNull(31) && r.GetBoolean(31),
+        TenantSlug = r.FieldCount > 32 && !r.IsDBNull(32) ? r.GetString(32) : string.Empty,
+        TenantName = r.FieldCount > 33 && !r.IsDBNull(33) ? r.GetString(33) : string.Empty
     };
 
     private static string? NullIfEmpty(string value) => string.IsNullOrEmpty(value) ? null : value;
