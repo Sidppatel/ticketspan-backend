@@ -317,14 +317,15 @@ public sealed partial class AuthServiceImpl
         var host = httpContext.Request.Host.Host;
         var corsBaseDomain = configuration["CORS_BASE_DOMAIN"];
         string? domain = null;
-        if (!string.IsNullOrEmpty(corsBaseDomain) && (host == corsBaseDomain || host.EndsWith("." + corsBaseDomain)))
+        if (!string.IsNullOrEmpty(corsBaseDomain) && !corsBaseDomain.Contains("localhost") && (host == corsBaseDomain || host.EndsWith("." + corsBaseDomain)))
         {
             domain = "." + corsBaseDomain.TrimStart('.');
         }
+        var isHttps = httpContext.Request.IsHttps;
         httpContext.Response.Cookies.Append("ts_refresh", refreshToken, new Microsoft.AspNetCore.Http.CookieOptions
         {
             HttpOnly = true,
-            Secure = httpContext.Request.IsHttps || !string.IsNullOrEmpty(corsBaseDomain),
+            Secure = isHttps,
             SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax,
             Domain = domain,
             Expires = DateTimeOffset.UtcNow.AddMinutes(jwt.RefreshLifetimeMinutes),
@@ -342,14 +343,15 @@ public sealed partial class AuthServiceImpl
         var host = httpContext.Request.Host.Host;
         var corsBaseDomain = configuration["CORS_BASE_DOMAIN"];
         string? domain = null;
-        if (!string.IsNullOrEmpty(corsBaseDomain) && (host == corsBaseDomain || host.EndsWith("." + corsBaseDomain)))
+        if (!string.IsNullOrEmpty(corsBaseDomain) && !corsBaseDomain.Contains("localhost") && (host == corsBaseDomain || host.EndsWith("." + corsBaseDomain)))
         {
             domain = "." + corsBaseDomain.TrimStart('.');
         }
+        var isHttps = httpContext.Request.IsHttps;
         var options = new Microsoft.AspNetCore.Http.CookieOptions
         {
             HttpOnly = true,
-            Secure = httpContext.Request.IsHttps || !string.IsNullOrEmpty(corsBaseDomain),
+            Secure = isHttps,
             SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax,
             Domain = domain,
             Path = "/"
@@ -360,7 +362,7 @@ public sealed partial class AuthServiceImpl
             httpContext.Response.Cookies.Delete("ts_refresh", new Microsoft.AspNetCore.Http.CookieOptions
             {
                 HttpOnly = true,
-                Secure = httpContext.Request.IsHttps || !string.IsNullOrEmpty(corsBaseDomain),
+                Secure = isHttps,
                 SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax,
                 Path = "/"
             });
