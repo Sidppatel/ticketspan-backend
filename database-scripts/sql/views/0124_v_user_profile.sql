@@ -18,7 +18,8 @@ SELECT
     ba.city AS billing_city,
     ba.state AS billing_state,
     ba.zip_code AS billing_zip,
-    u.stripe_customer_id
+    u.stripe_customer_id,
+    u.token_version
 FROM users u
 LEFT JOIN addresses a ON u.addresses_id = a.addresses_id
 LEFT JOIN addresses ba ON u.billing_addresses_id = ba.addresses_id

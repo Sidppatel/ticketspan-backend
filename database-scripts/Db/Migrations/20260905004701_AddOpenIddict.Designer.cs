@@ -3,6 +3,7 @@ using System;
 using Db;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NpgsqlTypes;
@@ -12,9 +13,11 @@ using NpgsqlTypes;
 namespace Db.Migrations
 {
     [DbContext(typeof(EventPlatformDbContext))]
-    partial class EventPlatformDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260905004701_AddOpenIddict")]
+    partial class AddOpenIddict
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -4328,7 +4331,7 @@ namespace Db.Migrations
                     b.Property<string>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("text")
-                        .HasColumnName("id");
+                        .HasColumnName("OpenIddictApplications_id");
 
                     b.Property<string>("ApplicationType")
                         .HasMaxLength(50)
@@ -4411,7 +4414,7 @@ namespace Db.Migrations
                     b.Property<string>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("text")
-                        .HasColumnName("id");
+                        .HasColumnName("OpenIddictAuthorizations_id");
 
                     b.Property<string>("ApplicationId")
                         .HasColumnType("text")
@@ -4464,7 +4467,7 @@ namespace Db.Migrations
                     b.Property<string>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("text")
-                        .HasColumnName("id");
+                        .HasColumnName("OpenIddictScopes_id");
 
                     b.Property<string>("ConcurrencyToken")
                         .IsConcurrencyToken()
@@ -4516,7 +4519,7 @@ namespace Db.Migrations
                     b.Property<string>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("text")
-                        .HasColumnName("id");
+                        .HasColumnName("OpenIddictTokens_id");
 
                     b.Property<string>("ApplicationId")
                         .HasColumnType("text")

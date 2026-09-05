@@ -7,6 +7,7 @@ using TicketSpan.Api.Endpoints;
 using TicketSpan.Api.Endpoints.V1;
 using TicketSpan.Api.Middleware;
 using TicketSpan.Api.Security;
+using TicketSpan.Api.Security.OpenIddict;
 using TicketSpan.Api.Services;
 
 var renderPort = Environment.GetEnvironmentVariable("PORT");
@@ -22,10 +23,6 @@ builder.Services.AddDataProtection()
 
 if (!builder.Environment.IsDevelopment())
 {
-    if (string.IsNullOrEmpty(builder.Configuration["JWT_SIGNING_KEY"]))
-    {
-        throw new InvalidOperationException("JWT_SIGNING_KEY must be set outside Development");
-    }
     var hasPepper = Enumerable.Range(1, 16)
         .Any(v => !string.IsNullOrEmpty(builder.Configuration[$"PASSWORD_PEPPER_V{v}"]));
     if (!hasPepper)
@@ -87,7 +84,7 @@ builder.Services.AddCors(options =>
     }));
 
 builder.Services.AddTicketSpanApiVersioning();
-builder.Services.AddTransient<TicketSpan.Api.Services.AuthServiceImpl>();
+builder.Services.AddControllers();
 builder.Services.AddTransient<TicketSpan.Api.Services.TenantServiceImpl>();
 builder.Services.AddTransient<TicketSpan.Api.Services.EventServiceImpl>();
 builder.Services.AddTransient<TicketSpan.Api.Services.VenueServiceImpl>();
@@ -135,7 +132,6 @@ else
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<ReportingAccessProvider>();
 builder.Services.AddSingleton<PasswordHasher>();
-builder.Services.AddSingleton<JwtTokenService>();
 builder.Services.AddScoped<TenantContext>();
 builder.Services.AddSingleton<TicketSpan.Api.Storage.ObjectStorage>();
 builder.Services.AddSingleton<TicketSpan.Api.Payments.StripeService>();
@@ -146,23 +142,7 @@ builder.Services.AddHostedService<TicketSpan.Api.Payments.HoldExpiryWorker>();
 builder.Services.AddHostedService<TicketSpan.Api.Payments.BillingWorker>();
 builder.Services.AddHostedService<TicketSpan.Api.Services.EventReminderWorker>();
 
-var jwtService = new JwtTokenService(builder.Configuration);
-var validation = jwtService.ValidationParameters;
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.MapInboundClaims = false;
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = validation.Issuer,
-            ValidAudience = validation.Audience,
-            IssuerSigningKey = validation.Key
-        };
-    });
+builder.Services.AddTicketSpanOpenIddict(builder.Configuration, builder.Environment);
 builder.Services.AddAuthorization();
 
 var rateLimitPolicy = new RateLimitPolicy(builder.Configuration);
@@ -172,6 +152,7 @@ builder.Services.AddRateLimiter(rateLimitPolicy.Configure);
 var app = builder.Build();
 
 await app.Services.GetRequiredService<StartupSeeder>().SeedAsync(CancellationToken.None);
+await OpenIddictSeeder.SeedAsync(app.Services);
 
 app.UseMiddleware<TicketSpan.Api.ErrorHandling.ErrorLoggingMiddleware>();
 app.UseRouting();
@@ -183,7 +164,7 @@ app.UseMiddleware<RateLimitHeaderMiddleware>();
 app.UseRateLimiter();
 app.UseMiddleware<TenantResolutionMiddleware>();
 
-app.MapGrpcService<AuthServiceImpl>();
+app.MapControllers();
 app.MapGrpcService<TenantServiceImpl>();
 app.MapGrpcService<EventServiceImpl>();
 app.MapGrpcService<VenueServiceImpl>();
@@ -210,7 +191,7 @@ app.MapGrpcService<TenantTierServiceImpl>();
 app.MapGrpcService<DeveloperBillingServiceImpl>();
 app.MapGrpcService<MaintenanceServiceImpl>();
 var v1 = app.CreateVersionedApiGroup(1, 0);
-v1.MapAuthApiV1();
+v1.MapUserApiV1();
 v1.MapEventApiV1();
 v1.MapBookingApiV1();
 v1.MapTicketApiV1();

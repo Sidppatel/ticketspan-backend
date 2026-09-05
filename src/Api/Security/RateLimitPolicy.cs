@@ -15,7 +15,8 @@ public sealed class RateLimitPolicy : IDisposable
     private const int AnonymousRequestsPerMinute = 100;
     private const int SlidingWindowSegmentsPerWindow = 6;
 
-    private const string AuthServicePathPrefix = "/ticketspan.auth.AuthService";
+    private const string AuthServicePathPrefix = "/connect";
+    private const string LegacyAuthServicePathPrefix = "/ticketspan.auth.AuthService";
     private const string HealthPathPrefix = "/health";
     private const string StripeWebhookPath = "/webhooks/stripe";
     private const string ImagesPathPrefix = "/images";
@@ -123,7 +124,8 @@ public sealed class RateLimitPolicy : IDisposable
         {
             return null;
         }
-        if (httpContext.Request.Path.StartsWithSegments(AuthServicePathPrefix))
+        if (httpContext.Request.Path.StartsWithSegments(AuthServicePathPrefix)
+            || httpContext.Request.Path.StartsWithSegments(LegacyAuthServicePathPrefix))
         {
             return new RateLimitBucket(
                 "auth:" + ResolveClientIp(httpContext),

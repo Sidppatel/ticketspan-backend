@@ -22,6 +22,20 @@ public sealed class TenantResolutionMiddleware
             var sub = user.FindFirstValue("sub") ?? user.FindFirstValue(ClaimTypes.NameIdentifier);
             if (Guid.TryParse(sub, out var usersId))
             {
+                var tokenVersionClaim = user.FindFirstValue("v");
+                if (int.TryParse(tokenVersionClaim, out var claimVersion))
+                {
+                    await using var connection = await db.OpenAsync(null, null, httpContext.RequestAborted);
+                    await using var cmd = new NpgsqlCommand(
+                        "SELECT is_active, token_version FROM vw_user_profile WHERE users_id = @u LIMIT 1", connection);
+                    cmd.Parameters.AddWithValue("u", usersId);
+                    await using var reader = await cmd.ExecuteReaderAsync(httpContext.RequestAborted);
+                    if (!await reader.ReadAsync(httpContext.RequestAborted) || !reader.GetBoolean(0) || reader.GetInt32(1) != claimVersion)
+                    {
+                        httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        return;
+                    }
+                }
                 tenantContext.UsersId = usersId;
             }
             var roleClaim = user.FindFirstValue("role") ?? user.FindFirstValue(ClaimTypes.Role);

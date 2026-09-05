@@ -67,6 +67,7 @@ public class EventPlatformDbContext(
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.UseOpenIddict();
 
         modelBuilder.Entity<Address>(entity =>
         {
@@ -1214,7 +1215,7 @@ public class EventPlatformDbContext(
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
             var tableName = entityType.GetTableName();
-            if (tableName is null)
+            if (tableName is null || tableName.StartsWith("OpenIddict", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
