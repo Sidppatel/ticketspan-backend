@@ -141,6 +141,8 @@ builder.Services.AddSingleton<TicketSpan.Api.Payments.SalesTaxService>();
 builder.Services.AddHostedService<TicketSpan.Api.Payments.HoldExpiryWorker>();
 builder.Services.AddHostedService<TicketSpan.Api.Payments.BillingWorker>();
 builder.Services.AddHostedService<TicketSpan.Api.Services.EventReminderWorker>();
+builder.Services.AddScoped<TicketSpan.Api.Services.ITableCleanupService, TicketSpan.Api.Services.TableCleanupService>();
+builder.Services.AddHostedService<TicketSpan.Api.Services.MaintenancePruningBackgroundService>();
 
 builder.Services.AddTicketSpanOpenIddict(builder.Configuration, builder.Environment);
 builder.Services.AddAuthorization();

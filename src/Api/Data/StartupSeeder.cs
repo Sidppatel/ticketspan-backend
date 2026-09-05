@@ -100,6 +100,9 @@ public sealed class StartupSeeder
             ("event_link_base", $"{tenantLinkBase}/e/{{eventId}}", "Base URL template for attendee event links."),
             ("developer_notification_email", "noreply@ticketspan.com", "From address for developer security audit alerts."),
             ("event_reminder", "[168, 48]", "reminder hours"),
+            ("audit_log_retention_days", "30", "Number of days to retain system audit and error logs before pruning."),
+            ("openiddict_token_retention_days", "7", "Number of days to retain expired/revoked OpenIddict tokens before pruning."),
+            ("openiddict_authorization_retention_days", "7", "Number of days to retain inactive/revoked OpenIddict authorizations before pruning."),
         };
     }
 

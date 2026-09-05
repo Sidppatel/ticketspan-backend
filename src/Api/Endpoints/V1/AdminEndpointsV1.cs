@@ -258,6 +258,21 @@ public static class AdminEndpointsV1
             }
         }).RequireAuthorization();
 
+        admin.MapPost("/maintenance/prune", async (
+            ITableCleanupService cleanupService,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                var summary = await cleanupService.RunFullCleanupAsync(ct);
+                return Results.Ok(new ApiEnvelope<TableCleanupSummary>(true, summary));
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(detail: ex.Message, statusCode: StatusCodes.Status500InternalServerError);
+            }
+        }).RequireAuthorization();
+
         return group;
     }
 }
