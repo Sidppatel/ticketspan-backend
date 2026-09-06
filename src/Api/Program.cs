@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.IdentityModel.Tokens;
 using TicketSpan.Api.Data;
@@ -151,10 +152,19 @@ var rateLimitPolicy = new RateLimitPolicy(builder.Configuration);
 builder.Services.AddSingleton(rateLimitPolicy);
 builder.Services.AddRateLimiter(rateLimitPolicy.Configure);
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 var app = builder.Build();
 
 await app.Services.GetRequiredService<StartupSeeder>().SeedAsync(CancellationToken.None);
 await OpenIddictSeeder.SeedAsync(app.Services);
+
+app.UseForwardedHeaders();
 
 app.UseMiddleware<TicketSpan.Api.ErrorHandling.ErrorLoggingMiddleware>();
 app.UseRouting();
