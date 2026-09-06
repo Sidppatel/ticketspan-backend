@@ -14,9 +14,43 @@ var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<str
     ["JWT_AUDIENCE"] = "ticketspan-clients"
 }).Build();
 
-var jwt = new JwtTokenService(config);
+var key = System.Text.Encoding.UTF8.GetBytes(config["JWT_SIGNING_KEY"]!);
+var tokenHandler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
+
+string IssueToken(Guid userId, string email, Guid? tenantId, int role, string tenantSlug)
+{
+    var claims = new List<System.Security.Claims.Claim>
+    {
+        new(System.Security.Claims.ClaimTypes.NameIdentifier, userId.ToString()),
+        new("sub", userId.ToString()),
+        new("email", email),
+        new("role", role.ToString()),
+        new(System.Security.Claims.ClaimTypes.Role, role.ToString()),
+        new("v", "1")
+    };
+    if (tenantId is { } tid)
+    {
+        claims.Add(new("tenants_id", tid.ToString()));
+    }
+    if (!string.IsNullOrEmpty(tenantSlug))
+    {
+        claims.Add(new("tenant_slug", tenantSlug));
+    }
+    var descriptor = new Microsoft.IdentityModel.Tokens.SecurityTokenDescriptor
+    {
+        Subject = new System.Security.Claims.ClaimsIdentity(claims),
+        Expires = DateTime.UtcNow.AddMinutes(60),
+        Issuer = "ticketspan",
+        Audience = "ticketspan-clients",
+        SigningCredentials = new Microsoft.IdentityModel.Tokens.SigningCredentials(
+            new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(key),
+            Microsoft.IdentityModel.Tokens.SecurityAlgorithms.HmacSha256Signature)
+    };
+    return tokenHandler.WriteToken(tokenHandler.CreateToken(descriptor));
+}
+
 var devUserId = Guid.Parse("20000000-0000-0000-0000-000000000099");
-var (devToken, _) = jwt.Issue(devUserId, "developer@ticketspan.test", null, 99, "");
+var devToken = IssueToken(devUserId, "developer@ticketspan.test", null, 99, "");
 
 var channel = GrpcChannel.ForAddress("http://localhost:5262");
 var headers = new Metadata { { "Authorization", $"Bearer {devToken}" } };
@@ -40,7 +74,7 @@ Console.WriteLine($"ListTenants -> total={list.Tenants.Count} found_new={(found 
 var members = await client.ListTenantMembersAsync(new UuidValue { Value = created.TenantsId }, headers);
 Console.WriteLine($"ListTenantMembers -> count={members.Members.Count} first_role={members.Members.FirstOrDefault()?.Role}");
 
-var (adminToken, _) = jwt.Issue(Guid.Parse(created.AdminUsersId), $"admin@{slug}.test", Guid.Parse(created.TenantsId), 1, slug);
+var adminToken = IssueToken(Guid.Parse(created.AdminUsersId), $"admin@{slug}.test", Guid.Parse(created.TenantsId), 1, slug);
 var adminHeaders = new Metadata { { "Authorization", $"Bearer {adminToken}" } };
 var venueClient = new TicketSpan.Protos.Catalog.VenueService.VenueServiceClient(channel);
 var venue = await venueClient.CreateVenueAsync(new TicketSpan.Protos.Catalog.CreateVenueRequest

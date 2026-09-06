@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using OpenIddict.Abstractions;
 using OpenIddict.Server.AspNetCore;
 using OpenIddict.Validation.AspNetCore;
@@ -14,12 +15,28 @@ public static class OpenIddictExtensions
         IConfiguration configuration,
         IWebHostEnvironment environment)
     {
-        var dbHost = configuration["DB_HOST"] ?? "127.0.0.1";
-        var dbPort = configuration["DB_PORT"] ?? "5432";
-        var dbUser = configuration["DB_USER"] ?? "ep_dev";
-        var dbName = configuration["DB_NAME"] ?? "event_platform";
-        var dbPassword = configuration["DB_PASSWORD"] ?? "ep_dev_password";
-        var connStr = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword}";
+        var dbHost = configuration["DB_HOST"] ?? Environment.GetEnvironmentVariable("DB_HOST") ?? "127.0.0.1";
+        var dbPort = configuration["DB_PORT"] ?? Environment.GetEnvironmentVariable("DB_PORT") ?? "5432";
+        var dbUser = configuration["DB_USER"] ?? Environment.GetEnvironmentVariable("DB_USER");
+        var dbName = configuration["DB_NAME"] ?? Environment.GetEnvironmentVariable("DB_NAME") ?? "event_platform";
+        var dbPassword = configuration["DB_PASSWORD"] ?? Environment.GetEnvironmentVariable("DB_PASSWORD");
+        var sslMode = configuration["DATABASE_SSL_MODE"] ?? Environment.GetEnvironmentVariable("DATABASE_SSL_MODE") ?? "Disable";
+
+        if (string.IsNullOrWhiteSpace(dbUser) || string.IsNullOrWhiteSpace(dbPassword))
+        {
+            throw new InvalidOperationException("DB_USER and DB_PASSWORD environment variables are required.");
+        }
+
+        var connBuilder = new NpgsqlConnectionStringBuilder
+        {
+            Host = dbHost,
+            Port = int.TryParse(dbPort, out var parsedPort) ? parsedPort : 5432,
+            Username = dbUser,
+            Database = dbName,
+            Password = dbPassword,
+            SslMode = Enum.Parse<SslMode>(sslMode, ignoreCase: true)
+        };
+        var connStr = connBuilder.ConnectionString;
 
         services.AddDbContext<OpenIddictDbContext>(options =>
         {

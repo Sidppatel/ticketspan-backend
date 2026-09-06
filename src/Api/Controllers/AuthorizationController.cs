@@ -20,17 +20,23 @@ public sealed class AuthorizationController : ControllerBase
     private readonly IOpenIddictScopeManager scopeManager;
     private readonly Db db;
     private readonly PasswordHasher passwordHasher;
+    private readonly IConfiguration configuration;
+    private readonly IWebHostEnvironment environment;
 
     public AuthorizationController(
         IOpenIddictApplicationManager applicationManager,
         IOpenIddictScopeManager scopeManager,
         Db db,
-        PasswordHasher passwordHasher)
+        PasswordHasher passwordHasher,
+        IConfiguration configuration,
+        IWebHostEnvironment environment)
     {
         this.applicationManager = applicationManager;
         this.scopeManager = scopeManager;
         this.db = db;
         this.passwordHasher = passwordHasher;
+        this.configuration = configuration;
+        this.environment = environment;
     }
 
     [HttpGet("~/connect/authorize")]
@@ -39,7 +45,20 @@ public sealed class AuthorizationController : ControllerBase
     public async Task<IActionResult> Authorize()
     {
         Response.Headers.Remove("X-Frame-Options");
-        Response.Headers["Content-Security-Policy"] = "frame-ancestors 'self' http://localhost:* http://*.localhost:* https://ticketspan.com https://*.ticketspan.com";
+        var isDev = environment.IsDevelopment() || string.Equals(configuration["ASPNETCORE_ENVIRONMENT"], "Development", StringComparison.OrdinalIgnoreCase);
+        var mainDomain = configuration["MAIN_DOMAIN"] ?? configuration["FRONTEND_BASE_DOMAIN"] ?? configuration["CORS_BASE_DOMAIN"];
+        var hasMainDomain = !string.IsNullOrWhiteSpace(mainDomain) && !mainDomain.Equals("localhost", StringComparison.OrdinalIgnoreCase);
+
+        var csp = "frame-ancestors 'self'";
+        if (isDev)
+        {
+            csp += " http://localhost:* http://*.localhost:*";
+        }
+        if (hasMainDomain)
+        {
+            csp += $" https://{mainDomain} https://*.{mainDomain}";
+        }
+        Response.Headers["Content-Security-Policy"] = csp;
 
         var request = HttpContext.GetOpenIddictServerRequest()
             ?? throw new InvalidOperationException("The OpenID Connect request cannot be retrieved.");
@@ -60,19 +79,24 @@ public sealed class AuthorizationController : ControllerBase
 
             var returnUrl = Microsoft.AspNetCore.Http.Extensions.UriHelper.GetEncodedUrl(Request);
             var redirectParam = request.RedirectUri;
-            string loginBaseUrl = "http://localhost:5173/login";
+            var frontendPort = configuration["FRONTEND_PORT"] ?? "5173";
+            var localPortSuffix = string.IsNullOrEmpty(frontendPort) || frontendPort == "80" ? "" : $":{frontendPort}";
+            string loginBaseUrl = isDev
+                ? $"http://localhost{localPortSuffix}/login"
+                : (hasMainDomain ? $"https://{mainDomain}/login" : "/login");
+
             if (!string.IsNullOrEmpty(redirectParam) && Uri.TryCreate(redirectParam, UriKind.Absolute, out var rUri))
             {
                 var host = rUri.Host;
                 var scheme = rUri.Scheme;
                 var port = rUri.IsDefaultPort ? "" : $":{rUri.Port}";
-                if (host == "localhost" || host.EndsWith(".localhost"))
+                if (isDev && (host == "localhost" || host.EndsWith(".localhost")))
                 {
                     loginBaseUrl = $"{scheme}://localhost{port}/login";
                 }
-                else if (host.EndsWith("ticketspan.com"))
+                else if (hasMainDomain && (host.Equals(mainDomain, StringComparison.OrdinalIgnoreCase) || host.EndsWith("." + mainDomain, StringComparison.OrdinalIgnoreCase)))
                 {
-                    loginBaseUrl = $"{scheme}://ticketspan.com{port}/login";
+                    loginBaseUrl = $"{scheme}://{mainDomain}{port}/login";
                 }
             }
             return Redirect($"{loginBaseUrl}?returnUrl={Uri.EscapeDataString(returnUrl)}&session_expired=1");
@@ -555,7 +579,7 @@ public sealed class AuthorizationController : ControllerBase
         {
             return null;
         }
-        await using var cmd = new NpgsqlCommand("SELECT tenants_id FROM tenants WHERE slug = @s AND archived_at IS NULL LIMIT 1", connection);
+        await using var cmd = new NpgsqlCommand("SELECT tenants_id FROM vw_tenants WHERE slug = @s AND archived_at IS NULL LIMIT 1", connection);
         cmd.Parameters.AddWithValue("s", slug);
         var res = await cmd.ExecuteScalarAsync(ct);
         return res is Guid g ? g : null;

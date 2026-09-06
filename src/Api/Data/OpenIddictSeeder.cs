@@ -1,3 +1,6 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Npgsql;
 using OpenIddict.Abstractions;
 
@@ -5,11 +8,21 @@ namespace TicketSpan.Api.Data;
 
 public static class OpenIddictSeeder
 {
+    private static readonly string[] SystemSubdomains = ["admin", "staff", "developer"];
+
     public static async Task SeedAsync(IServiceProvider serviceProvider)
     {
         await using var scope = serviceProvider.CreateAsyncScope();
         var manager = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
         var db = scope.ServiceProvider.GetRequiredService<Db>();
+        var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+        var environment = scope.ServiceProvider.GetRequiredService<IWebHostEnvironment>();
+
+        var isDev = environment.IsDevelopment() || string.Equals(configuration["ASPNETCORE_ENVIRONMENT"], "Development", StringComparison.OrdinalIgnoreCase);
+        var frontendPort = configuration["FRONTEND_PORT"] ?? "5173";
+        var localPortSuffix = string.IsNullOrEmpty(frontendPort) || frontendPort == "80" ? "" : $":{frontendPort}";
+        var mainDomain = configuration["MAIN_DOMAIN"] ?? configuration["FRONTEND_BASE_DOMAIN"] ?? configuration["CORS_BASE_DOMAIN"];
+        var hasMainDomain = !string.IsNullOrWhiteSpace(mainDomain) && !mainDomain.Equals("localhost", StringComparison.OrdinalIgnoreCase);
 
         var tenantSlugs = new List<string>();
         await using (var connection = await db.OpenAsync(null, null, CancellationToken.None))
@@ -29,29 +42,40 @@ public static class OpenIddictSeeder
             }
         }
 
-        var redirectUris = new HashSet<Uri>
-        {
-            new("http://localhost:5173/callback"),
-            new("http://localhost:5173/silent-renew.html"),
-            new("https://ticketspan.com/callback"),
-            new("https://ticketspan.com/silent-renew.html")
-        };
+        var redirectUris = new HashSet<Uri>();
+        var postLogoutUris = new HashSet<Uri>();
 
-        var postLogoutUris = new HashSet<Uri>
+        void AddHostUris(string host, string scheme)
         {
-            new("http://localhost:5173/"),
-            new("https://ticketspan.com/")
-        };
+            redirectUris.Add(new Uri($"{scheme}://{host}/callback"));
+            redirectUris.Add(new Uri($"{scheme}://{host}/silent-renew.html"));
+            postLogoutUris.Add(new Uri($"{scheme}://{host}/"));
+        }
 
-        foreach (var slug in tenantSlugs)
+        if (isDev)
         {
-            redirectUris.Add(new Uri($"http://{slug}.localhost:5173/callback"));
-            redirectUris.Add(new Uri($"http://{slug}.localhost:5173/silent-renew.html"));
-            redirectUris.Add(new Uri($"https://{slug}.ticketspan.com/callback"));
-            redirectUris.Add(new Uri($"https://{slug}.ticketspan.com/silent-renew.html"));
+            AddHostUris($"localhost{localPortSuffix}", "http");
+            foreach (var sub in SystemSubdomains)
+            {
+                AddHostUris($"{sub}.localhost{localPortSuffix}", "http");
+            }
+            foreach (var slug in tenantSlugs)
+            {
+                AddHostUris($"{slug}.localhost{localPortSuffix}", "http");
+            }
+        }
 
-            postLogoutUris.Add(new Uri($"http://{slug}.localhost:5173/"));
-            postLogoutUris.Add(new Uri($"https://{slug}.ticketspan.com/"));
+        if (hasMainDomain)
+        {
+            AddHostUris(mainDomain!, "https");
+            foreach (var sub in SystemSubdomains)
+            {
+                AddHostUris($"{sub}.{mainDomain}", "https");
+            }
+            foreach (var slug in tenantSlugs)
+            {
+                AddHostUris($"{slug}.{mainDomain}", "https");
+            }
         }
 
         var client = await manager.FindByClientIdAsync("ticketspan_spa");
@@ -128,6 +152,73 @@ public static class OpenIddictSeeder
                 }
             }
 
+            await manager.UpdateAsync(client, descriptor);
+        }
+    }
+
+    public static async Task RegisterTenantUrisAsync(
+        IOpenIddictApplicationManager manager,
+        IConfiguration configuration,
+        IWebHostEnvironment environment,
+        string slug)
+    {
+        if (string.IsNullOrWhiteSpace(slug))
+        {
+            return;
+        }
+
+        var client = await manager.FindByClientIdAsync("ticketspan_spa");
+        if (client is null)
+        {
+            return;
+        }
+
+        var isDev = environment.IsDevelopment() || string.Equals(configuration["ASPNETCORE_ENVIRONMENT"], "Development", StringComparison.OrdinalIgnoreCase);
+        var frontendPort = configuration["FRONTEND_PORT"] ?? "5173";
+        var localPortSuffix = string.IsNullOrEmpty(frontendPort) || frontendPort == "80" ? "" : $":{frontendPort}";
+        var mainDomain = configuration["MAIN_DOMAIN"] ?? configuration["FRONTEND_BASE_DOMAIN"] ?? configuration["CORS_BASE_DOMAIN"];
+        var hasMainDomain = !string.IsNullOrWhiteSpace(mainDomain) && !mainDomain.Equals("localhost", StringComparison.OrdinalIgnoreCase);
+
+        var newRedirectUris = new List<Uri>();
+        var newPostLogoutUris = new List<Uri>();
+
+        if (isDev)
+        {
+            newRedirectUris.Add(new Uri($"http://{slug}.localhost{localPortSuffix}/callback"));
+            newRedirectUris.Add(new Uri($"http://{slug}.localhost{localPortSuffix}/silent-renew.html"));
+            newPostLogoutUris.Add(new Uri($"http://{slug}.localhost{localPortSuffix}/"));
+        }
+
+        if (hasMainDomain)
+        {
+            newRedirectUris.Add(new Uri($"https://{slug}.{mainDomain}/callback"));
+            newRedirectUris.Add(new Uri($"https://{slug}.{mainDomain}/silent-renew.html"));
+            newPostLogoutUris.Add(new Uri($"https://{slug}.{mainDomain}/"));
+        }
+
+        var descriptor = new OpenIddictApplicationDescriptor();
+        await manager.PopulateAsync(descriptor, client);
+
+        var changed = false;
+        foreach (var uri in newRedirectUris)
+        {
+            if (!descriptor.RedirectUris.Contains(uri))
+            {
+                descriptor.RedirectUris.Add(uri);
+                changed = true;
+            }
+        }
+        foreach (var uri in newPostLogoutUris)
+        {
+            if (!descriptor.PostLogoutRedirectUris.Contains(uri))
+            {
+                descriptor.PostLogoutRedirectUris.Add(uri);
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
             await manager.UpdateAsync(client, descriptor);
         }
     }

@@ -1,5 +1,6 @@
 using Grpc.Core;
 using Npgsql;
+using OpenIddict.Abstractions;
 using TicketSpan.Api.Data;
 using TicketSpan.Api.Email;
 using TicketSpan.Api.Payments;
@@ -14,6 +15,8 @@ public sealed class TenantServiceImpl : TenantService.TenantServiceBase
     private readonly Db db;
     private readonly TenantContext tenantContext;
     private readonly IConfiguration configuration;
+    private readonly IWebHostEnvironment environment;
+    private readonly IOpenIddictApplicationManager applicationManager;
     private readonly StripeService stripe;
     private readonly IEmailService email;
     private readonly EmailTemplateRenderer templates;
@@ -21,12 +24,15 @@ public sealed class TenantServiceImpl : TenantService.TenantServiceBase
     private readonly ILogger<TenantServiceImpl> logger;
 
     public TenantServiceImpl(Db db, TenantContext tenantContext, IConfiguration configuration,
+        IWebHostEnvironment environment, IOpenIddictApplicationManager applicationManager,
         StripeService stripe, IEmailService email, EmailTemplateRenderer templates,
         AppSettingsProvider settings, ILogger<TenantServiceImpl> logger)
     {
         this.db = db;
         this.tenantContext = tenantContext;
         this.configuration = configuration;
+        this.environment = environment;
+        this.applicationManager = applicationManager;
         this.stripe = stripe;
         this.email = email;
         this.templates = templates;
@@ -106,6 +112,15 @@ public sealed class TenantServiceImpl : TenantService.TenantServiceBase
             {
                 logger.LogError(ex, "Failed to pre-create Stripe account for tenant {Tenant}", tenantsId);
             }
+        }
+
+        try
+        {
+            await OpenIddictSeeder.RegisterTenantUrisAsync(applicationManager, configuration, environment, request.Slug);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to register OpenIddict URIs for tenant {Slug}", request.Slug);
         }
 
         var setupBase = await settings.GetStringAsync("tenant_setup_link_base", "http://admin.localhost:5173/set-password", ct);
